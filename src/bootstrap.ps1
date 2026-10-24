@@ -1,0 +1,25 @@
+﻿# Ordered module manifest shared by the entry point and parallel workers.
+$script:WorkflowModuleFiles = @(
+    'application/workspace.ps1'
+    'infrastructure/file-system.ps1'
+    'infrastructure/codex.ps1'
+    'infrastructure/url-queue.ps1'
+    'infrastructure/csv.ps1'
+    'infrastructure/source-catalog.ps1'
+    'domain/product-context.ps1'
+    'domain/writing-style.ps1'
+    'workflow/steps/01-load-product.ps1'
+    'workflow/steps/02-select-references.ps1'
+    'workflow/steps/03-create-image.ps1'
+    'workflow/steps/04-validate-image.ps1'
+    'workflow/steps/05-write-review.ps1'
+    'workflow/steps/06-complete-metadata.ps1'
+    'workflow/steps/07-export-results.ps1'
+    'workflow/product-workflow.ps1'
+    'application/batch-folders.ps1'
+    'application/reference-archive.ps1'
+    'application/missing-data.ps1'
+    'workflow/batch-workflow.ps1'
+    'application/configuration.ps1'
+) | ForEach-Object { Join-Path $PSScriptRoot $_ }
+foreach ($moduleFile in $script:WorkflowModuleFiles) { . $moduleFile }

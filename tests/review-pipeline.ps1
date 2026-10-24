@@ -1,0 +1,158 @@
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
+# Offline integration test: real runspaces with mocked external AI/image IO.
+$ErrorActionPreference = 'Stop'
+$root = Split-Path $PSScriptRoot -Parent
+$tempRoot = Join-Path $TestWorkspaceRoot ('review-pipeline-test-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $tempRoot | Out-Null
+function Assert($Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
+try {
+    Copy-Item -LiteralPath (Join-Path $root 'src') -Destination $tempRoot -Recurse
+    $lib = Join-Path $tempRoot 'src'
+    'function Get-Reference($Url, $ItemId) { $path = Join-Path $script:Batch.Refs "$ItemId.png"; "product" | Set-Content $path; return $path }' | Add-Content (Join-Path $lib 'workflow/steps/01-load-product.ps1')
+    $sources = Join-Path $tempRoot 'data/source-photos/polo-shirts'
+    New-Item -ItemType Directory -Path $sources -Force | Out-Null
+    $stock = Join-Path $tempRoot 'data/source-photos/outdoor-sports'
+    $mixed = Join-Path $tempRoot 'data/source-photos/mixed'
+    New-Item -ItemType Directory -Path $stock, $mixed -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $root 'data/review-style.json') -Destination (Join-Path $tempRoot 'data/review-style.json')
+    Copy-Item -LiteralPath (Join-Path $root 'data/product-contexts.json') -Destination (Join-Path $tempRoot 'data/product-contexts.json')
+    Copy-Item -LiteralPath (Join-Path $root 'data/writing-style.json') -Destination (Join-Path $tempRoot 'data/writing-style.json')
+    $fixtureContexts = Get-Content (Join-Path $tempRoot 'data/product-contexts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    $fixture = $fixtureContexts.profiles | Where-Object id -eq polo | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $fixture.id = 'fixture'; $fixture.pattern = '^(one|two|fail)$'
+    $fixture.source_categories = @('polo-shirts', 'outdoor-sports')
+    $fixtureContexts.profiles = @($fixture) + @($fixtureContexts.profiles)
+    $fixtureContexts | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $tempRoot 'data/product-contexts.json') -Encoding UTF8
+    $styleDir = Join-Path $tempRoot 'data/image-style'
+    New-Item -ItemType Directory -Path $styleDir | Out-Null
+    'photography example' | Set-Content (Join-Path $styleDir 'example.png')
+    'original one' | Set-Content (Join-Path $sources 'one.png')
+    'stock two' | Set-Content (Join-Path $stock 'two.png')
+    'mixed flat lay' | Set-Content (Join-Path $mixed 'flat.png')
+    @{ schema_version = 1; photos = @(
+        @{ file = 'polo-shirts/one.png'; category = 'polo-shirts'; source_kind = 'original' },
+        @{ file = 'outdoor-sports/two.png'; category = 'outdoor-sports'; source_kind = 'stock' },
+        @{ file = 'mixed/flat.png'; category = 'mixed'; source_kind = 'review' }
+    ) } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $tempRoot 'data/source-photos/catalog.json')
+    $sourceHashes = @(Get-ChildItem (Join-Path $tempRoot 'data/source-photos') -Recurse -File | Get-FileHash)
+    @'
+function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
+    $saved = @(Import-Csv -LiteralPath $script:Batch.Csv)
+    if (@($saved | Where-Object { $_.rating -or $_.author -or $_.email -or $_.created_at }).Count) {
+        throw 'Metadata was assigned before AI work ended.'
+    }
+    if ($ResultFile -like '*-context.txt') {
+        return '{"category_key":"polo","existing_profile":"fixture","product":"polo shirt","presentation":"worn","setting":"patio","details":"Navy panels and collar trim","reject":"bedroom","search_query":"polo shirt real photos"}'
+    }
+    if ($ResultFile -like '*-fit-*.txt') {
+        if ($Images[0] -like '*mixed*') { throw 'Unrelated review photos must not precede matching references.' }
+        if ($ResultFile -like '*-p2-fit-*.txt' -and $PromptText -notmatch 'BACKGROUND/SCENE') { throw 'Second source must be evaluated for its scene, not its person.' }
+        if ($ResultFile -like '*-p2-fit-*.txt' -and $Images.Count -ne 3) { throw 'Scene compatibility must include the selected person.' }
+        'FIT' | Set-Content -LiteralPath $ResultFile; return 'FIT'
+    }
+    if ($ResultFile -like '*-quality-*.txt') {
+        if ($Images.Count -ne 2 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Quality check needs the generated image and actual product.' }
+        'PASS' | Set-Content -LiteralPath $ResultFile
+        return 'PASS'
+    }
+    if ($ResultFile -like '*-review.txt') {
+        if ($Images.Count -ne 1 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Review missing finished image.' }
+        if ($PromptText -notmatch 'Writing style direction') { throw 'Missing data-driven writing style.' }
+        if ($PromptText -notmatch 'Editorial guidance: Start with the visible detail' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing natural writing rules or factual constraints.' }
+        if ($ResultFile -like '*-one-review.txt' -and $PromptText -notmatch '\(detail-first\)') { throw 'Incorrect first writing style.' }
+        if ($ResultFile -like '*-two-review.txt' -and $PromptText -notmatch '\(quiet-opinion\)') { throw 'Writing style did not vary by item.' }
+        if ($ResultFile -like '*-fail-review.txt' -and -not (Test-Path (Join-Path $script:Config.SourceDir 'allow-review-success.flag'))) { throw 'Simulated review failure' }
+        Start-Sleep -Milliseconds 500
+        "Like the navy pattern.`nIt looks good with my shorts." | Set-Content -LiteralPath $ResultFile
+        return "Like the navy pattern.`nIt looks good with my shorts."
+    }
+    $fitPattern = $ResultFile -replace '-image.txt$', '-p*-fit-*.txt'
+    if (@(Get-ChildItem -Path $fitPattern).Count -ne 2) { throw 'All references must be selected before generating the final image.' }
+    if ($Images.Count -ne 4 -or $Images[0] -eq $Images[1]) { throw 'Expected distinct subject and scene, product reference, and style example.' }
+    if ($Images[2] -notlike '*-product.png' -or $Images[3] -notlike '*-style.png') { throw 'Product/style reference order is incorrect.' }
+    if ($PromptText -notmatch 'one continuous camera frame' -or $PromptText -notmatch 'Image 3 is the PRODUCT reference' -or $PromptText -notmatch 'Image 4 is a photography style example only') { throw 'Missing single-scene reference roles.' }
+    if ($PromptText -notmatch 'If it has one, replace it at the same position' -or $PromptText -notmatch 'If it has no logo or brand mark, add none' -or $PromptText -notmatch 'Choose a name that fits this product and this scene') { throw 'Logo must be replaced only when the product has one.' }
+    if ($PromptText -notmatch '(?m)^Save a new PNG at this exact path: (.+)$') { throw 'Missing image output path.' }
+    'image' | Set-Content -LiteralPath $Matches[1].Trim()
+    'image call' | Set-Content -LiteralPath $ResultFile
+    return 'BRAND: Demo'
+}
+'@ | Set-Content (Join-Path $lib 'infrastructure/codex.ps1')
+    $queue = Join-Path $tempRoot 'workspace/urls.txt'
+    New-Item -ItemType Directory -Force (Split-Path $queue -Parent) | Out-Null
+    @('https://example.test/products/one', 'https://example.test/products/two', 'https://example.test/products/fail') | Set-Content $queue
+    $batchFailed = $false
+    try {
+        & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2
+    } catch {
+        if ($_.Exception.Message -notlike 'Batch incomplete:*') { throw }
+        $batchFailed = $true
+    }
+    Assert $batchFailed 'Partial batches must report failure to the GUI.'
+    $csv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter loox_import.csv -Recurse | Select-Object -First 1
+    $rows = @(Import-Csv $csv.FullName)
+    if ($rows.Count -ne 2) { Get-ChildItem $csv.DirectoryName -Recurse -Filter '*-error.txt' | ForEach-Object { Get-Content $_.FullName | Write-Host } }
+    Assert ($rows.Count -eq 2) 'Expected two successful reviews.'
+    Assert (-not @(Get-ChildItem $csv.DirectoryName -Recurse -Filter '*.html')) 'Batch must not contain HTML galleries.'
+    $bundles = @(Get-ChildItem (Join-Path $csv.DirectoryName 'refs') -Recurse -File -Filter 'manifest.json')
+    Assert (-not @(Get-ChildItem (Join-Path $csv.DirectoryName 'refs') -File)) 'Product image must be stored once, inside refs/<item>/.'
+    Assert ($bundles.Count -eq 3) 'Successful and failed products must retain their actual selected inputs.'
+    foreach ($bundle in $bundles) {
+        $manifest = Get-Content $bundle.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+        Assert ($manifest.images.Count -eq 4) 'Incomplete archived input set.'
+    }
+    $expected = 'product_handle,rating,author,email,body,created_at,photo_url,verified_purchase'
+    Assert (($rows[0].PSObject.Properties.Name -join ',') -eq $expected) 'Incorrect import columns.'
+    foreach ($row in $rows) {
+        Assert ($row.rating -in @('4', '5')) 'Invalid rating.'
+        Assert ($row.author -and $row.email -match '^[a-z0-9.]+@int$') 'Missing author/@int email.'
+        Assert ($row.verified_purchase -ceq 'true') 'verified_purchase must be true.'
+        Assert ($row.body -eq 'Like the navy pattern. It looks good with my shorts.') 'Review whitespace was not normalized.'
+        Assert (Test-Path -LiteralPath $row.photo_url) 'Missing final single-scene image.'
+        $date = [DateTime]::ParseExact($row.created_at, "yyyy-MM-dd HH:mm:ss 'UTC'", [Globalization.CultureInfo]::InvariantCulture)
+        Assert ($date.Year -eq [DateTime]::UtcNow.Year -and $date -le [DateTime]::UtcNow) 'Timestamp outside current year.'
+    }
+    Assert ((Get-Content $queue -Raw).Trim() -eq 'https://example.test/products/fail') 'Incorrect queue checkpoint.'
+    foreach ($sourceHash in $sourceHashes) {
+        Assert (Test-Path -LiteralPath $sourceHash.Path) 'Source photo was removed or moved.'
+        Assert ((Get-FileHash -LiteralPath $sourceHash.Path).Hash -eq $sourceHash.Hash) 'Source photo was modified.'
+    }
+    Assert (-not (Test-Path (Join-Path $tempRoot 'used'))) 'The workflow must not create a used directory.'
+    Assert (@(Get-Content (Join-Path $csv.DirectoryName 'urls.input.txt')).Count -eq 3) 'Input URL history must stay in the output batch.'
+    Assert (@(Get-Content (Join-Path $csv.DirectoryName 'urls.completed.txt')).Count -eq 2) 'Completed URL checkpoint must stay in the output batch.'
+    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-image.txt' -Recurse).Count -eq 3) 'Expected one image AI call per product, not one per reference.'
+    Assert (-not (Test-Path (Join-Path $csv.DirectoryName 'parts'))) 'Single-scene runs must not create a collage parts folder.'
+    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-review.txt' -Recurse).Count -eq 2) 'Unexpected review AI calls.'
+    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-quality-1.txt' -Recurse).Count -eq 3) 'Each image must be checked before review/export.'
+    # Resume the failed queue through the same public entry point.
+    'allow success' | Set-Content (Join-Path $tempRoot 'data/source-photos/allow-review-success.flag')
+    & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2
+    Assert (-not ([IO.File]::ReadAllText($queue).Trim())) 'Successful retry must empty the queue.'
+    $retryCsv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter loox_import.csv -Recurse | Where-Object FullName -ne $csv.FullName
+    $retryRows = @(Import-Csv $retryCsv.FullName)
+    Assert ($retryRows.Count -eq 1 -and $retryRows[0].product_handle -eq 'fail' -and $retryRows[0].author) 'Retry must export only the previously failed product with final metadata.'
+    & (Join-Path $tempRoot 'src/run-images.ps1') -List $queue
+    Assert (@(Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Directory).Count -eq 2) 'Empty queue must not create an extra batch.'
+    . (Join-Path $root 'src/bootstrap.ps1')
+    $profiles = @(Get-ReviewStyleProfiles (Join-Path $root 'data/review-style.json'))
+    Assert ($profiles.Count -eq 8) 'Expected eight review style profiles.'
+    $styleData = Get-Content (Join-Path $root 'data/review-style.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert ($styleData.statistics.reviews -eq $styleData.features.Count) 'Review feature count mismatch.'
+    Assert (@($styleData.features.text_sha256 | Sort-Object -Unique).Count -eq $styleData.features.Count) 'Duplicate review writing records.'
+    Assert (@($styleData.features | Where-Object { $_.source_url -isnot [string] -or $_.source_url -notmatch '^https://' -or -not $_.review_id }).Count -eq 0) 'Review feature provenance is invalid.'
+    Assert (@(Get-ReviewStyleProfiles (Join-Path $tempRoot 'missing-style.json')).Count -eq 0) 'Missing style data should allow fallback.'
+    $namesPath = Join-Path $tempRoot 'names.txt'
+    @('Example Name', '测试') | Set-Content $namesPath -Encoding UTF8
+    Complete-ReviewMetadata $rows $namesPath
+    Assert (@($rows | Where-Object { $_.author -notin @('Example Name', '测试') }).Count -eq 0) 'Custom name pool ignored.'
+    Assert (@($rows | Where-Object { $_.email -notmatch '^[a-z0-9.]+@int$' }).Count -eq 0) 'Invalid fallback email.'
+    Save-Csv @() (Join-Path $tempRoot 'empty.csv')
+    Assert ((Get-Content (Join-Path $tempRoot 'empty.csv')) -eq ('"' + ($expected -replace ',', '","') + '"')) 'Empty CSV header incorrect.'
+    Write-Host 'PASS: parallel image/review pipeline, local final metadata, CSV, failed queue, name pools.' -ForegroundColor Green
+} finally {
+    $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
+    $allowedParent = [IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\') + '\'
+    if ($resolvedTemp.StartsWith($allowedParent, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolvedTemp -Leaf) -like 'review-pipeline-test-*') {
+        Remove-Item -LiteralPath $resolvedTemp -Recurse -Force
+    }
+}

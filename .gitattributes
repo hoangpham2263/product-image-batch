@@ -1,0 +1,2 @@
+# Preserve captured evidence bytes and avoid whitespace linting third-party HTML.
+data/review-collection/page-*.html -text -diff -whitespace
