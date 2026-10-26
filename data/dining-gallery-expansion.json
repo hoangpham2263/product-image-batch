@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "collection_id": "dining-gallery-expansion-2026-10-26",
+  "collected_at": "2026-10-26",
+  "photos_added": 38,
+  "category": "dining-tables",
+  "total_dining_photos": 46,
+  "purpose": "Immutable real-room base photographs for localized product compositing. These are reference rooms, not reviews of the target product.",
+  "source_pages": [
+    "https://amishhg.com/customer-photos/",
+    "https://dutchcraftfurniture.com/pages/customer-photos",
+    "https://dutchcraftfurniture.com/pages/large-dining-tables",
+    "https://www.theamishhome.com/customers-photos",
+    "https://www.theappelshop.com/things-weve-built-kitchen-dining-pg-1",
+    "https://www.theappelshop.com/things-weve-built-kitchen-dining-pg-2"
+  ],
+  "rights_status": "not_granted_by_download",
+  "selection": "Contact sheets visually inspected; excluded close-ups, collages, outdoor scenes, unrelated products, insufficient resolution and exact SHA256 duplicates. Minimum shorter edge 600 pixels. No image pixels edited after download.",
+  "product_fit_scope": "Fit checks apply only to the identical SHA256 product image. They inspect room suitability and do not certify a successful generated composite.",
+  "product_image_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+  "fit_checks": [
+    {
+      "file": "dining-tables/dutch-006.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "Insufficient clear length for the complete 12-chair set between the rear windows and foreground edge without encroaching on the wicker seating.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutch-010.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The existing long dining arrangement provides a plausible replacement footprint, with visible surrounding floor and a compatible camera angle for all 12 chairs.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/amishhome-071.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "The replacement area is constrained by the rear wall, side cabinets and foreground edge; sufficient length for the complete set is uncertain.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-006.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "Tight foreground and narrow bench-side clearance leave insufficient visible space for all 12 complete chairs.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-007.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The larger existing dining footprint and visible surrounding floor plausibly accommodate the complete set.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-008.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "The cabinet, side walls and tight foreground constrain the length and chair clearance needed for the complete set.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-009.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "The foreground seating is already cropped, and the enclosed dining area offers no clear space to reposition the complete set.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-011.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The substantially larger existing table footprint allows the complete set to sit farther inside the frame with chair clearance.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-035.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The oversized dining footprint provides a plausible interior placement for the shorter complete set despite the current table extending outside the frame.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-055.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The large existing dining footprint and open foreground plausibly allow the complete set to be positioned fully within the frame.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-058.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "NOFIT",
+      "reason": "Kitchen cabinetry and the window seat restrict expansion beyond the smaller existing dining footprint.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    },
+    {
+      "file": "dining-tables/dutchlarge-059.jpg",
+      "product_sha256": "4208d6d9d6ffd1300c31ac318933676ca3bf0de6480e995f466278bfb44b954e",
+      "product_url": "https://bangometay.com/p/bo-ban-an-12-ghe-go-me-tay-sang-trong/",
+      "verdict": "FIT",
+      "reason": "The long existing table footprint and visible foreground floor plausibly accommodate the complete set at dining height.",
+      "method": "model_visual_room_suitability_inspection_not_generation_test",
+      "checked_at": "2026-10-26"
+    }
+  ],
+  "files": [
+    "dining-tables/appel-dining-002.jpg",
+    "dining-tables/appel-dining-007.jpg",
+    "dining-tables/appel-dining-028.jpg",
+    "dining-tables/appel-dining-031.jpg",
+    "dining-tables/appel-dining-041.jpg",
+    "dining-tables/appel-dining-077.jpg",
+    "dining-tables/appel-dining-103.jpg",
+    "dining-tables/appel-dining2-060.jpg",
+    "dining-tables/appel-dining2-089.jpg",
+    "dining-tables/appel-dining2-098.jpg",
+    "dining-tables/amish-002.jpg",
+    "dining-tables/amish-007.jpg",
+    "dining-tables/dutch-001.jpg",
+    "dining-tables/dutch-004.jpg",
+    "dining-tables/dutch-006.jpg",
+    "dining-tables/dutch-009.jpg",
+    "dining-tables/dutch-010.jpg",
+    "dining-tables/dutch-012.jpg",
+    "dining-tables/amishhome-001.jpg",
+    "dining-tables/amishhome-006.jpg",
+    "dining-tables/amishhome-007.jpg",
+    "dining-tables/amishhome-016.jpg",
+    "dining-tables/amishhome-025.jpg",
+    "dining-tables/amishhome-027.jpg",
+    "dining-tables/amishhome-034.jpg",
+    "dining-tables/amishhome-038.jpg",
+    "dining-tables/amishhome-061.jpg",
+    "dining-tables/amishhome-066.jpg",
+    "dining-tables/amishhome-071.jpg",
+    "dining-tables/dutchlarge-006.jpg",
+    "dining-tables/dutchlarge-007.jpg",
+    "dining-tables/dutchlarge-008.jpg",
+    "dining-tables/dutchlarge-009.jpg",
+    "dining-tables/dutchlarge-011.jpg",
+    "dining-tables/dutchlarge-035.jpg",
+    "dining-tables/dutchlarge-055.jpg",
+    "dining-tables/dutchlarge-058.jpg",
+    "dining-tables/dutchlarge-059.jpg"
+  ]
+}

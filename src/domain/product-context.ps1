@@ -35,7 +35,9 @@ use that exact key; otherwise a stable broad category in lowercase kebab-case, e
 product: short accurate product name;
 presentation: one of worn, held, placed, vehicle (how it should appear, not its industry);
 setting: an ordinary real use setting, relevant objects and a plausible activity;
+For placed furniture describe only the compatible room/use visible in the source, without proposing meals, tableware, books, plants, people or decorations to add. Absence is intentional: do not fill empty space to stage a lifestyle scene. Identify included components only when supported by the actual product, not surrounding staged accessories.
 details: visible geometry, colors, materials and markings to preserve, no guessed specifications;
+Photo watermarks, corner logos, seller stamps and website overlays are not product markings. Exclude them from details to preserve; only identify branding physically applied to the product itself.
 reject: concrete scene, scale, handling or anatomy mismatches to avoid;
 Do not invent brand names, ownership, specifications, performance or customer experiences.
 If the image does not show an identifiable product, return {"error":"product not identifiable"}.
@@ -62,7 +64,7 @@ If the image does not show an identifiable product, return {"error":"product not
         setting = $result.setting
         reject = $result.reject
         details = $result.details
-        branding = 'Only if the product shows a logo: replace every real brand name, logo, wordmark, store mark and label from the product reference and source photos with one small fictional brand. Keep the product''s own artwork, print, text design and colors; only the brand identity changes.'
+        branding = 'Replace only a brand physically printed, engraved or attached to the actual product with a small fictional brand at that same physical location. Remove photo watermarks, corner logos, seller stamps and overlays entirely; never replace or relocate them. If the product itself is unbranded, add no branding. Keep unrelated product artwork, print and colors.'
         source_categories = @($result.category_key)
     }
 }

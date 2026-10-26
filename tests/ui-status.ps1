@@ -54,6 +54,16 @@ try {
     }
     if ((ConvertTo-UiEvent '  [DOWNLOAD-RETRY] Attempt 2/3...  (#1)').Text -notmatch 'Đang tự thử tải lại') { throw 'Product download retry was hidden from the user.' }
     if ((ConvertTo-UiEvent '  [REFERENCE-COUNT] Using 1 checked reference(s) and their real setting.').Text -notmatch 'dùng 1 ảnh mẫu') { throw 'Reduced reference count was not explained.' }
+    if ((ConvertTo-UiEvent '[AI-CONNECTION] Connection interrupted').Text -notmatch '60 giây') { throw 'Live connection interruption is hidden.' }
+    if ((ConvertTo-UiEvent '[AI-RESUMED] Response stream resumed.').Text -notmatch 'phản hồi trở lại') { throw 'Connection recovery is hidden.' }
+    if ((ConvertTo-UiEvent '[AI-WAIT] 90/480s elapsed.').Stage -notmatch '90/480') { throw 'AI waiting time is hidden.' }
+    if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; [CAUSE:AI_TIMEOUT] AI failed').Text -notmatch 'quá thời gian chờ') { throw 'AI deadline must be explained.' }
+    if ((ConvertTo-UiEvent '[QUALITY-REASON] FAIL: The tabletop is too pale and grain is missing.').Text -notmatch 'too pale') { throw 'The concrete reason for repair was hidden.' }
+    if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; Image quality check failed: FAIL: The tabletop is too pale.').Text -notmatch 'too pale') { throw 'The final rejection reason was hidden.' }
+    $fullReason='Angular compositing seams; chair fragments remain; mask exposes unrelated floor.'
+    Receive-RunLine "[QUALITY-REASON] FAIL: $fullReason (#1)"
+    Receive-RunLine 'WARNING: [ITEM 1] Failed; Image quality check failed: FAIL: Angular compositing seams'
+    if($txtLog.Lines[-2] -notmatch [regex]::Escape($fullReason) -or $txtLog.Lines[-2] -match '\(#1\)'){throw 'Wrapped final warnings lost the complete quality reason or leaked worker tags.'}
     Write-Host 'PASS: parallel live status, completed count, user messages, retry guidance, and diagnostic filtering.' -ForegroundColor Green
 } finally {
     $txtLog.Dispose(); $lblProgress.Dispose(); $bar.Dispose()

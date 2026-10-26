@@ -73,7 +73,7 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
                 $errorLog = Join-Path $script:Batch.Logs ('{0:D3}-{1}-error.txt' -f $job.Index, $job.Item.Handle)
                 @($_ | Out-String; $_.ScriptStackTrace; $job.PS.Streams.Error | Format-List * -Force | Out-String) |
                     Set-Content -LiteralPath $errorLog -Encoding UTF8
-                $causeTag = if ($inner -match '\[CAUSE:(AUTH|QUOTA|NETWORK|BUSY|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA)\]') { $Matches[0] + ' ' } else { '' }
+                $causeTag = if ($inner -match '\[CAUSE:(AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA)\]') { $Matches[0] + ' ' } else { '' }
                 Write-Warning "[ITEM $($job.Index)] Failed; ${causeTag}URL and source kept for retry. $inner"
                     continue
                 } finally { $job.PS.Dispose() }

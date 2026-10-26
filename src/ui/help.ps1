@@ -19,10 +19,18 @@ CÁCH DÙNG
 2. Chọn tuỳ chọn:
    • Ảnh mẫu/SP: số ảnh tham khảo tối đa cho một ảnh kết quả (mặc định 2).
      Nếu chỉ có một ảnh đạt, app dùng cả người và bối cảnh thật trong ảnh đó.
+     Đồ vật như bàn ăn dùng ngay một bối cảnh đạt, không chờ tìm ảnh thứ hai.
    • Luồng: số sản phẩm xử lý cùng lúc; mặc định 1, tối đa 4.
      Khuyên dùng 1–2; nhiều luồng dùng thêm RAM, có thể làm máy chậm và hết hạn mức sớm.
 3. Bấm Bắt đầu. Khi xong, bấm Mở kết quả để lấy ảnh và CSV.
    Mỗi lần chạy là một thư mục: images/, refs/, logs/ và loox_import.csv.
+   Mỗi lượt AI chờ tối đa 3 phút; riêng tạo ảnh tối đa 8 phút.
+   Nếu mất kết nối không phục hồi trong 60 giây, app dừng lượt và giữ link để thử lại.
+4. Bấm Kiểm tra ảnh / Làm lại: chọn ảnh, so với sản phẩm gốc và ghi cụ thể chỗ sai.
+   Lưu và làm lại dùng đúng sản phẩm/phòng đã lưu; bản cũ giữ nguyên, kết quả ở thư mục mới.
+   Có thể lưu bài học cho riêng sản phẩm (mặc định) hoặc cả danh mục.
+   Tab Bài học & lịch sử cho xem lỗi, mở kết quả mới, chạy lại lượt lỗi và bật/tắt bài học.
+   Khi đã xem ảnh mới đúng yêu cầu, chọn phản hồi tương ứng và bấm Ảnh mới đã đúng.
 
 APP LÀM ĐƯỢC GÌ?
 Tạo ảnh sản phẩm và review mẫu, xuất file CSV.

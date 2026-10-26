@@ -10,6 +10,8 @@ Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. N
 
 Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồng dùng nhiều RAM và hạn mức hơn, có thể làm máy chậm.
 
+Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó và giữ URL. Lượt tạo ảnh bị gián đoạn không được tự gửi lại để tránh tạo trùng. Đây là giới hạn cho từng lượt gọi, không phải cam kết tổng thời gian cho một sản phẩm.
+
 ## Workflow
 
 | Bước | Xử lý |
@@ -26,15 +28,27 @@ Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồ
 
 ### Thư viện ảnh mẫu
 
-Ảnh gốc quyết định sản phẩm xuất hiện như thế nào: mặc, cầm, đặt trong không gian hoặc sử dụng xe.
+Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gallery của The Appel Shop, The Amish Home Gallery, The Amish Home và Dutch Craft Furniture. Nguồn, hash và kết quả kiểm tra bối cảnh lưu trong `data/source-photos/catalog.json` và `data/dining-gallery-expansion.json`. Có 6 ảnh mới đạt kiểm tra bối cảnh với ảnh sản phẩm bộ bàn 12 ghế đang thử. Kết quả này kiểm tra khả năng bố trí, chưa xác nhận chất lượng ảnh ghép cuối cùng. App ưu tiên ảnh đạt cho đúng hash sản phẩm, bỏ qua ảnh đã bị loại cho hash đó; các ảnh phù hợp được luân phiên theo lịch sử sử dụng và vẫn được kiểm tra trước khi ghép.
+
+Ảnh gốc quyết định sản phẩm xuất hiện như thế nào: mặc, cầm, đặt trong không gian hoặc sử dụng xe. Kết quả FIT/NOFIT đã lưu chỉ được dùng khi khớp cả URL sản phẩm và hash ảnh; hai listing dùng chung ảnh có thể bán kích thước hoặc bộ phận khác nhau. Với bàn, phòng cần có footprint đồ cũ tương đương để thay cục bộ, không chỉ đủ diện tích chung. Bát đĩa hoặc bữa ăn do AI gợi ý trong context không phải điều kiện bắt buộc.
 
 Ảnh mẫu nằm trong data/source-photos/<danh-mục>/, mỗi ảnh có bản ghi trong catalog.json (danh mục, nguồn, SHA256). Danh mục cho từng loại sản phẩm khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
 
 Số ảnh mẫu/SP là mức tối đa. Nếu chỉ có một ảnh đạt với người và bối cảnh phù hợp, app dùng bối cảnh thật đó; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
 
-Với đồ đặt trong không gian như bàn ăn, ảnh mẫu cung cấp phòng và bố cục, không cần giống mẫu bàn hay số ghế. Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử tối đa `MaxTries` ảnh cho đồ vật (mặc định 5), lưu đường dẫn ảnh và kết luận vào `logs/<mã-SP>-p1-fit-<lượt>.json`; ảnh bị loại có lý do cụ thể. Review chữ và ảnh bối cảnh là hai nguồn dữ liệu riêng: có review chữ chưa có nghĩa là đã có ảnh bối cảnh phù hợp.
+Với đồ đặt trong không gian như bàn ăn, ảnh phòng được dùng làm nền gốc để ghép, không phải cảm hứng để AI vẽ lại. Chỉ vùng thay bàn ghế, phần nền nhỏ bị lộ và bóng tiếp xúc được phép chỉnh. AI phải cung cấp ảnh ghép và mask cùng kích thước ảnh phòng; mã nguồn khôi phục nguyên pixel nền ngoài mask. Thiếu mask, mask gần toàn ảnh hoặc sai kích thước thì không xuất kết quả. Bước kiểm tra nhận cả ảnh phòng gốc và mask để phát hiện việc thay đổi kiến trúc/đồ vật ngoài sản phẩm trong vùng ghép. Không đổi góc máy, ánh sáng hay phong cách của phòng để làm ảnh đẹp hơn.
+
+Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử tối đa `MaxTries` ảnh cho đồ vật (mặc định 5), dừng tìm ngay khi có một ảnh đạt và không tìm ảnh thứ hai. Đường dẫn ảnh và kết luận được lưu vào `logs/<mã-SP>-p1-fit-<lượt>.json`; ảnh bị loại có lý do cụ thể. Review chữ và ảnh bối cảnh là hai nguồn dữ liệu riêng: có review chữ chưa có nghĩa là đã có ảnh bối cảnh phù hợp.
 
 ## Kết quả: mỗi lần chạy là một thư mục
+
+### Phản bác kết quả và lưu bài học
+
+Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo batch mới và vẫn phải qua QA. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
+
+Tùy chọn **Lưu thành bài học** mặc định áp dụng cho riêng URL sản phẩm; chỉ chọn cả danh mục khi quy tắc thật sự phù hợp với các sản phẩm khác. Các bài học được đưa vào prompt tạo ảnh và QA ở lần chạy sau, không phải huấn luyện lại mô hình. Lưu tại `workspace/feedback/<id>/feedback.json` cùng ảnh lỗi và bản sao `refs/`; không tự ghi đè `AGENTS.md`.
+
+Tab **Bài học & lịch sử** hiển thị phản hồi, trạng thái, lỗi và thư mục kết quả. Có thể bật/tắt bài học, chạy lại phản hồi đã lưu hoặc lượt bị lỗi/dừng. AI qua QA chỉ chuyển sang **chờ bạn kiểm tra**; bấm **Ảnh mới đã đúng** sau khi bạn đã xem kết quả. Nếu còn sai, chọn ảnh mới để phản bác tiếp; manifest liên kết phản hồi trước. Bản cũ và hàng đợi URL chính được giữ nguyên khi làm lại.
 
 ```
 workspace/output/<thời-gian>/
@@ -74,6 +88,8 @@ App hiện thông báo khi chạy xong. Gửi `missing-data.csv` và thư mục 
 | workspace/ | Mọi file sinh ra, Git bỏ qua: `output/`, `urls.txt` (hàng đợi), `logs/` (log kiểm tra ChatGPT), `temp/`, `tests/` |
 
 Ảnh mẫu chỉ được đọc, không bị sửa hay di chuyển. Tham số CLI -List và -OutDir cho phép chọn đường dẫn riêng.
+
+Logo chỉ được thay bằng brand giả khi thực sự in, khắc, thêu hoặc gắn trên sản phẩm. Watermark ảnh, logo góc, dấu cửa hàng và địa chỉ website phải bị xóa hoàn toàn; không đổi thành logo giả hay đưa lên tường. Sản phẩm không có logo vật lý giữ nguyên trạng thái không thương hiệu.
 
 ## Kiểm tra và tài liệu
 

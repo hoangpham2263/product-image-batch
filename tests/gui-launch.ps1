@@ -19,8 +19,8 @@ New-Item -ItemType Directory -Path $testDir | Out-Null
 try {
     $entry = Join-Path $testDir 'run-images.ps1'
     @'
-param([int]$PhotosPerImage, [int]$ThrottleLimit)
-[pscustomobject]@{ PhotosPerImage = $PhotosPerImage; ThrottleLimit = $ThrottleLimit } | ConvertTo-Json -Compress
+param([int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile='', [string]$ApprovedImage='')
+[pscustomobject]@{ PhotosPerImage = $PhotosPerImage; ThrottleLimit = $ThrottleLimit; FeedbackFile=$FeedbackFile; ApprovedImage=$ApprovedImage } | ConvertTo-Json -Compress
 '@ | Set-Content -LiteralPath $entry -Encoding UTF8
     $runArgs = @(New-RunArguments -ScriptPath $entry -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value))
     $out = Join-Path $testDir 'out.log'; $err = Join-Path $testDir 'err.log'
@@ -31,6 +31,20 @@ param([int]$PhotosPerImage, [int]$ThrottleLimit)
     if ($values.PhotosPerImage -ne 6 -or $values.ThrottleLimit -ne 3) { throw 'GUI numeric parameters were not received correctly.' }
     if ($null -eq $child.ExitCode -or $child.ExitCode -ne 0) { throw 'Success exit code was lost after asynchronous launch.' }
     $child.Dispose()
+    $feedbackPath=Join-Path $testDir "feedback user's correction.json"
+    $feedbackArgs=@(New-RunArguments $entry 1 1 $feedbackPath)
+    $feedbackChild=Start-RunProcess $feedbackArgs (Join-Path $testDir 'feedback-out.log') (Join-Path $testDir 'feedback-err.log')
+    $feedbackChild.WaitForExit();$feedbackChild.Refresh()
+    $feedbackValue=Get-Content -LiteralPath (Join-Path $testDir 'feedback-out.log') -Raw|ConvertFrom-Json
+    if($feedbackChild.ExitCode -ne 0 -or $feedbackValue.FeedbackFile -ne $feedbackPath){throw 'GUI lost feedback file path containing spaces/apostrophes.'}
+    $feedbackChild.Dispose()
+    $approvedPath=Join-Path $testDir "user's accepted image.png"
+    $approvedArgs=@(New-RunArguments -ScriptPath $entry -PhotosPerImage 1 -ThrottleLimit 1 -ApprovedImage $approvedPath)
+    $approvedChild=Start-RunProcess $approvedArgs (Join-Path $testDir 'approved-out.log') (Join-Path $testDir 'approved-err.log')
+    $approvedChild.WaitForExit();$approvedChild.Refresh()
+    $approvedValue=Get-Content -LiteralPath (Join-Path $testDir 'approved-out.log') -Raw|ConvertFrom-Json
+    if($approvedChild.ExitCode -ne 0 -or $approvedValue.ApprovedImage -ne $approvedPath){throw 'GUI approved-image argument was lost.'}
+    $approvedChild.Dispose()
     'exit 7' | Set-Content -LiteralPath $entry -Encoding UTF8
     $failed = Start-RunProcess -ArgumentList $runArgs -OutputLog (Join-Path $testDir 'failed-out.log') -ErrorLog (Join-Path $testDir 'failed-err.log')
     $failed.WaitForExit(); $failed.Refresh()

@@ -4,7 +4,7 @@ $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
 function Assert($Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 $script:Config = @{ PhotosPerImage = 2; StyleExample = ''; WritingStyle = [pscustomobject]@{ scene_rules = @() } }
-$script:Batch = @{ Images = $TestWorkspaceRoot }
+$script:Batch = @{ Images = $TestWorkspaceRoot; Logs = $TestWorkspaceRoot }
 # One verified real setting is sufficient when an optional second scene is absent.
 $context = [pscustomobject]@{ product = 'apron'; presentation = 'worn'; setting = 'cafe'; source_categories = @('aprons'); details = 'black apron'; branding = 'preserve logo'; reject = 'golf' }
 $script:MissingSubject = $false
@@ -13,6 +13,22 @@ function Select-Photo($Reference, $Handle, $ItemId, $Exclude, $Role, $Context, $
     throw 'No suitable source photo found after 2 checks.'
 }
 function Get-SourceCatalog { @{} }
+# Object scene selection stops immediately after the first suitable room.
+$script:SceneCalls = 0
+function Test-ObjectSceneSelection {
+    function Select-Photo { $script:SceneCalls++; return 'checked-dining-room.jpg' }
+    $object = [pscustomobject]@{presentation='placed';product='dining table'}
+    $selected = @(Select-ProductReferences 'product.jpg' 'table' 'one-room' $object)
+    Assert ($selected.Count -eq 1 -and $script:SceneCalls -eq 1) 'Optional second object scene must not trigger more AI calls.'
+    $tableRequest = New-ProductImageRequest 'product.jpg' 'one-room' $object $selected ([Collections.ArrayList]::new())
+    Assert ($tableRequest.Prompt -match 'A photo watermark is not a product logo' -and $tableRequest.Prompt -match 'Do not replace them with fictional branding' -and $tableRequest.Prompt -match 'unbranded table.*BRAND: none') 'Object generation must remove watermarks without inventing furniture branding.'
+    Assert ($tableRequest.Prompt -match 'IMMUTABLE BASE ROOM' -and $tableRequest.Prompt -match 'LOCAL EDIT MASK REQUIRED' -and $tableRequest.Prompt -match 'Do not relight, recolor' -and $tableRequest.SceneBase -eq $selected[0]) 'Object generation must edit the original room with a localized mask.'
+    Assert ($tableRequest.Prompt -notmatch 'standing height|off-center framing|do not inherit its professional lighting') 'Old restyling instructions conflict with the locked room.'
+    Assert ($tableRequest.Prompt -match 'negative spaces between chair legs/rails black' -and $tableRequest.Prompt -match 'Do not bleach, desaturate or restain') 'Localized furniture edits must preserve floor gaps and intrinsic wood color.'
+    Assert ($tableRequest.Prompt -match 'complete uncomposited image-tool edit' -and $tableRequest.Prompt -match 'application alone composites' -and $tableRequest.Prompt -match 'originally bare table bare') 'Generation must not pre-composite polygon patches or invent required tableware.'
+    Assert ($tableRequest.Prompt -match 'NO INVENTED PROPS' -and $tableRequest.Prompt -match 'Empty areas and bare surfaces must stay empty' -and $tableRequest.Prompt -match 'must not be transplanted into an empty room') 'Empty-room constraints must prevent newly staged props, including objects copied from the product photo.'
+}
+Test-ObjectSceneSelection
 $picked = @(Select-ProductReferences 'actual.png' 'apron' 'one-source' $context)
 Assert ($picked.Count -eq 1 -and $picked[0] -eq 'checked-person-and-real-cafe.png') 'Optional scene failure discarded a valid real setting.'
 $request = New-ProductImageRequest 'actual.png' 'one-source' $context $picked ([Collections.ArrayList]::new())

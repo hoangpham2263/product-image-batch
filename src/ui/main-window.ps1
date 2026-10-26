@@ -8,21 +8,28 @@ $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
 . (Join-Path $srcDir 'application/workspace.ps1')
 $workspace = Initialize-ProjectWorkspace $root
+. (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
+. (Join-Path $srcDir 'application/image-feedback.ps1')
+. (Join-Path $PSScriptRoot 'image-feedback.ps1')
 $urlFile = $workspace.Queue
 $script:proc = $null
 $script:resultFolder = ''
 $script:currentIndex = 0
 $script:itemStages = @{}
+$script:itemQualityReasons = @{}
+$script:activeFeedbackFile = ''
 
 function Open-Path([string]$p) { New-Item -ItemType Directory -Force $p | Out-Null; Start-Process explorer.exe $p }
 function Count-Urls { @($txtUrls.Lines | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }).Count }
 
-function New-RunArguments([string]$ScriptPath, [int]$PhotosPerImage, [int]$ThrottleLimit) {
+function New-RunArguments([string]$ScriptPath, [int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile = '', [string]$ApprovedImage = '') {
     @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $ScriptPath + '"'),
         '-PhotosPerImage', $PhotosPerImage.ToString([Globalization.CultureInfo]::InvariantCulture),
         '-ThrottleLimit', $ThrottleLimit.ToString([Globalization.CultureInfo]::InvariantCulture)
     )
+    if ($FeedbackFile) { @('-FeedbackFile', ('"' + $FeedbackFile + '"')) }
+    if ($ApprovedImage) { @('-ApprovedImage', ('"' + $ApprovedImage + '"')) }
 }
 
 function Start-RunProcess([string[]]$ArgumentList, [string]$OutputLog, [string]$ErrorLog) {
@@ -71,7 +78,14 @@ function Receive-RunLine([string]$line) {
         }
         'Failed' { $script:itemStages[$event.Index] = $event.Stage; $script:hadFailure = $true }
         'Warning' { $script:hadFailure = $true }
+        'QualityReason' {
+            if (-not $script:itemQualityReasons) { $script:itemQualityReasons=@{} }
+            $script:itemQualityReasons[$event.Index]=$event.QualityReason
+        }
         'Summary' { $script:runDone = $event.Done; $script:runTotal = $event.Total }
+    }
+    if ($event.Kind -eq 'Failed' -and $event.Text -like '*ảnh chưa đạt yêu cầu*' -and $script:itemQualityReasons -and $script:itemQualityReasons.ContainsKey($event.Index)) {
+        $event.Text="Sản phẩm $($event.Index): ảnh chưa đạt yêu cầu. Link được giữ lại để thử lại. Lý do: $($script:itemQualityReasons[$event.Index])"
     }
     if ($event.Text) { Append-Log $event.Text }
     Update-RunDisplay
@@ -80,6 +94,7 @@ function Receive-RunLine([string]$line) {
 $form = New-Object Windows.Forms.Form
 $form.Text = 'Product Image Batch'
 $form.Size = New-Object Drawing.Size(900, 640)
+$form.MinimumSize = New-Object Drawing.Size(900, 640)
 $form.StartPosition = 'CenterScreen'
 $form.Font = New-Object Drawing.Font('Segoe UI', 10)
 
@@ -92,6 +107,7 @@ $btnOut = New-Object Windows.Forms.Button -Property @{ Text = 'Mở kết quả'
 $btnSetup = New-Object Windows.Forms.Button -Property @{ Text = 'Kiểm tra ChatGPT'; Location = '628,98'; Size = '240,28'; Anchor = 'Top,Right' }
 $btnHelp = New-Object Windows.Forms.Button -Property @{ Text = 'Hướng dẫn'; Location = '628,130'; Size = '240,28'; Anchor = 'Top,Right' }
 $btnClear = New-Object Windows.Forms.Button -Property @{ Text = 'Xóa thông báo'; Location = '628,162'; Size = '240,28'; Anchor = 'Top,Right' }
+$btnFeedback = New-Object Windows.Forms.Button -Property @{ Text = 'Kiểm tra ảnh / Làm lại'; Location = '628,194'; Size = '240,28'; Anchor = 'Top,Right' }
 $btnRun = New-Object Windows.Forms.Button -Property @{ Text = 'Bắt đầu'; Location = '12,214'; Size = '140,38'; BackColor = [Drawing.Color]::FromArgb(40, 140, 80); ForeColor = [Drawing.Color]::White; FlatStyle = 'Flat' }
 $btnStop = New-Object Windows.Forms.Button -Property @{ Text = 'Dừng'; Location = '160,214'; Size = '100,38'; Enabled = $false }
 $lblStatus = New-Object Windows.Forms.Label -Property @{ Location = '280,222'; Size = '180,24'; AutoEllipsis = $true }
@@ -106,11 +122,20 @@ $lblThr = New-Object Windows.Forms.Label -Property @{ Text = 'Luồng:'; Locatio
 $numThr = New-Object Windows.Forms.NumericUpDown -Property @{ Minimum = 1; Maximum = 4; Value = 1; Location = '752,218'; Size = '64,28'; TextAlign = 'Center'; Anchor = 'Top,Right' }
 $lblThreadHint = New-Object Windows.Forms.Label -Property @{ Text = 'Khuyên dùng 1–2 luồng. Tối đa 4; tăng luồng dùng nhiều RAM và hạn mức hơn.'; Location = '12,258'; Size = '856,20'; ForeColor = [Drawing.Color]::DimGray; Anchor = 'Top,Left,Right' }
 $form.Controls.AddRange(@($lblThreadHint, $lblThr, $numThr, $lblPer, $numPer, $lblUrls, $txtUrls, $btnSave, $btnOut, $btnSetup, $btnHelp, $btnClear, $btnRun, $btnStop, $lblStatus, $lblProgress, $bar, $txtLog))
+$form.Controls.Add($btnFeedback)
+foreach ($control in @($btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr,$lblThreadHint,$bar,$lblProgress,$txtLog)) { $control.Top += 32 }
+$txtLog.Height -= 32
 # NumericUpDown derives its height from the inherited font. Align after parenting.
 $lblPer.Height = $numPer.Height
 $lblThr.Height = $numThr.Height
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnClear.Add_Click({ $txtLog.Clear() })
+$btnFeedback.Add_Click({
+    if ($script:proc) { return }
+    $selection = Show-ImageFeedbackDialog $form $root $workspace.Output
+    if ($selection.ApprovedImage) { Start-GuiBatch -ApprovedImage $selection.ApprovedImage }
+    elseif ($selection.FeedbackPath) { Start-GuiBatch -FeedbackFile $selection.FeedbackPath }
+})
 
 $btnSave.Add_Click({ Save-Urls; Update-Status; Append-Log 'Đã lưu danh sách sản phẩm.' })
 $btnOut.Add_Click({
@@ -177,13 +202,21 @@ $timer.Add_Tick({
         $timer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
         $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $txtUrls.ReadOnly = $false; $numPer.Enabled = $true; $numThr.Enabled = $true
+        $btnFeedback.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
         Load-Urls
         $elapsed = (Get-Date) - $script:runStarted
         $lblProgress.Text = "Đã xong $($script:runDone)/$($script:runTotal) sản phẩm • $([int][Math]::Floor($elapsed.TotalMinutes)) phút $($elapsed.Seconds) giây"
-        if ($script:runStopped) { $lblStatus.Text = 'Đã dừng'; Append-Log 'Đã dừng. Các link chưa hoàn tất được giữ lại.' }
-        elseif ($null -ne $exitCode -and $exitCode -eq 0 -and -not $script:hadFailure) { $lblStatus.Text = 'Hoàn tất'; Append-Log 'Kết quả đã được lưu. Bấm Mở kết quả để xem ảnh và đánh giá.' }
+        if ($script:runStopped) {
+            if ($script:activeFeedbackFile) { Set-ImageFeedbackStatus $script:activeFeedbackFile stopped $script:resultFolder }
+            $lblStatus.Text = 'Đã dừng'; Append-Log 'Đã dừng. Các link chưa hoàn tất được giữ lại.'
+        }
+        elseif ($null -ne $exitCode -and $exitCode -eq 0 -and -not $script:hadFailure) {
+            $lblStatus.Text = 'Hoàn tất'
+            if ($script:activeFeedbackFile) { Append-Log 'Đã có ảnh làm lại. Bấm Kiểm tra ảnh / Làm lại để đối chiếu; chỉ đánh dấu đã đúng sau khi bạn xem ảnh.' }
+            else { Append-Log 'Kết quả đã được lưu. Bấm Mở kết quả để xem ảnh và đánh giá.' }
+        }
         else {
             $lblStatus.Text = 'Cần thử lại'
             Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại.'
@@ -191,27 +224,38 @@ $timer.Add_Tick({
     }
 })
 
-$btnRun.Add_Click({
-    Save-Urls
-    if (-not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
-    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.') | Out-Null; return }
+function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '') {
+    if ($script:proc) { return }
+    if (-not $FeedbackFile -and -not $ApprovedImage) { Save-Urls }
+    if (-not $FeedbackFile -and -not $ApprovedImage -and -not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
+    if (-not $ApprovedImage -and -not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.') | Out-Null; return }
     $txtLog.Clear()
     Remove-Item $logFile, $errFile -Force -ErrorAction SilentlyContinue
     $script:pos = @{ out = 0L; err = 0L }
     $script:lineBuffers = @{ out = ''; err = '' }
-    $script:runTotal = Count-Urls; $script:runDone = 0; $script:currentIndex = 0
+    $script:activeFeedbackFile = $FeedbackFile
+    $script:runTotal = if ($FeedbackFile -or $ApprovedImage) { 1 } else { Count-Urls }; $script:runDone = 0; $script:currentIndex = 0
     $script:itemStages = @{}; $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
+    $script:itemQualityReasons=@{}
     $script:runStarted = Get-Date; $script:resultFolder = ''
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0
     $runArgs = @(New-RunArguments -ScriptPath (Join-Path $srcDir 'run-images.ps1') `
-        -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value))
-    $script:proc = Start-RunProcess -ArgumentList $runArgs -OutputLog $logFile -ErrorLog $errFile
+        -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value) -FeedbackFile $FeedbackFile -ApprovedImage $ApprovedImage)
+    try { $script:proc = Start-RunProcess -ArgumentList $runArgs -OutputLog $logFile -ErrorLog $errFile }
+    catch {
+        $script:proc=$null
+        if ($FeedbackFile) { Set-ImageFeedbackStatus $FeedbackFile failed '' $_.Exception.Message }
+        Append-Log ("Chưa khởi động được lượt xử lý: " + $_.Exception.Message)
+        return
+    }
     $btnRun.Enabled = $false; $btnRun.Text = 'Đang chạy...'; $btnStop.Enabled = $true
     $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $txtUrls.ReadOnly = $true; $numPer.Enabled = $false; $numThr.Enabled = $false
+    $btnFeedback.Enabled = $false
     $lblStatus.Text = 'Đang chạy...'; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay
     $timer.Start()
-})
+}
+$btnRun.Add_Click({ Start-GuiBatch })
 $btnStop.Add_Click({
     if ($script:proc -and -not $script:proc.HasExited) {
         $script:runStopped = $true
@@ -225,6 +269,7 @@ $form.Add_FormClosing({
         $r = [Windows.Forms.MessageBox]::Show('Đang xử lý sản phẩm. Dừng và đóng ứng dụng?', 'Đóng ứng dụng', 'YesNo')
         if ($r -ne 'Yes') { $_.Cancel = $true; return }
         & taskkill.exe /PID $script:proc.Id /T /F | Out-Null
+        if ($script:activeFeedbackFile) { Set-ImageFeedbackStatus $script:activeFeedbackFile stopped $script:resultFolder }
     }
 })
 

@@ -1,15 +1,36 @@
 ﻿# One product: steps 1-5. BatchWorkflow runs steps 6-7 after workers finish.
 function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
-    $product = Read-ProductInput $Item $ItemId
+    $script:Config.ActiveProductUrl = $Item.Url
+    if ($script:Config.Feedback) {
+        $feedback = $script:Config.Feedback
+        if ($Item.Url -ne $feedback.Record.product_url) { throw 'Feedback URL mismatch.' }
+        $savedProduct = @($feedback.Manifest.images | Where-Object role -eq product)[0]
+        $sourceProduct = Resolve-FeedbackChild (Join-Path $feedback.Folder 'refs') $savedProduct.file
+        $savedContext = $feedback.Manifest.product_context
+        if (-not $savedContext) { $savedContext = Resolve-ProductContext $Item.Handle $sourceProduct $ItemId }
+        $product = [pscustomobject]@{Reference=$sourceProduct;Context=$savedContext}
+        Write-Host '  [PRODUCT] Reusing original product and room for user correction...' -ForegroundColor Cyan
+    } else { $product = Read-ProductInput $Item $ItemId }
     $download = $product.Reference
     try {
-        try { $picked = @(Select-ProductReferences $product.Reference $Item.Handle $ItemId $product.Context) }
+        try {
+            if ($script:Config.Feedback) {
+                $picked = @($feedback.Manifest.images | Where-Object { $_.role -in @('scene','subject') } | ForEach-Object { Resolve-FeedbackChild (Join-Path $feedback.Folder 'refs') $_.file })
+                if (-not $picked.Count) { throw 'No suitable archived room found for correction.' }
+            } else { $picked = @(Select-ProductReferences $product.Reference $Item.Handle $ItemId $product.Context) }
+        }
         catch {
             if ($_.Exception.Message -notmatch 'No suitable') { throw }
             Save-MissingData $Item $ItemId $product.Context $product.Reference $_.Exception.Message
             throw "[CAUSE:MISSING_DATA] No suitable sample photo for $($product.Context.product). Recorded in missing-data."
         }
         $request = New-ProductImageRequest $product.Reference $ItemId $product.Context $picked $Brands
+        if ($script:Config.Feedback) {
+            $request.Images = @($request.Images) + @($feedback.RejectedImage)
+            $request | Add-Member NoteProperty RejectedInput $feedback.RejectedImage
+            $request.Prompt += "`nImage $($request.Images.Count) is the REJECTED RESULT, supplied only to identify the user's complaint. Do not use it as the product or room source. Correct the requested problem using the original product and room inputs."
+            Write-FeedbackJson (Join-Path $script:Batch.Logs "$ItemId-user-feedback.json") $feedback.Record
+        }
         $bundle = Save-ProductReferenceBundle $Item $ItemId $product.Context $request $picked.Count
         $product.Reference = $bundle.ProductPath
         $reply = Complete-ProductImage $request $product.Reference $product.Context $ItemId
