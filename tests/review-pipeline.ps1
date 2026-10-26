@@ -52,6 +52,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     }
     if ($ResultFile -like '*-quality-*.txt') {
         if ($Images.Count -ne 2 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Quality check needs the generated image and actual product.' }
+        if ($PromptText -notmatch 'Reject template or customization wording' -or $PromptText -notmatch 'put your brand on it' -or $PromptText -notmatch 'even if copied from the reference') { throw 'Quality check must reject placeholder branding from references.' }
         'PASS' | Set-Content -LiteralPath $ResultFile
         return 'PASS'
     }
@@ -72,6 +73,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($Images[2] -notlike '*-product.png' -or $Images[3] -notlike '*-style.png') { throw 'Product/style reference order is incorrect.' }
     if ($PromptText -notmatch 'one continuous camera frame' -or $PromptText -notmatch 'Image 3 is the PRODUCT reference' -or $PromptText -notmatch 'Image 4 is a photography style example only') { throw 'Missing single-scene reference roles.' }
     if ($PromptText -notmatch 'If it has one, replace it at the same position' -or $PromptText -notmatch 'If it has no logo or brand mark, add none' -or $PromptText -notmatch 'Choose a name that fits this product and this scene') { throw 'Logo must be replaced only when the product has one.' }
+    if ($PromptText -notmatch 'Remove all template or customization text' -or $PromptText -notmatch 'put your brand on it' -or $PromptText -notmatch 'never retain it as product artwork' -or $PromptText -notmatch 'Do not add slogans, taglines' -or $PromptText -notmatch 'reply metadata only') { throw 'Generated branding must be a finished mark without template text or instructions.' }
     if ($PromptText -notmatch '(?m)^Save a new PNG at this exact path: (.+)$') { throw 'Missing image output path.' }
     'image' | Set-Content -LiteralPath $Matches[1].Trim()
     'image call' | Set-Content -LiteralPath $ResultFile

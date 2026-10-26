@@ -23,10 +23,14 @@ First check the product reference for a brand logo, brand name or store mark.
 If it has one, replace it at the same position, size, color and technique (print, embroidery, patch, engraving)
 with a new fictional brand name for this image only, short and plausible, not an existing company.
 Choose a name that fits this product and this scene ($($context.product); $($context.setting)), the way a real brand in that niche would be named, in the same style as the original mark.
+Make the replacement look like a finished, professionally manufactured brand mark: only the fictional brand name and, if appropriate, a simple emblem.
+Remove all template or customization text in and around the branding area, including "put your brand on it", "your logo here", "your brand", "brand name", "logo here", "sample text" and similar placeholder wording in any language, even when present in the reference.
+Replace that placeholder branding with the finished fictional mark; never retain it as product artwork or turn it into a tagline. Do not add slogans, taglines, instructions or extra text around the logo. Preserve unrelated product artwork and decorative text.
 $(if ($avoid) { "Do not reuse these names already used in this batch: $avoid." })
 If it has no logo or brand mark, add none.
 Never copy a logo or brand name from any input image.
 End your reply with a line: BRAND: <chosen name>, or BRAND: none when the product has no logo.
+The BRAND: line is reply metadata only; never render it or any prompt instructions inside the photograph.
 "@
     $promptText = @"
 Create exactly ONE complete photorealistic lifestyle photograph from these references.
