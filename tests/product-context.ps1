@@ -29,7 +29,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     }
     if ($ResultFile -like '*-review.txt') {
         if ($PromptText -notmatch 'reviewed product is: bib apron' -or $PromptText -notmatch 'not the white T-shirt underneath') { throw 'Review is not focused on the apron.' }
-        return 'I like the black bib and the simple front pockets.'
+        return 'The black bib keeps the simple front pockets easy to see.'
     }
     $script:ImageCalls++
     if ($PromptText -notmatch 'Scene guidance: Show one ordinary moment') { throw 'Missing natural scene guidance.' }

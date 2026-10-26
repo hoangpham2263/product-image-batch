@@ -20,7 +20,7 @@ Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồ
 | 4. Lưu đầu vào | Sao chép ảnh đã chọn cùng nguồn và SHA256 vào refs/<mã-SP>/. |
 | 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
 | 6. Kiểm tra ảnh kết quả | Đối chiếu sản phẩm và ngữ cảnh; nếu chưa đạt thì sửa tối đa một lần. |
-| 7. Viết review mẫu | Dựa trên chi tiết nhìn thấy, dùng cách viết tự nhiên; không sao chép lời chứng thực của khách khác hoặc tự thêm trải nghiệm mua hàng. |
+| 7. Viết review mẫu | Chọn tối đa 3 review tham khảo đúng danh mục từ review-samples.jsonl, xoay vòng mẫu để học cách viết; nội dung mới dựa trên ảnh. Không bắt buộc ngôi thứ nhất, không chép lời khách khác hay thêm trải nghiệm mua hàng. Câu mở đầu kiểu “I like/I love” hoặc chép câu nguồn sẽ được viết lại tối đa một lần; vẫn lỗi thì dừng sản phẩm. |
 | 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao, email @int và ngày; không gọi Codex cho phần này. |
 | 9. Xuất kết quả | Lưu ảnh và CSV; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
 
@@ -32,6 +32,8 @@ Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồ
 
 Số ảnh mẫu/SP là mức tối đa. Nếu chỉ có một ảnh đạt với người và bối cảnh phù hợp, app dùng bối cảnh thật đó; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
 
+Với đồ đặt trong không gian như bàn ăn, ảnh mẫu cung cấp phòng và bố cục, không cần giống mẫu bàn hay số ghế. Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử tối đa `MaxTries` ảnh cho đồ vật (mặc định 5), lưu đường dẫn ảnh và kết luận vào `logs/<mã-SP>-p1-fit-<lượt>.json`; ảnh bị loại có lý do cụ thể. Review chữ và ảnh bối cảnh là hai nguồn dữ liệu riêng: có review chữ chưa có nghĩa là đã có ảnh bối cảnh phù hợp.
+
 ## Kết quả: mỗi lần chạy là một thư mục
 
 ```
@@ -39,6 +41,7 @@ workspace/output/<thời-gian>/
   images/<mã-SP>.png      ảnh kết quả
   refs/<mã-SP>/           bản sao ảnh đầu vào + manifest.json (vai trò, nguồn, SHA256)
   logs/                   log AI, lỗi từng sản phẩm, run.log, rejected/ (ảnh bị loại)
+    <mã-SP>-review-sources.json  các review tham khảo thực tế đã chọn
   loox_import.csv         product_handle, rating, author, email, body, created_at, photo_url, verified_purchase
   urls.input.txt          danh sách URL đầu vào
   urls.completed.txt      URL đã xong

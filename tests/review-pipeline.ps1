@@ -17,6 +17,10 @@ try {
     Copy-Item -LiteralPath (Join-Path $root 'data/review-style.json') -Destination (Join-Path $tempRoot 'data/review-style.json')
     Copy-Item -LiteralPath (Join-Path $root 'data/product-contexts.json') -Destination (Join-Path $tempRoot 'data/product-contexts.json')
     Copy-Item -LiteralPath (Join-Path $root 'data/writing-style.json') -Destination (Join-Path $tempRoot 'data/writing-style.json')
+    @(
+        '{"category":"polo-shirts","body":"The narrow collar trim stands out against the dark panels.","source_url":"https://example.test/polo"}'
+        '{"category":"coffee-tables","body":"UNRELATED_FURNITURE_SAMPLE should never reach the polo draft."}'
+    ) | Set-Content (Join-Path $tempRoot 'data/review-samples.jsonl') -Encoding UTF8
     $fixtureContexts = Get-Content (Join-Path $tempRoot 'data/product-contexts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $fixture = $fixtureContexts.profiles | Where-Object id -eq polo | ConvertTo-Json -Depth 8 | ConvertFrom-Json
     $fixture.id = 'fixture'; $fixture.pattern = '^(one|two|fail)$'
@@ -59,13 +63,14 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($ResultFile -like '*-review.txt') {
         if ($Images.Count -ne 1 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Review missing finished image.' }
         if ($PromptText -notmatch 'Writing style direction') { throw 'Missing data-driven writing style.' }
-        if ($PromptText -notmatch 'Editorial guidance: Start with the visible detail' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing natural writing rules or factual constraints.' }
+        if ($PromptText -notmatch 'Editorial guidance: Start with a concrete visible product detail' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing natural writing rules or factual constraints.' }
+        if ($PromptText -notmatch 'narrow collar trim' -or $PromptText -match 'UNRELATED_FURNITURE_SAMPLE') { throw 'Matching reference reviews did not reach the parallel worker.' }
         if ($ResultFile -like '*-one-review.txt' -and $PromptText -notmatch '\(detail-first\)') { throw 'Incorrect first writing style.' }
         if ($ResultFile -like '*-two-review.txt' -and $PromptText -notmatch '\(quiet-opinion\)') { throw 'Writing style did not vary by item.' }
         if ($ResultFile -like '*-fail-review.txt' -and -not (Test-Path (Join-Path $script:Config.SourceDir 'allow-review-success.flag'))) { throw 'Simulated review failure' }
         Start-Sleep -Milliseconds 500
-        "Like the navy pattern.`nIt looks good with my shorts." | Set-Content -LiteralPath $ResultFile
-        return "Like the navy pattern.`nIt looks good with my shorts."
+        "The navy pattern is subtle.`nIt looks good with the shorts." | Set-Content -LiteralPath $ResultFile
+        return "The navy pattern is subtle.`nIt looks good with the shorts."
     }
     $fitPattern = $ResultFile -replace '-image.txt$', '-p*-fit-*.txt'
     if (@(Get-ChildItem -Path $fitPattern).Count -ne 2) { throw 'All references must be selected before generating the final image.' }
@@ -109,7 +114,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
         Assert ($row.rating -in @('4', '5')) 'Invalid rating.'
         Assert ($row.author -and $row.email -match '^[a-z0-9.]+@int$') 'Missing author/@int email.'
         Assert ($row.verified_purchase -ceq 'true') 'verified_purchase must be true.'
-        Assert ($row.body -eq 'Like the navy pattern. It looks good with my shorts.') 'Review whitespace was not normalized.'
+        Assert ($row.body -eq 'The navy pattern is subtle. It looks good with the shorts.') 'Review whitespace was not normalized.'
         Assert (Test-Path -LiteralPath $row.photo_url) 'Missing final single-scene image.'
         $date = [DateTime]::ParseExact($row.created_at, "yyyy-MM-dd HH:mm:ss 'UTC'", [Globalization.CultureInfo]::InvariantCulture)
         Assert ($date.Year -eq [DateTime]::UtcNow.Year -and $date -le [DateTime]::UtcNow) 'Timestamp outside current year.'

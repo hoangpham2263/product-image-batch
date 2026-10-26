@@ -2225,7 +2225,7 @@
                          "max_words":  30,
                          "min_words":  18,
                          "id":  "outfit-detail",
-                         "guidance":  "Use two uneven sentences: a specific shirt detail, then how it looks with the bottoms actually visible. Do not invent an occasion."
+                         "guidance":  "Use two uneven sentences: a specific visible product detail, then how it looks with the surroundings actually visible. Discuss an outfit only for worn clothing. Do not invent an occasion."
                      },
                      {
                          "max_words":  12,
@@ -2255,7 +2255,7 @@
                          "max_words":  35,
                          "min_words":  20,
                          "id":  "casual-two-sentences",
-                         "guidance":  "Use a relaxed first-person observation and a second sentence about a different visible detail. Natural contractions are fine; avoid polished sales copy."
+                         "guidance":  "Use a relaxed observation and a second sentence about a different visible detail. First person is optional. Natural contractions are fine; avoid polished sales copy."
                      }
                  ]
 }
