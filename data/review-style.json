@@ -1,16 +1,16 @@
 {
     "schema_version":  1,
-    "collected_at":  "2026-10-23",
+    "collected_at": "2026-10-26",
     "purpose":  "Writing patterns for synthetic demo drafts; source reviewers are not identities for generated content.",
     "authenticity":  "Publicly published reviews; authorship and purchase authenticity not independently verified.",
     "method":  "Deduplicated review-body features from public Judge.me markup; heuristic English filtering. No full review bodies or customer names retained.",
     "statistics":  {
-                       "sources":  19,
-                       "reviews":  101,
-                       "min_words":  4,
-                       "median_words":  18,
-                       "max_words":  107
-                   },
+  "sources": 53,
+  "reviews": 142,
+  "min_words": 1,
+  "median_words": 18,
+  "max_words": 149
+},
     "sources":  [
                     {
                         "url":  "https://pockitapparel.com/pages/reviews",
@@ -106,7 +106,177 @@
                         "url":  "https://www.cherrykitten.com/products/custom-ketamxxe-cross-y2k-sport-jersey-shirts-cherrykitten",
                         "unique_reviews":  4,
                         "origin":  "saved_page"
-                    }
+                    },
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/linn-side-table-mango-wood-end-table-for-living-room-small-tea-table-teapoy-table",
+  "unique_reviews": 3,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/ala-round-wooden-center-table-for-living-room-brown-tea-table-living-room-coffee-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/andaman-4-seater-round-dining-table-set",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/katora-wooden-living-room-center-table-round-coffee-table-for-home",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/ernest-modern-sofa-side-table-decorative-end-table-for-living-room-bedroom-corner-table",
+  "unique_reviews": 4,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wood-black-metal-center-table-for-living-room-sheesham-wood-coffee-table-tea-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/daisy-accent-side-table-for-living-room-mango-wood-end-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-laptop-study-table-foldable-bed-table-for-work-and-home",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/inlay-blue-round-coffee-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/harleen-solid-mango-wood-coffee-table-center-table-for-living-room-tea-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/spazio-mango-wood-side-table-for-living-room-corner-table-premium-end-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/mangowood-round-side-table-spheres-designer-end-table-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/jodhpur-solid-sheesham-wood-study-table-traditional-wooden-desk-for-home-office",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/modern-round-sofa-side-table-for-living-room-end-table-corner-table",
+  "unique_reviews": 2,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-bedside-table-yellow-white-storage-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/jarrah-acacia-wood-console-table-wooden-study-table-with-drawer-for-home-and-office",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wood-steel-modern-round-coffee-table-with-drawer-for-storage-center-table-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/granite-top-antique-brass-aluminium-round-end-table-side-table-for-living-room-and-bedroom",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/modern-gold-square-folding-table-portable-side-end-table-folding-tea-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/mez-wooden-multipurpose-tray-table-kitchen-accessories",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wood-metal-bean-coffee-table-center-table-for-living-room",
+  "unique_reviews": 2,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/3-pcs-wood-metal-center-tables-set-pollo-stools-for-living-room-nesting-tables",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/square-sheesham-wood-book-style-side-table-small-table-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-study-table-work-desk-for-office-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-dining-table-with-benches-for-dining-room-home-furniture",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-nesting-coffee-table-set-of-2-wooden-nest-of-table-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/round-wooden-side-table-circular-table-with-drawer-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/circular-center-wooden-coffee-table-round-table-for-living-room",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/teak-wood-bedside-table-solid-wooden-side-table-for-modern-bedroom",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/bowl-center-table-75",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/flower-table-antique-stylish-wooden-table-corner-table",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-the-egret-on-rainbow-lotus-yantra",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-thiksey-ashtamangla-side-table-selective-edition",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+},
+{
+  "url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-squirrel-tree-side-table-selective-edition",
+  "unique_reviews": 1,
+  "origin": "chrome_rendered_judgeme"
+}
                 ],
     "features":  [
                      {
@@ -1421,7 +1591,622 @@
                          "fit_or_comfort":  false,
                          "exclamation":  true,
                          "evidence_origin":  "saved_page"
-                     }
+                     },
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/linn-side-table-mango-wood-end-table-for-living-room-small-tea-table-teapoy-table",
+  "review_id": "source-sha256-aeba5d35f0e57cb243db676a1ebff4242e3b5db86714dd7478eb3ae8c8aa23b8",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "edc3feea9521f2670e4b71590e6ffce44178167843ba70134ecf5059cabe2c84",
+  "words": 19,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/ala-round-wooden-center-table-for-living-room-brown-tea-table-living-room-coffee-table",
+  "review_id": "source-sha256-1c0d19c67fa97207a24d87d88afbd12bc59f04b567c6c3cca4278b59b022c117",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "1ac596f4b76e981d1d670c5747012dfc834fed1a9217e1cde7a4e7afee6716fd",
+  "words": 19,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": true,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/andaman-4-seater-round-dining-table-set",
+  "review_id": "source-sha256-78aeec81a296ee98129369cf7d0399a3023c9564bf3b62dbcd8f751e82fc1117",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "ce4ca5acece932e933052f26bc98f016a76de363a0224e9fabe2f4d49b34d6a5",
+  "words": 22,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "dining-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/katora-wooden-living-room-center-table-round-coffee-table-for-home",
+  "review_id": "source-sha256-cf324a3e28e7e6eaa6cf12cdfe1edb9dd3721150986617302cb1d83caa5d5a74",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "5897e13cdeb7d34a2474d26e3af573a76a6e4c20886d9b8e1656e35c30205f19",
+  "words": 19,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": true,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/ernest-modern-sofa-side-table-decorative-end-table-for-living-room-bedroom-corner-table",
+  "review_id": "source-sha256-0c9c4fe28d0d57eac655a0051ef1520e05e4c83ce77bac8329d56a623d15d035",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "3b68d9a811a840acbb5256b169fb92d051bdc5d50069f9ce31e20b9de0863c8d",
+  "words": 7,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wood-black-metal-center-table-for-living-room-sheesham-wood-coffee-table-tea-table",
+  "review_id": "source-sha256-70443797e2997696423ca6bd9edbbfb8a1e3227b97d5c5721234ac1148ee3b4a",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "d1ba82e3ffff786ddd00bcd17bd33a598abb4e82e218c9eff76fc7e3cdbe04db",
+  "words": 22,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/linn-side-table-mango-wood-end-table-for-living-room-small-tea-table-teapoy-table",
+  "review_id": "source-sha256-bd9d33ae7b33b969f4016184360be172dd25250765624bd48ea11df47a75b903",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "ae9d1cd2b3a94c76a93131f8e9097190d87a8818766fad78720ed471072f0071",
+  "words": 9,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/daisy-accent-side-table-for-living-room-mango-wood-end-table",
+  "review_id": "source-sha256-da911ec1b3e5ee670e8402f48e3ae15e6741f1550a29448cb8920af7d398fcc7",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "b68cde567701ff1819c1dc7596d7c94b83b36b2e973f2336e85dd09e2873124f",
+  "words": 15,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-laptop-study-table-foldable-bed-table-for-work-and-home",
+  "review_id": "source-sha256-8f1e5581c1dd136547dfa9d299c822bf40ef40af45d8b7f49e1023a0baf841eb",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "cd99f423f21019956e36e603e9d288a8114a9894abd5f96deed8ae6c15da0c16",
+  "words": 149,
+  "sentences": 7,
+  "first_person": true,
+  "contraction": true,
+  "color_or_pattern": true,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "desks"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/inlay-blue-round-coffee-table",
+  "review_id": "source-sha256-18ac5be31bf85c9870a1ab49fce06671089d9ab1a5859c7c798e0ab00519ac4e",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "e39b68e3754db544c05174725d44bf60e415724818516dbc56dc2b2c026da35b",
+  "words": 36,
+  "sentences": 3,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": true,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/harleen-solid-mango-wood-coffee-table-center-table-for-living-room-tea-table",
+  "review_id": "source-sha256-7ce77cd2bc539a9172867c2a389739fb43e36ba1c6f477eea209c116293efd08",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "54fb131864810bf79d312514e0b989281cb52c9f2a14140bf7c4504a4c2e9f91",
+  "words": 26,
+  "sentences": 3,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/spazio-mango-wood-side-table-for-living-room-corner-table-premium-end-table",
+  "review_id": "source-sha256-1bd50459f30a464d5faa70f6f0c67c15a30ca204630701c9a9d41eb5ba925ed3",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "1756b74fe93700f9ff56982b286046aecdd59508e6abe3b2f9260edaf8346733",
+  "words": 23,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/mangowood-round-side-table-spheres-designer-end-table-for-living-room",
+  "review_id": "source-sha256-c11f378f985cebf3345dc8d85e8d3b8fb9a3d8cef059ae31fde30df8f37fb4a5",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "fad70c0a6f96ff62221fc33cf9937f5f68dd8d6b5a54dc2419b3a7d574065821",
+  "words": 18,
+  "sentences": 3,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/jodhpur-solid-sheesham-wood-study-table-traditional-wooden-desk-for-home-office",
+  "review_id": "source-sha256-b7eca55a7d747e919d7b8f018dc87589241f6178c1f413f594329a20ea9c7cb2",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "1ad4ad8a67a7317f462a986c2b4f182c72a409c6c90f0324948fe130a1d488b9",
+  "words": 23,
+  "sentences": 3,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": true,
+  "fit_or_comfort": false,
+  "exclamation": true,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "desks"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/modern-round-sofa-side-table-for-living-room-end-table-corner-table",
+  "review_id": "source-sha256-88aaa57edb71410c309bb6b03784aaceed73a511511802ed602dbf1ce101627c",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "2b9fa2863d21fed2d432868ff3f1d7bf7e76fdd467eba7fe2eb2d0326494d09b",
+  "words": 18,
+  "sentences": 1,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": true,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-bedside-table-yellow-white-storage-table",
+  "review_id": "source-sha256-ba9e14e7d83a55aa6f9ad7bb9bf7831019e17f6aef9753a3522e9f046b32412e",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "6be523c6f24ff88b85ffd5c60ee21b35b58c11a717e7cd3d0dc0d658df6bf804",
+  "words": 1,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": true,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/ernest-modern-sofa-side-table-decorative-end-table-for-living-room-bedroom-corner-table",
+  "review_id": "source-sha256-267b32ffb0684fea6bb3ba17b71b9cd19a93ba9f34085c98d04b314080b2961c",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "a3376c0749ee767a9663c31142d8eda88f5d1eb5c86e0cf4b0a5999c1cc41661",
+  "words": 8,
+  "sentences": 1,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/ernest-modern-sofa-side-table-decorative-end-table-for-living-room-bedroom-corner-table",
+  "review_id": "source-sha256-260b820e4f969675285d7522a8fcdbdcdd9a0b81bf451f1ec34057a757767f50",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "ed513bb60348fb4a3f2ab64f7f911126f5c3b2c2839c71e793296795c7501a7e",
+  "words": 5,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/jarrah-acacia-wood-console-table-wooden-study-table-with-drawer-for-home-and-office",
+  "review_id": "source-sha256-63afea2ac8291aa99d12b963aa1fb7ee95303a8d75c9f2badd49f852a9426edc",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "1306d235525a0f5b07208d27d398dc628f5f60bc9a6e7cfe0c05299cdc589551",
+  "words": 15,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "console-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wood-steel-modern-round-coffee-table-with-drawer-for-storage-center-table-for-living-room",
+  "review_id": "source-sha256-df1aad8921e4d9ef17b6971ae94a1ad0299a9546dbeb2bfd4f15114dd47220e8",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "26f7bde65ac088b8329fef1433c31e555c8745199b85ff63ba41ac0ebfa42dac",
+  "words": 14,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": true,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/linn-side-table-mango-wood-end-table-for-living-room-small-tea-table-teapoy-table",
+  "review_id": "source-sha256-6a6bb90e0e681d39ef3dda247f88aaa974fe786a9b77b800f93728e78ec1f4f2",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "9bf208d19a67559ce6187a1ae0288604dcaf60784b1d35737a70687277c92c93",
+  "words": 16,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/ernest-modern-sofa-side-table-decorative-end-table-for-living-room-bedroom-corner-table",
+  "review_id": "source-sha256-6dd2a96e5f16757a85fb14acff3dd22bf11bcea945975ba66e463b5c1f997c2d",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "d589f675987f044fb11d8d24f0d327cd3c658fa6d71bbdd533a7adefb5b7748e",
+  "words": 4,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/granite-top-antique-brass-aluminium-round-end-table-side-table-for-living-room-and-bedroom",
+  "review_id": "source-sha256-8a1d257a5c0ac76f4ddea4fea41d86a32ee51ae5be7583d6ffe10fb852a2627a",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "cc2ea46c6aa9d261fd0a37ee2fe6fabaa1b765d7b60b82a1b8b7667c4d4ea03c",
+  "words": 6,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/modern-gold-square-folding-table-portable-side-end-table-folding-tea-table",
+  "review_id": "source-sha256-495d2b3b5b1ceb2e019151cd19d2128da15e805a68ac71cca2407c46e2f1e38d",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "0ea2a291389b1afde6e87f0a05908a9ad6e76aa6a5600b85e22c7ff592d6ab6d",
+  "words": 27,
+  "sentences": 3,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/mez-wooden-multipurpose-tray-table-kitchen-accessories",
+  "review_id": "source-sha256-d28e6e6d28362b049bfcbb2ac112503784bfbdd21484f02e06602fd31b0509e3",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "c6a4aefe1a063992a71610d64596af04c466a9ee198848707d2a5f3588126d54",
+  "words": 7,
+  "sentences": 1,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wood-metal-bean-coffee-table-center-table-for-living-room",
+  "review_id": "source-sha256-dfe8b4d69f4628fe4fb4c7f83901d740f29f79afbefee488f75a71f54a71a424",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "17acd20eeeddeede031d56af5f9ebb4966c9906cf4c5c1d4d53f2c7b926fd9f8",
+  "words": 6,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": true,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": true,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/modern-round-sofa-side-table-for-living-room-end-table-corner-table",
+  "review_id": "source-sha256-f1544bc3b6979056627456ef83eb92b7b5a33019c7e5bb76d6e0de6c4ba166bf",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "a27eaa300cd2fa7e8b69d79777b3f00d455bcb8c5aea16b339be95b9e5e8f147",
+  "words": 5,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/3-pcs-wood-metal-center-tables-set-pollo-stools-for-living-room-nesting-tables",
+  "review_id": "source-sha256-38b96db81644a1aaee73ad87a5dc97d604f709d8b93f196ce4642676546678f8",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "c3cbe13d8eae5bb1e51843c635f03957dec16c73688a919e7d4229c6b05bdf35",
+  "words": 2,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": true,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": true,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/square-sheesham-wood-book-style-side-table-small-table-for-living-room",
+  "review_id": "source-sha256-c78589a3ff0791b1f24c813fd859f9454b978e752c6e184bfc3ba8e65853cae9",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "1bca940513a73da21c0450bdb5603154349b73df0478835cbd220a03f1cf50e3",
+  "words": 6,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wood-metal-bean-coffee-table-center-table-for-living-room",
+  "review_id": "source-sha256-32ff3f1c887a1186bb1e828faf1038cb64cbd0e928357d05ffc5cdf5c286d4a5",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "f2ebdde08a63759272ddd9f8ef02ae19aa37e24634fdcb246fdfc90786651773",
+  "words": 23,
+  "sentences": 1,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": true,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-study-table-work-desk-for-office-living-room",
+  "review_id": "source-sha256-852bc4f3ac555425a537f1c42e1615a280f3835242c88cc2980f9b84ccfd8b1c",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "b95978678addb597deb119e82c93273716cc625753bdb35909e94cc93153db79",
+  "words": 7,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "desks"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-dining-table-with-benches-for-dining-room-home-furniture",
+  "review_id": "source-sha256-ff8cd5c20987916809b9f86fac8f51bd7c0d367a6f6994191c04b3c496dc35b6",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "10dd3d80261103112ddddf6f79d204cb5aa36d6b9e6ff9971ac6387e5875a3c6",
+  "words": 6,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "dining-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/wooden-nesting-coffee-table-set-of-2-wooden-nest-of-table-for-living-room",
+  "review_id": "source-sha256-ca7b735ba2ddfb768037e710745447093f0064007e42a24124cbd61c6226cfa4",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "c1617da6384d0c3da0f9ee5863c956364140d89a4342185dc08248a918f18638",
+  "words": 2,
+  "sentences": 1,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/round-wooden-side-table-circular-table-with-drawer-for-living-room",
+  "review_id": "source-sha256-b5a0de0b02a3ffe980a882da0ce0ff7d4a88287e0e74dbbbf8077a87286183ba",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "24abd0bd5fdcc57d0b12c4d9d1a7b9ca21de459594e8db1e1c3b3369323b4f67",
+  "words": 26,
+  "sentences": 3,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/circular-center-wooden-coffee-table-round-table-for-living-room",
+  "review_id": "source-sha256-a344a6f218d457af562168cf5533f7565c0a1f9d10e9c1d7bcb3e4467857a9dc",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "9b7f734423b6ec0e0e910f2c0dd597f14486755e0bbfeab283a8aedb31befb10",
+  "words": 25,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/teak-wood-bedside-table-solid-wooden-side-table-for-modern-bedroom",
+  "review_id": "source-sha256-4c0aa4b6cdae102d0494793057aefa10491f230f264ff7548daeb58308879671",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "18503fce223d5b92d2922ac913a9968c94eb7065b8f21f60a5bbf34d66fcc365",
+  "words": 18,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": true,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/bowl-center-table-75",
+  "review_id": "source-sha256-866e3b2fc0d536f5387cd0455f2384fc43f3c08341141f1a9b983493d2673ea3",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "25879e56dc09f92ddbb09745de7f6796b73762518c4d687df175af30edc2f859",
+  "words": 23,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "coffee-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/flower-table-antique-stylish-wooden-table-corner-table",
+  "review_id": "source-sha256-35a45dbb9a2614e9de78da3e9260cbbdf168f839355dac2a440de2ca265fd812",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "99be675ae74d39ed3e4f83fae95ae6c6e337bec8b4219a3ebb2111479556f581",
+  "words": 20,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-the-egret-on-rainbow-lotus-yantra",
+  "review_id": "source-sha256-f1d92614754d5eb5493c92176191c828c0508fb23b3aaa63438f78168ad3fbc5",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "d0f98ee277040a5a774c74e2708048b943160a207d311fd4f563febd54a90dc4",
+  "words": 21,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": true,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-thiksey-ashtamangla-side-table-selective-edition",
+  "review_id": "source-sha256-22f7f1f99052701e55e69475c16fa6b70a8897aed582541dbbb37c6c72f32da0",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "8562efd882577e6ae7835bfe8c6f8f9c824ff7e806e4d873b0c12cbe59d06da0",
+  "words": 23,
+  "sentences": 2,
+  "first_person": true,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+},
+{
+  "source_url": "https://judge.me/reviews/stores/ikiru.in/products/kalam-table-squirrel-tree-side-table-selective-edition",
+  "review_id": "source-sha256-ed3e0d6099f20c539dd401170d60578da24dd305b8a2f1649a927856c54ed9d9",
+  "review_id_method": "local_source_hash_not_platform_id",
+  "text_sha256": "57c634312c8e1914ba0f13c9aa5f4c4b69f64f33a9705682f57d47c726fce92d",
+  "words": 22,
+  "sentences": 2,
+  "first_person": false,
+  "contraction": false,
+  "color_or_pattern": false,
+  "fit_or_comfort": false,
+  "exclamation": false,
+  "evidence_origin": "chrome_rendered_judgeme",
+  "category": "side-tables"
+}
                  ],
     "profiles":  [
                      {

@@ -1,0 +1,34 @@
+﻿{
+    "schema_version":  1,
+    "collection_id":  "ikiru-furniture-2026-10-26",
+    "collected_at":  "2026-10-26",
+    "source":  "https://judge.me/reviews/stores/ikiru.in",
+    "pages_inspected":  40,
+    "reviews_inspected":  400,
+    "review_records_added":  41,
+    "photos_added":  21,
+    "categories":  [
+                       {
+                           "category":  "side-tables",
+                           "photos":  8
+                       },
+                       {
+                           "category":  "coffee-tables",
+                           "photos":  9
+                       },
+                       {
+                           "category":  "desks",
+                           "photos":  3
+                       },
+                       {
+                           "category":  "dining-tables",
+                           "photos":  1
+                       }
+                   ],
+    "purpose":  "Reference scenes and writing patterns for generated demonstrations; not Grenheim customer testimonials.",
+    "authenticity":  "Published on Judge.me; authorship and purchase authenticity not independently verified.",
+    "review_id_method":  "Stable local SHA256 of product URL, published date and review body; not a platform review ID.",
+    "rights_status":  "not_granted_by_download",
+    "names_collected":  false,
+    "photo_selection":  "Contact sheet visually checked; rejected incorrect products, non-wood tables, obstructed views, close-ups without usable setting and undersized images. SHA256 deduplicated against existing library."
+}
