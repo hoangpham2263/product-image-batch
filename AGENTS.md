@@ -58,12 +58,12 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 
 ## 7. Cách ghi bài học
 
-- Quy tắc chung ở các mục trên dành cho người/agent sửa dự án. Các bài học theo URL/danh mục mà luồng tạo ảnh đọc nằm trong khối dữ liệu bên dưới. Không chỉ thêm văn xuôi rồi coi như app đã nhận bài học theo phạm vi.
-- Mỗi bài học cần rõ phạm vi, lỗi hoặc yêu cầu thực tế, hành vi đúng và cách đối chiếu với ảnh đầu vào hiện tại. Không lưu riêng câu như “thiếu chân kìa”, “màu chưa hợp” mà thiếu mô tả áp dụng.
+- Quy tắc chung ở các mục trên dành cho người/agent sửa dự án. Các bài học theo URL/danh mục mà luồng tạo ảnh đọc nằm trong các mục gạch đầu dòng bên dưới. Không chỉ thêm văn xuôi rồi coi như app đã nhận bài học theo phạm vi.
+- Agent phải đúc kết mỗi bài học thành 1–3 gạch đầu dòng ngắn: nguyên tắc cần giữ, điều cần tránh và phạm vi nếu cần. Không bê nguyên lời người dùng, kể lịch sử xử lý hoặc lặp một ý thành đoạn văn dài. Thêm dấu gạch trước bản chép nguyên văn chưa phải đúc kết.
 - Viết tiếng Việt, tự đủ nghĩa khi clone source mới. Không yêu cầu ảnh, log hoặc batch cũ trong `workspace` để hiểu bài học; đường dẫn lịch sử chỉ là bằng chứng phụ. Ảnh hiện tại không rõ thì ghi nhận chưa xác minh.
 - Giữ `id` khi làm rõ bài học cũ để liên kết bật/tắt còn đúng. Cập nhật mục trùng thay vì chép lặp; lỗi riêng của một mẫu không biến thành thiết kế bắt buộc cho cả danh mục. Không tự biến lời AI thành yêu cầu người dùng.
-- App lưu nguyên nội dung người dùng nhập vào `requested_change`, không tự biên tập thành bài học. Khi biên tập trong source, giữ đúng ý người dùng, không thêm yêu cầu mới; không tự đổi trạng thái ảnh thành đã duyệt.
-- `workspace/feedback/<id>/feedback.json` giữ phản hồi/lịch sử và snapshot cục bộ; không phải nguồn bài học đi theo Git. Khi bật lại bài học từ phản hồi cũ, app có thể lưu lại nội dung phản hồi đó; cần dùng mô tả đủ ngữ cảnh ngay từ lúc nhập.
+- Khi cập nhật bài học, agent phải hiểu ngữ cảnh rồi rút ra quy tắc áp dụng lại được; giữ đúng ý người dùng, không tự thêm yêu cầu hay đánh dấu ảnh đã duyệt. Ví dụ “màu chưa hợp” được đúc kết thành “Hòa ánh sáng và bóng cục bộ; giữ màu vật liệu và vân gốc”.
+- `workspace/feedback/<id>/feedback.json` giữ lời phản hồi gốc, lịch sử và snapshot cục bộ. Phần bài học trong source giữ quy tắc đã đúc kết, không cần workspace cũ để hiểu. Bộ ghi của app giữ định dạng Markdown; việc đúc kết ý nghĩa do agent thực hiện, không phải chỉ tách câu tự động.
 
 ## 8. Vị trí cần đọc khi sửa
 
@@ -78,79 +78,59 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 - `workspace/output/`: kết quả và log cục bộ, Git bỏ qua.
 
 <!-- app-lessons:start -->
-## Bài học đã lưu
+## Bài học đã đúc kết
 
-Đây là các bài học đang bật mà app đọc trực tiếp trước khi tạo ảnh. Chỉ áp dụng khi khớp URL sản phẩm (`product`) hoặc mã danh mục (`category`); phản hồi sửa hiện tại được ưu tiên hơn bài học cũ. Nội dung phải tự đủ nghĩa, không cần ảnh hoặc log của lượt cũ.
+Mỗi mục là nguyên tắc đã rút ra để áp dụng lần sau. Chỉ áp dụng đúng URL/danh mục; yêu cầu mới nhất của người dùng có ưu tiên cao nhất. Comment giữ mã và phạm vi để app đọc, bật/tắt bài học.
 
-Khối JSON bên dưới là dữ liệu của app, không phải lịch sử chat. Giữ nguyên tên các trường kỹ thuật để app đọc và bật/tắt được:
+### Giữ cấu tạo ghế đầy đủ
+<!-- app-lesson: {"id":"2b459eefc9514ffa999909bbc85d42ea","scope":"product","product_url":"https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/","category":"dining-tables","created_at":"2026-10-26T07:04:24.644366Z"} -->
+Áp dụng: https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/.
 
-- `id`: mã ổn định của bài học, dùng để cập nhật hoặc bật/tắt, không phải đường dẫn ảnh.
-- `scope`: `product` cho một URL, `category` cho cả danh mục.
-- `product_url`: URL áp dụng khi phạm vi là sản phẩm; để trống khi phạm vi là danh mục.
-- `category`: mã danh mục trong catalog, không phải tên thư mục kho ảnh tiếng Việt.
-- `requested_change`: bài học bằng tiếng Việt, nêu lỗi/yêu cầu và hành vi đúng; không chỉ chép câu nhận xét thiếu ngữ cảnh.
-- `created_at`: thời điểm ghi nhận, dùng sắp thứ tự; không phải trạng thái ảnh đã được duyệt.
+- Giữ chân ghế, thanh nối, lưng và mặt ghế nhìn thấy liền mạch, đúng phối cảnh và tiếp xúc sàn.
+- Không để chân bị cụt, đứt hoặc xuyên đồ vật; không đoán phần bị che.
 
-Bài học có mặt trong danh sách nghĩa là đang bật. App lấy tối đa 10 bài học khớp, từ cũ đến mới. Tắt bài học trong app sẽ gỡ bản ghi khỏi mục này; lịch sử phản hồi và trạng thái duyệt ảnh được giữ riêng trong workspace.
+### Đồng bộ bàn và ghế theo nguồn
+<!-- app-lesson: {"id":"f84798614e0d45a1a9d46ec91a0b33ca","scope":"product","product_url":"https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/","category":"dining-tables","created_at":"2026-10-26T07:12:01.185526Z"} -->
+Áp dụng: https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/.
 
-```json
-[
-  {
-    "id": "2b459eefc9514ffa999909bbc85d42ea",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "Lỗi đã gặp: chân ghế bị thiếu trong ảnh ghép bàn ăn. Khi thay bàn và ghế, giữ cấu tạo đầy đủ của những phần ghế nhìn thấy theo ảnh sản phẩm: chân, thanh nối, lưng và mặt ghế phải liền mạch, đúng phối cảnh, có điểm tiếp xúc sàn hợp lý. Không để chân bị cụt, đứt hoặc xuyên vào bàn/sàn. Phần bị che khuất không được tự coi là đã xác minh. Áp dụng với ảnh sản phẩm và ảnh phòng đầu vào hiện tại của URL này.",
-    "created_at": "2026-10-26T07:04:24.644366Z"
-  },
-  {
-    "id": "f84798614e0d45a1a9d46ec91a0b33ca",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "Yêu cầu người dùng: bàn và các ghế ngay quanh bàn phải đồng bộ với phong cách ảnh sản phẩm. Dùng thiết kế ghế được thể hiện trong nguồn hiện tại; không giữ ghế của phòng mẫu nếu sai kiểu, cũng không lấy ghế từ một sản phẩm khác. Nếu bán cả bộ thì giữ đúng ghế của bộ; nếu chỉ bán bàn thì phối lại các ghế hiện có theo yêu cầu này không có nghĩa ghế được bán kèm. Không tự thêm chỗ ngồi.",
-    "created_at": "2026-10-26T07:12:01.185526Z"
-  },
-  {
-    "id": "7aeb3fcd590741439c8b449ca7d36cc3",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "Lỗi đã gặp: màu bàn chưa hòa với ánh sáng của phòng. Điều chỉnh ánh sáng cục bộ, độ phơi sáng, cân bằng trắng và bóng tiếp xúc để ghép tự nhiên; giữ màu vật liệu, lớp hoàn thiện và vân gỗ theo ảnh sản phẩm. Không đổi màu gỗ cho giống tủ/ghế trong phòng, không làm nhạt hoặc xóa vân. Chỉ đổi màu vật liệu khi người dùng yêu cầu rõ; không đổi ánh sáng toàn phòng.",
-    "created_at": "2026-10-26T07:36:05.4286701Z"
-  },
-  {
-    "id": "table-seating-dining-tables",
-    "scope": "category",
-    "product_url": "",
-    "category": "dining-tables",
-    "requested_change": "Yêu cầu cho bàn ăn: chỉnh các ghế hiện có ngay quanh bàn để phù hợp phong cách sản phẩm và chiều cao sử dụng của bàn ăn. Nếu nguồn bán cả bộ, dùng đúng ghế của bộ. Nếu chỉ bán bàn, yêu cầu phối ghế không có nghĩa ghế bán kèm. Không mặc định ghế nào cũng phải có lưng gỗ cong hoặc mặt đan; chỉ dùng đặc điểm đó khi nguồn hiện tại thể hiện. Không tự thêm chỗ ngồi, đồ trang trí hay đổi kiến trúc; giữ đồ không liên quan.",
-    "created_at": "2026-10-27T06:48:09.3468036Z"
-  },
-  {
-    "id": "table-seating-coffee-table",
-    "scope": "category",
-    "product_url": "",
-    "category": "coffee-table",
-    "requested_change": "Lỗi đã gặp: thay bàn trà thấp nhưng giữ ghế ăn cao của phòng mẫu, làm sai công năng và tỉ lệ. Chỉnh các chỗ ngồi hiện có ngay quanh bàn sang kiểu, chất liệu và chiều cao phù hợp với bàn trà và ảnh sản phẩm hiện tại. Không mặc định dùng ghế ăn gỗ cong/mặt đan của sản phẩm khác. Đây là yêu cầu phối chỗ ngồi, không chứng minh ghế bán kèm. Không tự thêm chỗ ngồi hoặc chuyển toàn phòng thành không gian khác; giữ kiến trúc và đồ không liên quan.",
-    "created_at": "2026-10-27T06:48:09.3592337Z"
-  },
-  {
-    "id": "polo-shoulder-block-collar-edge-20261027",
-    "scope": "product",
-    "product_url": "https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block",
-    "category": "polo-shirts",
-    "requested_change": "Mẫu áp dụng: polo xanh navy phối vai trắng tại URL này. Chi tiết đúng từ phía trong cổ ra ngoài: nền xanh navy → một viền trắng → mép ngoài cổ. Lỗi đã gặp: ảnh tạo thêm một dải xanh mỏng giữa viền trắng và mép ngoài. Giữ viền trắng sát mép ở cả hai bên cổ, đúng số sọc và độ rộng tương đối theo ảnh sản phẩm hiện tại; không lấy cấu trúc cổ từ áo người mẫu trong ảnh bối cảnh. Góc nhìn, nếp gấp và ánh sáng không được đổi thứ tự màu. Nếu ảnh đầu vào không cho thấy rõ thì ghi nhận chưa xác minh, không đoán. Quy tắc viền trắng này chỉ áp dụng cho mẫu này.",
-    "created_at": "2026-10-27T16:03:29.9593975+07:00"
-  },
-  {
-    "id": "polo-detail-fidelity-20261027",
-    "scope": "category",
-    "product_url": "",
-    "category": "polo-shirts",
-    "requested_change": "Chú ý từng chi tiết áo, không chỉ giống tổng thể. Trước khi tạo, quan sát hình cổ, mép viền, thứ tự màu, số sọc, độ rộng tương đối, đường may, nút, nẹp, mảng phối vai/tay và vị trí logo trong ảnh sản phẩm. Giữ các chi tiết đó theo đúng mẫu hiện tại, chỉ thay thương hiệu theo quy tắc chung. Không thêm/bớt sọc, đơn giản hóa thiết kế hoặc lấy chi tiết áo của người mẫu trong ảnh tham khảo. Phần bị che phải ghi nhận chưa xác minh. Lỗi viền cổ của mẫu shoulder-block là ví dụ về sai chi tiết, không có nghĩa mọi polo đều có cùng viền trắng.",
-    "created_at": "2026-10-27T16:04:20.7937109+07:00"
-  }
-]
-```
+- Bộ bàn ghế phải giữ đúng thiết kế cả bộ; không chỉ thay bàn rồi giữ ghế sai kiểu.
+- Nếu chỉ bán bàn, phối các ghế hiện có theo yêu cầu; không tự thêm ghế hoặc coi ghế là hàng bán kèm.
+
+### Hòa ánh sáng, giữ màu vật liệu
+<!-- app-lesson: {"id":"7aeb3fcd590741439c8b449ca7d36cc3","scope":"product","product_url":"https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/","category":"dining-tables","created_at":"2026-10-26T07:36:05.4286701Z"} -->
+Áp dụng: https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/.
+
+- Sản phẩm chưa hòa với phòng: chỉnh ánh sáng cục bộ, cân bằng trắng và bóng tiếp xúc.
+- Giữ màu vật liệu, lớp hoàn thiện và vân; chỉ đổi màu vật liệu khi người dùng yêu cầu rõ.
+
+### Ghế cho bàn ăn
+<!-- app-lesson: {"id":"table-seating-dining-tables","scope":"category","product_url":"","category":"dining-tables","created_at":"2026-10-27T06:48:09.3468036Z"} -->
+Áp dụng: danh mục `dining-tables`.
+
+- Ghế quanh bàn ăn phải hợp phong cách và chiều cao sử dụng; bán cả bộ thì dùng đúng ghế của bộ.
+- Không áp kiểu ghế của sản phẩm khác, tự thêm chỗ ngồi hoặc đổi kiến trúc phòng.
+
+### Chỗ ngồi cho bàn trà
+<!-- app-lesson: {"id":"table-seating-coffee-table","scope":"category","product_url":"","category":"coffee-table","created_at":"2026-10-27T06:48:09.3592337Z"} -->
+Áp dụng: danh mục `coffee-table`.
+
+- Bàn trà thấp cần chỗ ngồi phù hợp chiều cao và phong cách; không giữ ghế ăn cao từ phòng mẫu.
+- Chỉnh các chỗ ngồi liên quan đang có; không tự thêm ghế hoặc đổi toàn bộ căn phòng.
+
+### Viền cổ mẫu polo xanh phối vai trắng
+<!-- app-lesson: {"id":"polo-shoulder-block-collar-edge-20261027","scope":"product","product_url":"https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block","category":"polo-shirts","created_at":"2026-10-27T16:03:29.9593975+07:00"} -->
+Áp dụng: https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block.
+
+- Viền đúng từ trong ra ngoài: nền xanh navy → một viền trắng → mép ngoài cổ.
+- Không thêm dải xanh ngoài viền trắng; giữ vị trí và độ rộng tương đối ở cả hai bên cổ.
+- Chỉ áp dụng thiết kế này cho URL chỉ định; đối chiếu ảnh đầu vào hiện tại, không đoán phần không thấy.
+
+### Chú ý chi tiết áo, không chỉ tổng thể
+<!-- app-lesson: {"id":"polo-detail-fidelity-20261027","scope":"category","product_url":"","category":"polo-shirts","created_at":"2026-10-27T16:04:20.7937109+07:00"} -->
+Áp dụng: danh mục `polo-shirts`.
+
+- Đọc kỹ hình cổ, mép viền, thứ tự màu, số và độ rộng sọc, đường may, nút, nẹp, mảng phối và vị trí logo trước khi tạo.
+- Giữ đúng chi tiết của mẫu hiện tại; không thêm bớt, đơn giản hóa hoặc lấy chi tiết áo người mẫu tham khảo.
+- Chỉ thay thương hiệu theo quy tắc chung; ghi nhận phần bị che là chưa xác minh.
+
 <!-- app-lessons:end -->
