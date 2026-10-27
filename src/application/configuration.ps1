@@ -9,6 +9,7 @@
         StyleExample = Join-Path $ProjectRoot 'data/image-style/example.png'
         ProductContexts = $contexts
         SourceCatalog = $catalog
+        AgentInstructionsPath = Join-Path $ProjectRoot 'AGENTS.md'
         FeedbackRoot = Join-Path $workspace.Root 'feedback'
         WritingStyle = Get-WritingStyle (Join-Path $ProjectRoot 'data/writing-style.json')
     }

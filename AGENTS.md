@@ -30,6 +30,7 @@
 Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng giữ các ghế bọc nệm trắng của phòng. Người dùng đã chỉ ra ảnh gốc có bàn gỗ nguyên tấm, chân gỗ dạng khối và ghế gỗ lưng cong, mặt đan. Mô tả trước đó của trợ lý về ghế cũng không chính xác.
 
 - Với sản phẩm bán cả bộ, phải thay cả bàn và các ghế liên quan bằng đúng bộ từ nguồn.
+- Người dùng bổ sung cho bàn ăn/bàn trà: ghế hiện có ngay quanh bàn cũng phải đồng bộ phong cách và tỉ lệ sử dụng với bàn mới, kể cả khi chỉ bán bàn. Lượt bàn trà oval ngày 27/10 vẫn giữ bốn ghế ăn đen cao từ phòng bếp, trong khi ảnh sản phẩm là bàn thấp trong phòng khách. Phải chỉnh các chỗ ngồi liên quan sang kiểu phù hợp với bàn trà và phong cách ảnh sản phẩm; không mặc định dùng ghế gỗ lưng cong/mặt đan của sản phẩm khác. Đây là yêu cầu phối ghế hiện có, không chứng minh ghế bán kèm. Giữ kiến trúc và đồ không liên quan; không tự thêm chỗ ngồi hay chuyển toàn phòng thành phòng khác.
 - Khi chỉnh sửa bằng AI, thay đủ thành phần sản phẩm được yêu cầu, không chỉ đổi mặt bàn rồi giữ ghế sai.
 - Không tự phối thêm ghế sofa, ghế nệm hoặc kiểu ghế khác khi người dùng yêu cầu giữ sản phẩm gốc.
 - QA phải so từng thành phần: hình mặt bàn, độ dày, cạnh, vân, chân đỡ, kiểu lưng và mặt ghế, số lượng theo nguồn. Không chỉ kiểm tra có một bàn gỗ trong phòng.
@@ -98,6 +99,57 @@ Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng g
 
 ## Cách bổ sung bài học
 
-Phản hồi trong app được lưu riêng tại `workspace/feedback/<id>/feedback.json`, có phạm vi URL sản phẩm hoặc danh mục do người dùng chọn. Đưa bài học còn bật vào bước tạo ảnh; yêu cầu sửa mới nhất có ưu tiên cao hơn phản hồi cũ. Khi làm lại, dùng bản sao đầu vào đã kiểm tra hash và tạo batch mới. Xuất ảnh chỉ có nghĩa chờ người dùng xem; chỉ thao tác xác nhận của người dùng mới đánh dấu `accepted`. Không tự biến văn bản AI thành chỉ dẫn trong `AGENTS.md`.
+Bài học được lưu tập trung trong phần Saved user lessons của `AGENTS.md`, có phạm vi URL sản phẩm hoặc danh mục do người dùng chọn. Luồng tạo ảnh đọc trực tiếp phần này; bật/tắt bài học trong app cập nhật phần này. `workspace/feedback/<id>/feedback.json` chỉ giữ lịch sử thao tác, ảnh và trạng thái lần chạy. Đưa bài học còn bật vào bước tạo ảnh; yêu cầu sửa mới nhất có ưu tiên cao hơn phản hồi cũ. Khi làm lại, dùng bản sao đầu vào đã kiểm tra hash và tạo batch mới. Xuất ảnh chỉ có nghĩa chờ người dùng xem; chỉ thao tác xác nhận của người dùng mới đánh dấu `accepted`. Không tự biến văn bản AI thành chỉ dẫn trong `AGENTS.md`.
 
 Khi người dùng chỉ ra lỗi mới, ghi ngắn gọn: tình huống thực tế, điều đã làm sai, hành vi đúng và cách kiểm chứng. Cập nhật mục tương ứng nếu đã có; tránh ghi lặp hoặc biến một trường hợp riêng thành quy tắc cho mọi sản phẩm. Chỉ đánh dấu lỗi đã xử lý khi có bằng chứng tương ứng.
+
+<!-- app-lessons:start -->
+## Saved user lessons
+
+Apply only to the matching product URL or category. Newer explicit corrections take precedence. This section is the source used by image generation.
+
+```json
+[
+  {
+    "id": "2b459eefc9514ffa999909bbc85d42ea",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "thiếu cái chân ghế kìa",
+    "created_at": "2026-10-26T07:04:24.644366Z"
+  },
+  {
+    "id": "f84798614e0d45a1a9d46ec91a0b33ca",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "ưu tiên lấy ghê bàn giống trong ảnh gốc cho đồng bộ style",
+    "created_at": "2026-10-26T07:12:01.185526Z"
+  },
+  {
+    "id": "7aeb3fcd590741439c8b449ca7d36cc3",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "ổn mà tôi thấy là màu của bàn hiện tại ko match với ngữ cảnh và màu các bố cục ảnh",
+    "created_at": "2026-10-26T07:36:05.4286701Z"
+  },
+  {
+    "id": "table-seating-dining-tables",
+    "scope": "category",
+    "product_url": "",
+    "category": "dining-tables",
+    "requested_change": "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
+    "created_at": "2026-10-27T06:48:09.3468036Z"
+  },
+  {
+    "id": "table-seating-coffee-table",
+    "scope": "category",
+    "product_url": "",
+    "category": "coffee-table",
+    "requested_change": "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
+    "created_at": "2026-10-27T06:48:09.3592337Z"
+  }
+]
+```
+<!-- app-lessons:end -->

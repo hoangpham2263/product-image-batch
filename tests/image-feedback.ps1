@@ -19,6 +19,7 @@ try {
     foreach($pair in @(@('01-scene.png','scene'),@('02-product.png','product'))){$manifest.images+=@([pscustomobject]@{file=$pair[0];role=$pair[1];category='dining-tables';sha256=Get-BytesHash ([IO.File]::ReadAllBytes((Join-Path $refs $pair[0])))})}
     Write-FeedbackJson (Join-Path $refs 'manifest.json') $manifest
     $photo=Join-Path $images '001-table.png'
+    [IO.File]::WriteAllText((Join-Path $temp 'AGENTS.md'),"# Existing project rules`r`nPreserve this manual instruction.`r`n",[Text.UTF8Encoding]::new($true))
     $change='Replace ALL old upholstered chairs with the matching curved wooden chairs; preserve slab legs.'
     $path=Save-ImageFeedback $temp $photo $change product $true
     $feedback=Read-ImageFeedback $path
@@ -26,15 +27,26 @@ try {
     Assert (Test-Path -LiteralPath $feedback.RejectedImage) 'Rejected image snapshot missing.'
     $script:Config=@{FeedbackRoot=(Join-Path $temp 'workspace/feedback')}
     Assert ((Get-ImageFeedbackGuidance $context $manifest.product_url) -match 'Replace ALL') 'Saved lesson never reaches future prompts.'
+    Assert ((Get-Content (Join-Path $temp 'AGENTS.md') -Raw -Encoding UTF8) -match 'Replace ALL') 'Saved user lesson was not written to AGENTS.md.'
+    $agentPath=Join-Path $temp 'AGENTS.md';$agentText=[IO.File]::ReadAllText($agentPath)
+    Assert ($agentText.StartsWith('# Existing project rules')) 'Saving a lesson overwrote unrelated project instructions.'
+    [IO.File]::WriteAllText($agentPath,$agentText.Replace('Replace ALL','Central edit: replace all'),[Text.UTF8Encoding]::new($true))
+    Assert ((Get-ImageFeedbackGuidance $context $manifest.product_url) -match 'Central edit: replace all') 'Editing AGENTS.md did not update the runtime lesson.'
+    [IO.File]::WriteAllText($agentPath,$agentText,[Text.UTF8Encoding]::new($true))
+    $history=Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json
+    $history.requested_change='History text is not the lesson source';Write-FeedbackJson $path $history
+    Assert ((Get-ImageFeedbackGuidance $context $manifest.product_url) -match 'Replace ALL') 'Generation still reads private history instead of AGENTS.md.'
+    $history.requested_change=$change;Write-FeedbackJson $path $history
     Assert ((Get-ImageFeedbackGuidance $context $manifest.product_url) -match 'COLOR CORRECTION CONTRACT' -and (Get-ImageFeedbackGuidance $context $manifest.product_url) -match 'does NOT by itself request a different wood species') 'Color feedback must not silently authorize restaining the source product.'
     Assert (-not (Get-ImageFeedbackGuidance $context 'https://example.test/p/other')) 'Product-only lesson leaked to another product.'
     $categoryPath=Save-ImageFeedback $temp $photo 'Check every chair component against the source.' category $true
     Assert ((Get-ImageFeedbackGuidance $context 'https://example.test/p/other') -match 'every chair') 'Explicit category lesson did not reach matching products.'
     $other=[pscustomobject]@{source_categories=@('polo-shirts')}
     Assert (-not (Get-ImageFeedbackGuidance $other 'https://example.test/p/other')) 'Category lesson leaked into another category.'
-    $disabled=Get-Content -LiteralPath $categoryPath -Raw -Encoding UTF8|ConvertFrom-Json
-    $disabled.remember=$false;Write-FeedbackJson $categoryPath $disabled
+    Set-ImageFeedbackRemember $temp $categoryPath $false
     Assert (-not (Get-ImageFeedbackGuidance $context 'https://example.test/p/other')) 'Disabled lesson is still active.'
+    $disabledId=(Get-Content -LiteralPath $categoryPath -Raw -Encoding UTF8|ConvertFrom-Json).id
+    Assert (-not @(Read-AgentLessons (Join-Path $temp 'AGENTS.md')|Where-Object id -eq $disabledId).Count) 'Disabled lesson remains in the central instructions.'
     $bad=$false;try{Resolve-FeedbackChild $refs '../outside.png'|Out-Null}catch{$bad=$true};Assert $bad 'Reference traversal was accepted.'
     $bad=$false;try{Set-ImageFeedbackStatus $path accepted}catch{$bad=$true};Assert $bad 'Accepted feedback before a new result existed.'
     # A correction reuses the saved inputs, even when the original source later changes.

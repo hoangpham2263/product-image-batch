@@ -20,7 +20,7 @@ function New-ImageFeedbackDialog([string]$ProjectRoot, [string]$OutputRoot) {
     $resultPreview=New-Object Windows.Forms.PictureBox -Property @{Name='ResultPreview';Location='448,78';Size='406,240';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Nêu rõ chỗ sai và kết quả cần sửa (ví dụ: thay cả ghế nệm bằng đúng ghế gỗ của sản phẩm).';Location='12,328';Size='842,26'}
     $text=New-Object Windows.Forms.TextBox -Property @{Name='RequestedChange';Multiline=$true;ScrollBars='Vertical';MaxLength=4000;Location='12,358';Size='842,106'}
-    $remember=New-Object Windows.Forms.CheckBox -Property @{Name='RememberLesson';Text='Lưu thành bài học cho những lần chạy sau';Checked=$true;Location='12,478';Size='400,28'}
+    $remember=New-Object Windows.Forms.CheckBox -Property @{Name='RememberLesson';Text='Lưu bài học vào AGENTS.md';Checked=$true;Location='12,478';Size='400,28'}
     $scope=New-Object Windows.Forms.ComboBox -Property @{Name='LessonScope';Location='448,478';Size='406,28';DropDownStyle='DropDownList'}
     [void]$scope.Items.Add('Chỉ sản phẩm này');[void]$scope.Items.Add('Cả danh mục sản phẩm');$scope.SelectedIndex=0
     $save=New-Object Windows.Forms.Button -Property @{Text='Lưu phản hồi';Location='12,522';Size='160,36'}
@@ -87,11 +87,12 @@ function New-ImageFeedbackDialog([string]$ProjectRoot, [string]$OutputRoot) {
         if(-not $list.SelectedItem){return}
         try {
             $r=Get-Content -LiteralPath $list.SelectedItem.Path -Raw -Encoding UTF8|ConvertFrom-Json
+            $r.remember=[bool]@(Read-AgentLessons (Join-Path $ProjectRoot 'AGENTS.md')|Where-Object id -eq $r.id).Count
             $details.Text="Sản phẩm: $($r.product_url)`r`nTrạng thái: $($statusNames[$r.status])`r`nPhạm vi: $($r.scope) • Dùng làm bài học: $($r.remember)`r`n`r`nYêu cầu sửa:`r`n$($r.requested_change)`r`n`r`nKết quả mới: $($r.result_folder)`r`nLỗi: $($r.error)`r`nPhản hồi trước: $($r.parent_feedback_id)"
         } catch {$details.Text=$_.Exception.Message}
     }.GetNewClosure())
     $accept.Add_Click({try{if(-not $list.SelectedItem){return};Set-ImageFeedbackStatus $list.SelectedItem.Path accepted;& $refresh}catch{[void][Windows.Forms.MessageBox]::Show($dialog,$_.Exception.Message)}}.GetNewClosure())
-    $toggle.Add_Click({try{if(-not $list.SelectedItem){return};$path=$list.SelectedItem.Path;$r=Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json;$r.remember=-not $r.remember;Write-FeedbackJson $path $r;& $refresh}catch{[void][Windows.Forms.MessageBox]::Show($dialog,$_.Exception.Message)}}.GetNewClosure())
+    $toggle.Add_Click({try{if(-not $list.SelectedItem){return};$path=$list.SelectedItem.Path;$r=Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json;$enabled=[bool]@(Read-AgentLessons (Join-Path $ProjectRoot 'AGENTS.md')|Where-Object id -eq $r.id).Count;Set-ImageFeedbackRemember $ProjectRoot $path (-not $enabled);& $refresh}catch{[void][Windows.Forms.MessageBox]::Show($dialog,$_.Exception.Message)}}.GetNewClosure())
     $open.Add_Click({if($list.SelectedItem){$r=Get-Content -LiteralPath $list.SelectedItem.Path -Raw -Encoding UTF8|ConvertFrom-Json;if($r.result_folder -and (Test-Path -LiteralPath $r.result_folder)){Start-Process explorer.exe -ArgumentList ('"'+$r.result_folder+'"')}}}.GetNewClosure())
     $resume.Add_Click({
         try {
