@@ -1,4 +1,4 @@
-# Hướng dẫn và bài học của dự án
+﻿# Hướng dẫn và bài học của dự án
 
 Áp dụng cho toàn bộ repository Product Image Batch. Đọc file này trước khi sửa workflow, prompt, dữ liệu mẫu hoặc bước kiểm tra. Yêu cầu mới nhất của người dùng được ưu tiên; khi yêu cầu thay đổi, cập nhật bài học liên quan thay vì giữ các quy tắc mâu thuẫn.
 
@@ -20,10 +20,12 @@
 ## 1. Phân biệt ảnh sản phẩm và ảnh phòng
 
 - Ảnh sản phẩm gốc quyết định kiểu dáng, vật liệu, màu, vân, chân, lưng ghế, mặt ghế và các thành phần được bán kèm.
+- Chú ý chi tiết, không chỉ giống tổng thể: trước khi tạo phải quan sát các phần nhìn thấy trong ảnh sản phẩm và đưa đặc điểm cụ thể vào yêu cầu tạo ảnh. Với áo, chú ý hình cổ, mép viền, thứ tự màu, số/độ rộng sọc, đường may, nút, nẹp, mảng phối và vị trí logo; với sản phẩm khác, áp dụng cùng nguyên tắc cho cấu tạo riêng của nó. Chi tiết nhỏ vẫn là thiết kế sản phẩm, không được tự đơn giản hóa, thêm bớt hoặc lấy từ ảnh người/phòng tham khảo. Phần bị che không được coi là đã xác minh. Ví dụ viền cổ dưới đây minh họa nguyên tắc này, không giới hạn bài học ở một đường viền. Đây là yêu cầu đọc ảnh và soạn prompt kỹ từ đầu, không thêm vòng AI QA hay tự tạo lại.
 - Ảnh phòng chỉ quyết định không gian, góc máy, phối cảnh và ánh sáng sẵn có. Không lấy kiểu bàn hoặc ghế trong phòng để thay chi tiết sản phẩm.
 - Đối chiếu ảnh thực tế đã tải từ URL và bản sao trong `refs/<mã-SP>/`, không chỉ suy luận từ tên hoặc handle.
 - Xác định sản phẩm là bàn riêng hay cả bộ bàn ghế từ nguồn. Không mặc định mọi bàn đều kèm ghế, hoặc mọi ảnh đều cần 12 ghế.
 - Nếu nguồn ghi số lượng nhưng ảnh chỉ thể hiện một phần, ghi nhận giới hạn đó; không tự đoán các chi tiết khuất như thể đã xác minh.
+- Bài học viền cổ áo (27/10/2026): mẫu polo xanh `work-polo-shirt-logo-shoulder-block` có viền trắng sát mép ngoài cổ; ảnh tạo đã thêm dải xanh mỏng ra ngoài viền trắng. Khi tạo áo phải giữ đúng vị trí, thứ tự màu, số sọc và độ rộng tương đối của viền cổ/tay theo ảnh sản phẩm; không lấy viền từ áo người mẫu hoặc tự thêm đường màu. Đối chiếu cận hai bên cổ với `02-product.jpg` đã lưu trong refs; chỉ kết luận phần nhìn thấy, không coi đổi góc/ánh sáng là lý do đổi cấu trúc viền. Không áp thiết kế viền trắng này cho mẫu áo khác. Đã xác minh sai khác ở ảnh hiện tại; chưa tạo lại để chứng minh lỗi đã hết.
 
 ## 2. Bài học: chỉ đổi mặt bàn, giữ ghế phòng mẫu là sai với sản phẩm cả bộ
 
@@ -112,46 +114,62 @@ Apply only to the matching product URL or category. Newer explicit corrections t
 
 ```json
 [
-  {
-    "id": "2b459eefc9514ffa999909bbc85d42ea",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "thiếu cái chân ghế kìa",
-    "created_at": "2026-10-26T07:04:24.644366Z"
-  },
-  {
-    "id": "f84798614e0d45a1a9d46ec91a0b33ca",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "ưu tiên lấy ghê bàn giống trong ảnh gốc cho đồng bộ style",
-    "created_at": "2026-10-26T07:12:01.185526Z"
-  },
-  {
-    "id": "7aeb3fcd590741439c8b449ca7d36cc3",
-    "scope": "product",
-    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-    "category": "dining-tables",
-    "requested_change": "ổn mà tôi thấy là màu của bàn hiện tại ko match với ngữ cảnh và màu các bố cục ảnh",
-    "created_at": "2026-10-26T07:36:05.4286701Z"
-  },
-  {
-    "id": "table-seating-dining-tables",
-    "scope": "category",
-    "product_url": "",
-    "category": "dining-tables",
-    "requested_change": "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
-    "created_at": "2026-10-27T06:48:09.3468036Z"
-  },
-  {
-    "id": "table-seating-coffee-table",
-    "scope": "category",
-    "product_url": "",
-    "category": "coffee-table",
-    "requested_change": "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
-    "created_at": "2026-10-27T06:48:09.3592337Z"
-  }
+    {
+        "id":  "2b459eefc9514ffa999909bbc85d42ea",
+        "scope":  "product",
+        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+        "category":  "dining-tables",
+        "requested_change":  "thiếu cái chân ghế kìa",
+        "created_at":  "2026-10-26T07:04:24.644366Z"
+    },
+    {
+        "id":  "f84798614e0d45a1a9d46ec91a0b33ca",
+        "scope":  "product",
+        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+        "category":  "dining-tables",
+        "requested_change":  "ưu tiên lấy ghê bàn giống trong ảnh gốc cho đồng bộ style",
+        "created_at":  "2026-10-26T07:12:01.185526Z"
+    },
+    {
+        "id":  "7aeb3fcd590741439c8b449ca7d36cc3",
+        "scope":  "product",
+        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+        "category":  "dining-tables",
+        "requested_change":  "ổn mà tôi thấy là màu của bàn hiện tại ko match với ngữ cảnh và màu các bố cục ảnh",
+        "created_at":  "2026-10-26T07:36:05.4286701Z"
+    },
+    {
+        "id":  "table-seating-dining-tables",
+        "scope":  "category",
+        "product_url":  "",
+        "category":  "dining-tables",
+        "requested_change":  "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
+        "created_at":  "2026-10-27T06:48:09.3468036Z"
+    },
+    {
+        "id":  "table-seating-coffee-table",
+        "scope":  "category",
+        "product_url":  "",
+        "category":  "coffee-table",
+        "requested_change":  "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
+        "created_at":  "2026-10-27T06:48:09.3592337Z"
+    },
+    {
+        "id":  "polo-shoulder-block-collar-edge-20261027",
+        "scope":  "product",
+        "product_url":  "https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block",
+        "category":  "polo-shirts",
+        "requested_change":  "Giữ đúng viền cổ theo ảnh sản phẩm gốc của mẫu polo xanh này: sọc trắng chạy sát mép ngoài cổ, không có dải xanh hẹp nằm ra ngoài sọc trắng. Ảnh tạo ngày 27/10/2026 đã thêm dải xanh bên ngoài viền trắng, làm sai thiết kế. Giữ vị trí, thứ tự màu, số sọc và độ rộng tương đối của viền ở cả hai bên cổ; không sao chép cấu trúc viền của áo người trong ảnh tham khảo. Đổi góc nhìn, nếp gấp và ánh sáng không được biến viền trắng sát mép thành sọc trắng nằm lọt trong nền xanh. Đối chiếu phần cổ nhìn thấy với ảnh sản phẩm đã lưu tại refs/001-work-polo-shirt-logo-shoulder-block/02-product.jpg của batch 2026-10-27_15-46-36-685-6ccd8b. Đây là quy tắc riêng mẫu áo này, không ép mẫu khác dùng cùng viền. Chỉ sửa chi tiết người dùng yêu cầu; không tự tạo thêm lượt QA hoặc tạo lại khi chưa được yêu cầu.",
+        "created_at":  "2026-10-27T16:03:29.9593975+07:00"
+    },
+    {
+        "id":  "polo-detail-fidelity-20261027",
+        "scope":  "category",
+        "product_url":  "",
+        "category":  "polo-shirts",
+        "requested_change":  "Chú ý từng chi tiết áo, không chỉ làm giống tổng thể. Trước khi tạo, quan sát ảnh sản phẩm và giữ chính xác hình cổ, vị trí mép viền, thứ tự màu, số sọc và độ rộng tương đối, đường may, nút, nẹp, mảng phối vai/tay và vị trí logo theo quy tắc thương hiệu hiện có. Không tự thêm/bớt dải màu, đơn giản hóa thiết kế hoặc lấy chi tiết áo người mẫu từ ảnh tham khảo. Mỗi mẫu có thiết kế riêng: không dùng cấu trúc viền của mẫu khác. Chi tiết bị che phải ghi nhận chưa xác minh; góc nhìn và ánh sáng chỉ đổi cách nhìn, không đổi cấu tạo. Lỗi thêm dải xanh ra ngoài viền trắng ở mẫu shoulder-block là ví dụ về sai chi tiết, không phải quy tắc mọi polo đều có viền trắng. Áp dụng khi đọc ảnh và soạn yêu cầu tạo ngay từ đầu; giữ luồng tạo một lần để người dùng review, không thêm AI QA hay tự tạo lại.",
+        "created_at":  "2026-10-27T16:04:20.7937109+07:00"
+    }
 ]
 ```
 <!-- app-lessons:end -->
