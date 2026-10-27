@@ -1,3 +1,4 @@
 # All generated files and machine-local state live here. Base data stays versioned.
 /workspace/
 /bridge/node_modules/
+/worker/.wrangler/
