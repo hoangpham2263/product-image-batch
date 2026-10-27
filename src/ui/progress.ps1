@@ -87,6 +87,8 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
             $event.Text = "Sản phẩm $($event.Index): thiếu ảnh mẫu cho loại sản phẩm này. Đã ghi vào missing-data trong kết quả."
         } elseif ($line -match '\[CAUSE:PRODUCT_DOWNLOAD\]') {
             $event.Text = "Sản phẩm $($event.Index): chưa tải được trang hoặc ảnh. Link được giữ lại để thử lại."
+        } elseif ($line -match '\[CAUSE:BRIDGE\]') {
+            $event.Text = "Sản phẩm $($event.Index): chưa kết nối được tab ChatGPT/Flow. Mở Chrome có extension product-image-bridge, đăng nhập rồi chạy lại."
         } elseif ($line -match '\[CAUSE:STORE_LOCKED\]') {
             $event.Text = "Sản phẩm $($event.Index): cửa hàng đang bật mật khẩu. Tắt mật khẩu cửa hàng hoặc dùng link công khai rồi thử lại."
         } elseif ($line -match '\[CAUSE:AUTH\]') {

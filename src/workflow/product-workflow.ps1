@@ -40,6 +40,14 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
     }
     if ($reply -match '(?im)^BRAND:\s*(.+)$' -and $Matches[1].Trim() -notmatch '^(?i)none$') { [void]$Brands.Add($Matches[1].Trim()) }
     $body = New-Review $Item.Url $Item.Handle $request.Output $ItemId $product.Context
+    # With Drive configured the CSV carries the public Drive link; the local file stays in the batch.
+    $photoUrl = $request.Output -replace '\\', '/'
+    if ($script:Config.Drive) {
+        try {
+            $photoUrl = Publish-ImageToDrive $request.Output $script:Batch.Id $Item.Handle
+            Write-Host "  [DRIVE] $photoUrl" -ForegroundColor Cyan
+        } catch { Write-Warning "[DRIVE] Upload failed; CSV keeps the local path. $($_.Exception.Message)" }
+    }
     [pscustomobject][ordered]@{
         product_handle = $Item.Handle
         rating = ''
@@ -48,7 +56,7 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
         body = $body
         created_at = ''
         verified_purchase = 'true'
-        photo_url = ($request.Output -replace '\\', '/')
+        photo_url = $photoUrl
         photo_path = ($request.Output -replace '\\', '/')
     }
 }

@@ -121,6 +121,13 @@ function Invoke-ImageGeneration($Request, [string]$ItemId, [int]$Attempt, [strin
     $logName = if ($Attempt -eq 1) { "$ItemId-image.txt" } else { "$ItemId-image-retry-$Attempt.txt" }
     # Previous attempts are archived above; a no-op AI call must not pass on a stale output.
     if(Test-Path -LiteralPath $Request.Output){Remove-Item -LiteralPath $Request.Output -Force}
+    $backend = if ($script:Config -and $script:Config.ImageBackend) { $script:Config.ImageBackend } else { 'codex' }
+    if ($backend -ne 'codex') {
+        Write-Host "  [IMAGE-BACKEND] $backend" -ForegroundColor Cyan
+        $result = Invoke-BrowserImage $backend $instruction $images $Request.Output
+        [IO.File]::WriteAllText((Join-Path $script:Batch.Logs $logName), "backend: $backend`nsource: $($result.source)`nbytes: $($result.bytes)", [Text.UTF8Encoding]::new($false))
+        return 'BRAND: none'
+    }
     try {
         $reply = Invoke-AI $instruction $images (Join-Path $script:Batch.Logs $logName) 'workspace-write'
     } catch {

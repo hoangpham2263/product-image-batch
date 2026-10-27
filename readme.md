@@ -1,4 +1,4 @@
-# Product Image Batch
+﻿# Product Image Batch
 
 Ứng dụng Windows tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV.
 
@@ -84,12 +84,44 @@ workspace/output/<thời-gian>/
 
 App hiện thông báo khi chạy xong. Gửi `missing-data.csv` và thư mục `missing-data/` để bổ sung ảnh mẫu vào data/source-photos/.
 
+## Tạo ảnh bằng ChatGPT web hoặc Google Flow
+
+Ngoài Codex CLI, app có thể tạo ảnh trong tab ChatGPT / Google Flow đang đăng nhập trên Chrome:
+
+```
+app (PowerShell) → bridge/ (Node, 127.0.0.1:8765) → extension/ (Chrome) → tab ChatGPT / Flow
+```
+
+1. Chạy `setup.cmd` (cài `bridge/`).
+2. Chrome → `chrome://extensions` → bật Developer mode → **Load unpacked** → chọn thư mục `extension/`.
+3. Mở tab ChatGPT và một dự án Google Flow (`flow.google.com/project/...`), đã đăng nhập.
+4. Chạy với `-ImageBackend chatgpt` hoặc `-ImageBackend flow` (hoặc đặt biến môi trường `PIB_IMAGE_BACKEND`). App tự bật bridge.
+
+- **ChatGPT:** tự động hoàn toàn: dán ảnh tham khảo, gửi prompt, đọc ảnh mới qua API của trang (`/backend-api/my/recent/image_gen`) và tải PNG gốc.
+- **Google Flow:** Flow chỉ nhận cú bấm thật, nên extension dán ảnh, điền prompt, đưa tab lên trước và viền vàng nút **Bắt đầu tạo**; bấm 1 lần, phần còn lại tự động.
+- Mỗi lần tạo tính vào hạn mức của tài khoản ChatGPT / Flow đang đăng nhập.
+
+## Lưu ảnh lên Google Drive và quản lý
+
+`worker/` là Cloudflare Worker `product-images-api` (cùng mẫu với memories-api): ảnh nằm trong thư mục Drive riêng `Product Image Batch/<batch>/`, CSV dùng link cố định `https://product-images-api…/img/<id>.png`.
+
+Cài một lần:
+
+1. Google Cloud Console: thêm redirect URI `https://product-images-api.hoangpham2263.workers.dev/oauth/callback` vào OAuth client đang dùng cho memories.
+2. Trong `worker/`: `npx wrangler kv namespace create STORE`, dán id vào `wrangler.toml`, rồi `npx wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_PASSWORD` và `npx wrangler deploy`.
+3. Tạo `workspace/drive.json` (không lên Git): `{ "apiUrl": "https://product-images-api.hoangpham2263.workers.dev", "adminKey": "<ADMIN_PASSWORD>" }`.
+4. Mở trang quản lý `docs/index.html` (GitHub Pages: Settings → Pages → `main` / `docs`), nhập mật khẩu, bấm **Kết nối Drive**.
+
+Có `drive.json` thì mỗi ảnh được upload sau khi tạo và cột `photo_url` trong CSV là link Drive; upload lỗi thì giữ đường dẫn local. Trang quản lý: lọc theo batch/trạng thái, duyệt, loại, copy link, xoá và tải danh sách link.
+
 ## Cấu trúc thư mục
 
 | Đường dẫn | Nội dung |
 |---|---|
 | src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
 | data/ | Dữ liệu base trên Git: `source-photos/` (+ catalog.json), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
+| extension/, bridge/ | Tạo ảnh qua tab ChatGPT / Google Flow |
+| worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |
 | tests/ | Kiểm thử offline, chạy bằng test.cmd |
 | workspace/ | Mọi file sinh ra, Git bỏ qua: `output/`, `urls.txt` (hàng đợi), `logs/` (log kiểm tra ChatGPT), `temp/`, `tests/` |
 

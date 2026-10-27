@@ -11,7 +11,9 @@ param(
     [string]$Model = '',
     [string]$FeedbackFile = '',
     [string]$ApprovedImage = '',
-    [string]$ReferenceMapFile = ''
+    [string]$ReferenceMapFile = '',
+    # codex: Codex CLI; chatgpt / flow: the signed-in browser tab through bridge/ + extension/.
+    [ValidateSet('codex', 'chatgpt', 'flow')][string]$ImageBackend = $(if ($env:PIB_IMAGE_BACKEND) { $env:PIB_IMAGE_BACKEND } else { 'codex' })
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +30,8 @@ foreach ($variableName in @('List', 'SourceDir', 'OutDir')) {
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'bootstrap.ps1')
 $script:Config = New-WorkflowConfiguration $ProjectRoot $SourceDir $MaxTries $PhotosPerImage $Model
+$script:Config.ImageBackend = $ImageBackend
+if ($ImageBackend -ne 'codex') { Start-ImageBridge $ProjectRoot }
 if($ReferenceMapFile){$script:Config.ManualReferences=Read-ManualReferenceMap $ReferenceMapFile}
 if($ApprovedImage){
     if($FeedbackFile){throw 'Choose approved export or correction, not both.'}

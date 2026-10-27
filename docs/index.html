@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product Images</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232d6cdf'/></svg>">
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#1f2430; --muted:#6b7280; --line:#e3e6ea; --accent:#2d6cdf; --ok:#1a7f37; --bad:#b42318; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14161a; --card:#1d2026; --text:#e6e8eb; --muted:#9aa1ab; --line:#2c3038; --accent:#6b9cf0; --ok:#4cc074; --bad:#f07068; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 system-ui, sans-serif; }
+  header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; }
+  h1 { font-size: 16px; font-weight: 500; margin: 0 auto 0 0; }
+  select, input, button { font: inherit; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  main { padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--line); }
+  .meta { padding: 8px 10px; display: grid; gap: 6px; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .row button { padding: 4px 8px; font-size: 12px; }
+  .accepted { color: var(--ok); } .rejected { color: var(--bad); }
+  #empty { padding: 32px 16px; color: var(--muted); }
+  dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); width: min(360px, calc(100% - 32px)); }
+  dialog form { display: grid; gap: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Product Images</h1>
+  <select id="batch" aria-label="Batch"></select>
+  <select id="status" aria-label="Trạng thái">
+    <option value="">Tất cả</option>
+    <option value="awaiting_review">Chờ duyệt</option>
+    <option value="accepted">Đã duyệt</option>
+    <option value="rejected">Đã loại</option>
+  </select>
+  <button id="csv">Tải danh sách link</button>
+  <button id="connect">Kết nối Drive</button>
+</header>
+<main id="grid"></main>
+<p id="empty" hidden>Chưa có ảnh.</p>
+
+<dialog id="login">
+  <form method="dialog">
+    <label>Mật khẩu quản lý <input id="key" type="password" required autocomplete="current-password"></label>
+    <button class="primary" value="ok">Đăng nhập</button>
+  </form>
+</dialog>
+
+<script>
+const API = "https://product-images-api.hoangpham2263.workers.dev";
+const STATUS_TEXT = { awaiting_review: "Chờ duyệt", accepted: "Đã duyệt", rejected: "Đã loại" };
+let images = [];
+
+function adminKey() {
+  try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; }
+}
+
+async function api(path, init = {}) {
+  const response = await fetch(API + path, { ...init, headers: { ...(init.headers || {}), "x-admin-key": adminKey() } });
+  if (response.status === 401) { await askKey(); return api(path, init); }
+  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || response.status);
+  return response.json();
+}
+
+function askKey() {
+  const dialog = document.getElementById("login");
+  dialog.showModal();
+  return new Promise((resolve) => dialog.addEventListener("close", () => {
+    try { sessionStorage.setItem("pib-key", document.getElementById("key").value); } catch {}
+    resolve();
+  }, { once: true }));
+}
+
+function visible() {
+  const batch = document.getElementById("batch").value;
+  const status = document.getElementById("status").value;
+  return images.filter((i) => (!batch || i.batch === batch) && (!status || i.status === status));
+}
+
+function render() {
+  const grid = document.getElementById("grid");
+  const items = visible();
+  document.getElementById("empty").hidden = items.length > 0;
+  grid.replaceChildren(...items.map((item) => {
+    const card = document.createElement("article");
+    card.className = "card";
+    card.innerHTML = `<a target="_blank" rel="noopener"><img loading="lazy" alt=""></a>
+      <div class="meta"><div class="name"></div><div class="muted"></div>
+      <div class="row"><button data-act="accepted">Duyệt</button><button data-act="rejected">Loại</button><button data-act="copy">Copy link</button><button data-act="delete">Xoá</button></div></div>`;
+    card.querySelector("a").href = item.url;
+    card.querySelector("img").src = item.url;
+    card.querySelector(".name").textContent = item.product || item.name;
+    const meta = card.querySelector(".muted");
+    meta.textContent = `${item.batch} · ${STATUS_TEXT[item.status] || item.status}`;
+    meta.className = `muted ${item.status}`;
+    card.querySelector(".row").addEventListener("click", (event) => act(item, event.target.dataset.act));
+    return card;
+  }));
+}
+
+async function act(item, action) {
+  if (!action) return;
+  if (action === "copy") return navigator.clipboard.writeText(item.url);
+  if (action === "delete") {
+    await api(`/api/images/${item.id}`, { method: "DELETE" });
+    images = images.filter((i) => i.id !== item.id);
+  } else {
+    const updated = await api(`/api/images/${item.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: action }) });
+    images = images.map((i) => (i.id === item.id ? updated : i));
+  }
+  render();
+}
+
+function downloadCsv() {
+  const rows = [["batch", "name", "product", "status", "url"], ...visible().map((i) => [i.batch, i.name, i.product, i.status, i.url])];
+  const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+  link.download = "product-images.csv";
+  link.click();
+}
+
+async function load() {
+  images = await api("/api/images");
+  const batches = [...new Set(images.map((i) => i.batch))];
+  const select = document.getElementById("batch");
+  select.replaceChildren(new Option("Mọi batch", ""), ...batches.map((b) => new Option(b, b)));
+  render();
+}
+
+document.getElementById("batch").addEventListener("change", render);
+document.getElementById("status").addEventListener("change", render);
+document.getElementById("csv").addEventListener("click", downloadCsv);
+document.getElementById("connect").addEventListener("click", () => {
+  window.open(`${API}/oauth/start?key=${encodeURIComponent(adminKey())}`, "_blank", "noopener");
+});
+load().catch((error) => { document.getElementById("empty").hidden = false; document.getElementById("empty").textContent = `Không tải được ảnh: ${error.message}`; });
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+name = "product-images-api"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+# Stores the Google refresh token, cached access token and the image list.
+# Create once with `npx wrangler kv namespace create STORE`, then paste the id here.
+[[kv_namespaces]]
+binding = "STORE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Secrets (set with `npx wrangler secret put <NAME>`):
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ADMIN_PASSWORD
