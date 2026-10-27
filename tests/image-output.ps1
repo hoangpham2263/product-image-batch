@@ -1,12 +1,11 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
 $temp=Join-Path $TestWorkspaceRoot ('image-output-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $temp|Out-Null
 try{
-    $valid=Join-Path $temp 'valid.png';$bitmap=[Drawing.Bitmap]::new(37,29)
-    try{$bitmap.SetPixel(10,10,[Drawing.Color]::Magenta);$bitmap.Save($valid,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
+    $valid=Join-Path $temp 'valid.png';New-TestPng $valid 37 29 ([byte[]](255,0,255))
     $before=Get-BytesHash ([IO.File]::ReadAllBytes($valid))
     Assert-GeneratedImage $valid
     if((Get-BytesHash ([IO.File]::ReadAllBytes($valid))) -ne $before){throw 'Validation altered the generated image.'}

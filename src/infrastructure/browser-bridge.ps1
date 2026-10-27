@@ -11,7 +11,8 @@ function Start-ImageBridge([string]$ProjectRoot) {
     if ($null -eq $state) {
         $server = Join-Path $ProjectRoot 'bridge/server.mjs'
         if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) { throw 'Bridge chưa cài. Chạy setup.cmd (npm install trong bridge/).' }
-        Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null
+        if ($script:OnWindows) { Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null }
+        else { Start-Process node -ArgumentList $server | Out-Null }
     }
     for ($i = 0; $i -lt 40; $i++) {
         if (Test-ImageBridge) { return }
@@ -37,14 +38,4 @@ function Invoke-BrowserImage([string]$Platform, [string]$Prompt, [string[]]$Imag
     }
     ConvertTo-PngFile $Output
     return $result
-}
-
-# Flow may deliver JPEG/WebP; the workflow stores PNG.
-function ConvertTo-PngFile([string]$Path) {
-    $bytes = [IO.File]::ReadAllBytes($Path)
-    if ($bytes.Length -ge 4 -and $bytes[0] -eq 0x89 -and $bytes[1] -eq 0x50) { return }
-    Add-Type -AssemblyName System.Drawing
-    $stream = New-Object IO.MemoryStream(, $bytes)
-    $image = [Drawing.Image]::FromStream($stream)
-    try { $image.Save($Path, [Drawing.Imaging.ImageFormat]::Png) } finally { $image.Dispose(); $stream.Dispose() }
 }

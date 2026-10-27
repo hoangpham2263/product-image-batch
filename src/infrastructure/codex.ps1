@@ -10,7 +10,8 @@ function ConvertTo-CliArgument([string]$Value) {
 
 function Get-CodexLaunch {
     $path = (Get-Command codex -ErrorAction Stop).Source
-    if ([IO.Path]::GetExtension($path) -eq '.exe') { return @{FileName=$path; Prefix=@()} }
+    # macOS/Linux: the codex command is directly executable.
+    if (-not $script:OnWindows -or [IO.Path]::GetExtension($path) -eq '.exe') { return @{FileName=$path; Prefix=@()} }
     # npm's PowerShell/cmd shims are unnecessary: start its Node launcher directly.
     $launcher = Join-Path (Split-Path $path -Parent) 'node_modules/@openai/codex/bin/codex.js'
     if (-not (Test-Path -LiteralPath $launcher)) { throw 'Codex executable not found. Run setup to check the installation.' }
@@ -82,8 +83,7 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
     } finally {
         # Kill only this invocation and its descendants; retain the queue and diagnostic files.
         if ($started -and -not $process.HasExited) {
-            & taskkill.exe /PID $process.Id /T /F *> $null
-            $treeKilled = $LASTEXITCODE -eq 0
+            $treeKilled = Stop-ProcessTree $process
             $exited = $process.WaitForExit(5000)
             $stopConfirmed = $treeKilled -and $exited
         } elseif ($started -and -not $cause) {

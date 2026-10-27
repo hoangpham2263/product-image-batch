@@ -7,8 +7,7 @@ $temp=Join-Path $TestWorkspaceRoot ('repair-evidence-'+[Guid]::NewGuid().ToStrin
 New-Item -ItemType Directory -Path $temp|Out-Null
 try{
     $room=Join-Path $temp 'original.png';$raw=Join-Path $temp 'raw.png'
-    $r=[Drawing.Bitmap]::new(20,20);$e=[Drawing.Bitmap]::new(20,20)
-    try{$r.SetPixel(10,15,[Drawing.Color]::Brown);$e.SetPixel(10,15,[Drawing.Color]::White);$r.Save($room,[Drawing.Imaging.ImageFormat]::Png);$e.Save($raw,[Drawing.Imaging.ImageFormat]::Png)}finally{$r.Dispose();$e.Dispose()}
+    New-TestPng $room 20 20 ([byte[]](139,69,19));New-TestPng $raw 20 20 ([byte[]](255,255,255))
     $script:Batch=@{Logs=$temp;Images=$temp}
     $script:Config=@{ActiveProductUrl='https://example.test/table';StyleExample='';WritingStyle=@{scene_rules=@()};FeedbackRoot=''}
     $context=[pscustomobject]@{product='table';presentation='placed';setting='bare room';details='solid slab legs';reject='new props';branding='none';source_categories=@('dining-tables')}

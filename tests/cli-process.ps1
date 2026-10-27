@@ -1,5 +1,6 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
+. (Join-Path (Split-Path $PSScriptRoot -Parent) 'src/infrastructure/platform.ps1')
 . (Join-Path (Split-Path $PSScriptRoot -Parent) 'src/infrastructure/codex.ps1')
 function Assert($Condition,[string]$Message){if(-not $Condition){throw $Message}}
 $testArea=Join-Path $TestWorkspaceRoot ('cli-process-test-'+[Guid]::NewGuid().ToString('N'))
@@ -30,12 +31,12 @@ if($mode -eq 'auxiliary'){
     exit 0
 }
 # A harmless local child lets the test detect process leaks on cancellation.
-$child=Start-Process ping.exe -WindowStyle Hidden -PassThru -ArgumentList '127.0.0.1','-n','45'
+$child=if($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop'){Start-Process ping.exe -WindowStyle Hidden -PassThru -ArgumentList '127.0.0.1','-n','45'}else{Start-Process sleep -PassThru -ArgumentList '45'}
 [IO.File]::WriteAllText($dest,$child.Id.ToString())
 if($mode -eq 'network'){[Console]::Out.WriteLine('ERROR: Reconnecting... 1/5')}
 Start-Sleep -Seconds 45
 '@ | Set-Content $backendPath -Encoding UTF8
-    $powershellPath=(Get-Command powershell.exe).Source
+    $powershellPath=(Get-Command powershell.exe,pwsh -ErrorAction SilentlyContinue|Select-Object -First 1).Source
     $prefix=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$backendPath)
     $resultPath=Join-Path $testArea 'result.txt';$tracePath=Join-Path $testArea 'success.log'
     $execution=Invoke-CodexProcess 'plain prompt' ($prefix+@('success',$resultPath,"quote's & dollar`$ with a `"quote`" and slash\")) $tracePath 15 1 $powershellPath

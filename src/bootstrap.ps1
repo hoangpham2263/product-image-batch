@@ -1,5 +1,6 @@
 ﻿# Ordered module manifest shared by the entry point and parallel workers.
 $script:WorkflowModuleFiles = @(
+    'infrastructure/platform.ps1'
     'application/workspace.ps1'
     'infrastructure/file-system.ps1'
     'infrastructure/codex.ps1'

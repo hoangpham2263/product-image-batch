@@ -76,7 +76,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($PromptText -notmatch 'Remove all template or customization text' -or $PromptText -notmatch 'put your brand on it' -or $PromptText -notmatch 'never retain it as product artwork' -or $PromptText -notmatch 'Do not add slogans, taglines' -or $PromptText -notmatch 'reply metadata only') { throw 'Generated branding must be a finished mark without template text or instructions.' }
     if ($PromptText -notmatch 'A photo watermark is not a product logo' -or $PromptText -notmatch 'Do not replace them with fictional branding' -or $PromptText -notmatch 'wall logo' -or $PromptText -notmatch 'return BRAND: none') { throw 'Generation must remove photo watermarks instead of inventing a replacement logo.' }
     if ($PromptText -notmatch '(?m)^Save a new PNG at this exact path: (.+)$') { throw 'Missing image output path.' }
-    $imagePath=$Matches[1].Trim();$bitmap=[Drawing.Bitmap]::new(2,2);try{$bitmap.Save($imagePath,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
+    $imagePath=$Matches[1].Trim();[IO.File]::WriteAllBytes($imagePath,[Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='))
     'image call' | Set-Content -LiteralPath $ResultFile
     return 'BRAND: Demo'
 }
