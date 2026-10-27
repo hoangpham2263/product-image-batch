@@ -33,7 +33,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($PromptText -notmatch 'Never add GOLF' -or $PromptText -notmatch 'cafe service counter') { throw 'Apron context rules were not included.' }
     if ($PromptText -notmatch 'SINGLE-PASS DELIVERY') { throw 'Single-pass generation contract is missing.' }
     if ($PromptText -notmatch '(?m)^Save a new PNG at this exact path: (.+)$') { throw 'Missing output path.' }
-    'image' | Set-Content -LiteralPath $Matches[1].Trim()
+    $imagePath=$Matches[1].Trim();$bitmap=[Drawing.Bitmap]::new(2,2);try{$bitmap.Save($imagePath,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     return 'BRAND: Cedar Kitchen'
 }
 try {

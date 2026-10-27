@@ -104,7 +104,7 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         } elseif ($line -match 'No product reference found|Invalid reference image URL') {
             $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm. Vui lòng kiểm tra link."
         } elseif ($line -match 'Image technical validation failed') {
-            $event.Text="Sản phẩm $($event.Index): file ảnh hoặc mask chưa hợp lệ để ghép/xuất. Link được giữ lại. Đây là kiểm tra kỹ thuật, không phải AI chấm chất lượng."
+            $event.Text="Sản phẩm $($event.Index): file ảnh chưa hợp lệ để xuất. Link được giữ lại. Đây là kiểm tra kỹ thuật, không phải AI chấm chất lượng."
         } elseif ($line -match 'No suitable real scene reference|No suitable source photo found') {
             $event.Text = "Sản phẩm $($event.Index): chưa tìm được ảnh mẫu thực tế phù hợp. Link được giữ lại."
         }

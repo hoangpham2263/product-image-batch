@@ -4,11 +4,11 @@
 
 ## Luồng hiện tại (yêu cầu mới nhất)
 
-- Tạo một kết quả rồi xuất cho người dùng review. Không chạy AI QA sau tạo ảnh, không tự sửa ảnh/mask theo đánh giá AI và không tự lặp preview để cải thiện ảnh. Chỉ sửa khi người dùng yêu cầu.
+- Tạo một kết quả rồi xuất cho người dùng review. Không chạy AI QA sau tạo ảnh, không tự sửa ảnh theo đánh giá AI và không tự lặp preview để cải thiện ảnh. Chỉ sửa khi người dùng yêu cầu.
 - Giao diện dùng bố cục cũ: danh sách sản phẩm bên trái, các nút thao tác xếp dọc bên phải, Bắt đầu/Dừng bên dưới danh sách; giữ popup thêm/sửa và mỗi sản phẩm một dòng nhỏ, hạn chế chữ đậm.
 - Ảnh người dùng gắn được dùng trực tiếp sau kiểm tra file/hash, không chấm FIT bằng AI. Kho tự tìm chỉ dùng khi bật fallback rõ ràng.
-- Giữ kiểm tra kỹ thuật bằng code: file, kích thước, mask và khôi phục nền. Có ảnh xuất nghĩa là chờ người dùng xem, không phải chất lượng đã được AI/người dùng chấp nhận.
-- Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối/timeout khi chưa nhận đủ file; đã có ảnh/mask thì ghép và xuất, không tạo lại vì nhận xét thẩm mỹ.
+- Xuất nguyên file PNG do AI tạo, giữ nguyên nội dung và byte của ảnh. Chỉ kiểm tra file ảnh có đọc được. Có ảnh xuất nghĩa là chờ người dùng xem, không phải chất lượng đã được AI/người dùng chấp nhận.
+- Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối/timeout khi chưa nhận đủ file; đã có ảnh thì xuất trực tiếp, không tạo lại vì nhận xét thẩm mỹ.
 - Những mục QA bên dưới là lịch sử lỗi và tiêu chí để soạn prompt/đối chiếu khi người dùng yêu cầu, không kích hoạt vòng AI QA trong luồng hiện tại.
 
 ## Mục tiêu đã thống nhất
@@ -30,7 +30,7 @@
 Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng giữ các ghế bọc nệm trắng của phòng. Người dùng đã chỉ ra ảnh gốc có bàn gỗ nguyên tấm, chân gỗ dạng khối và ghế gỗ lưng cong, mặt đan. Mô tả trước đó của trợ lý về ghế cũng không chính xác.
 
 - Với sản phẩm bán cả bộ, phải thay cả bàn và các ghế liên quan bằng đúng bộ từ nguồn.
-- Mask phải bao phủ cả bàn cũ, ghế cũ, sản phẩm mới và vùng bóng cần chỉnh; mask chỉ phủ mặt bàn sẽ để lại ghế sai.
+- Khi chỉnh sửa bằng AI, thay đủ thành phần sản phẩm được yêu cầu, không chỉ đổi mặt bàn rồi giữ ghế sai.
 - Không tự phối thêm ghế sofa, ghế nệm hoặc kiểu ghế khác khi người dùng yêu cầu giữ sản phẩm gốc.
 - QA phải so từng thành phần: hình mặt bàn, độ dày, cạnh, vân, chân đỡ, kiểu lưng và mặt ghế, số lượng theo nguồn. Không chỉ kiểm tra có một bàn gỗ trong phòng.
 - Phối cảnh và bóng tiếp xúc có thể điều chỉnh để ghép tự nhiên; không dùng việc đó để biện minh cho việc đổi thiết kế.
@@ -41,11 +41,6 @@ Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng g
 - Giữ nguyên canvas, góc máy, tường, sàn, cửa, cửa sổ và đồ vật không liên quan.
 - Chỉ chỉnh vùng thay sản phẩm, nền nhỏ lộ ra khi bỏ đồ cũ và bóng tiếp xúc cần thiết. Không trang trí thêm hoặc làm lại ánh sáng toàn phòng.
 - Người dùng đã chốt: không có trong ảnh gốc thì không tự thêm để làm cảnh “tự nhiên”. Khoảng trống/mặt bàn trống phải giữ trống. Chỉ thêm sản phẩm đích và thành phần người dùng yêu cầu rõ; giữ đồ vốn có trong phòng, không mang bát đĩa/cây/sách/người/đồ trang trí từ ảnh sản phẩm sang phòng. QA phải loại đồ thêm không được yêu cầu, không chỉ coi chúng là “không bắt buộc”.
-- Khôi phục pixel phòng gốc ngoài mask bằng mã nguồn. Mask thiếu, sai kích thước hoặc quá rộng phải bị chặn theo kiểm tra hiện có.
-- Bên trong mask vẫn cần QA để phát hiện AI sửa nhầm nền hoặc để sót đồ cũ. Khôi phục ngoài mask không chứng minh toàn bộ phòng trong vùng ghép đã đúng.
-- Lượt 27/10: raw edit đã bỏ băng ghế nhưng composite khôi phục lại mảnh băng/chân cũ do mask bỏ sót silhouette. Bài học lịch sử về ghép nền, hiện không chạy vòng preview tự đánh giá; lượt sửa và QA nhận cả raw/composite/mask để phân biệt lỗi tạo ảnh với lỗi mask. Vùng băng/chân cũ trở thành sàn vẫn phải được mask; không nhầm với khe sàn vốn trống ở cả hai ảnh. Code và test không thay thế việc kiểm chứng ảnh ghép thật.
-- Khi thu hẹp mask, phải giữ cả vùng bóng tiếp xúc sát chân/băng ghế đã bỏ; nếu khôi phục bóng cũ sẽ để lại vệt như mảnh đồ. Đối chiếu vùng lỗi với ảnh gốc để phân biệt đồ cũ, bóng cũ và sàn trống. Lượt sửa nhận các lý do QA trước đó, không chỉ lý do gần nhất, để tránh sửa qua lại rồi hoàn tác vùng đã đúng. QA cần chỉ vị trí cụ thể và không yêu cầu giữ bóng cũ như sàn không liên quan.
-- Không tô kín đa giác bao quanh cả bộ bàn ghế: khoảng trống giữa chân/thanh ghế phải giữ đen khi không thuộc silhouette cũ/mới hoặc bóng tiếp xúc sát đồ vật. Đã có mask quá rộng cho phép sửa cả thảm/sàn giữa các chân ghế. QA cần nêu các lỗi chặn chính cùng lúc để một lượt sửa xử lý đủ vấn đề.
 - Không cam kết AI giữ chính xác 100% hình dáng/vân của sản phẩm chỉ vì prompt yêu cầu. Phải xem ảnh kết quả và nói rõ giới hạn thực tế.
 
 ## 4. Logo và watermark
@@ -85,7 +80,7 @@ Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng g
 
 - Phân biệt thời gian từng lượt AI với tổng thời gian một sản phẩm; không hứa một sản phẩm hoàn tất trong giới hạn của một lượt.
 - Có một phòng đạt cho đồ vật thì dừng chọn; không tiếp tục kiểm tra ảnh thứ hai chỉ vì cấu hình số ảnh tối đa là 2.
-- Người dùng cho phép tự thử lại khi timeout/mất kết nối: tối đa 3 lượt gửi do lỗi kết nối/timeout, dùng cùng snapshot đầu vào, dừng khi nhận đủ file. Chỉ thử sau khi xác nhận tiến trình cũ đã dừng; nếu đã có ảnh/mask thì ghép bằng code và xuất cho người dùng review, không tạo trùng ngay. Không thử lại lỗi đăng nhập/hết hạn mức/đầu vào sai. Hiển thị số lượt, giữ timeout và lý do khi hết lượt; không đánh dấu ảnh lỗi là hoàn tất.
+- Người dùng cho phép tự thử lại khi timeout/mất kết nối: tối đa 3 lượt gửi do lỗi kết nối/timeout, dùng cùng snapshot đầu vào, dừng khi nhận được ảnh. Chỉ thử sau khi xác nhận tiến trình cũ đã dừng; nếu đã có ảnh thì xuất nguyên file cho người dùng review, không tạo trùng ngay. Không thử lại lỗi đăng nhập/hết hạn mức/đầu vào sai. Hiển thị số lượt, giữ timeout và lý do khi hết lượt; không đánh dấu ảnh đã được người dùng duyệt khi chưa có xác nhận.
 - Chỉ kết thúc tiến trình thuộc lượt gọi của workflow; không tắt các tiến trình không liên quan.
 - Báo riêng: code đã sửa, test offline đã pass, ảnh đã được tạo thật, ảnh đã được xem và đối chiếu. Không dùng test mock để tuyên bố chất lượng ảnh thực tế đã đạt.
 - Không nói đã cập nhật Git nếu chưa commit/push thành công. Khi người dùng yêu cầu cập nhật Git, kiểm tra diff để giữ các thay đổi đang có và không đưa output tạm vào repository.
@@ -93,8 +88,8 @@ Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng g
 ## Vị trí cần đọc khi sửa
 
 - `src/workflow/steps/02-select-references.ps1`: chọn và kiểm tra phòng.
-- `src/workflow/steps/03-create-image.ps1`: yêu cầu tạo ảnh, vai trò từng ảnh và mask.
-- `src/infrastructure/scene-composite.ps1`: ghép và khôi phục nền ngoài mask.
+- `src/workflow/steps/03-create-image.ps1`: yêu cầu tạo ảnh, vai trò từng ảnh và xuất PNG trực tiếp.
+- `src/infrastructure/image-output.ps1`: kiểm tra PNG đọc được, không thay đổi file.
 - `src/workflow/steps/04-complete-image.ps1`: hoàn tất ảnh và thử lại lỗi kết nối, không AI QA.
 - `src/application/reference-archive.ps1`: bản sao đầu vào và nguồn.
 - `data/source-photos/catalog.json`: inventory, provenance và đánh giá phù hợp đã lưu.

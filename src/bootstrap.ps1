@@ -9,7 +9,7 @@ $script:WorkflowModuleFiles = @(
     'application/image-feedback.ps1'
     'application/manual-references.ps1'
     'application/approved-export.ps1'
-    'infrastructure/scene-composite.ps1'
+    'infrastructure/image-output.ps1'
     'domain/product-context.ps1'
     'domain/writing-style.ps1'
     'workflow/steps/01-load-product.ps1'

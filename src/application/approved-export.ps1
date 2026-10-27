@@ -24,14 +24,13 @@ function Export-ApprovedProduct([string]$ProjectRoot, [string]$ImagePath, [strin
     $request|Add-Member NoteProperty ApprovedInput $target.ImagePath
     $item=[pscustomobject]@{Url=$manifest.product_url;Handle=$handle}
     $bundle=Save-ProductReferenceBundle $item $itemId $context $request $picked.Count
-    if($request.SceneBase){[ProductSceneComposite]::NormalizeCanvasEdges($request.SceneBase,$target.ImagePath,$request.Output)}
-    else{Copy-Item -LiteralPath $target.ImagePath -Destination $request.Output}
+    Copy-Item -LiteralPath $target.ImagePath -Destination $request.Output
     $evidence=[ordered]@{
         schema_version=1;completion_method='explicit_user_approval';ai_image_qa_passed=$false
         approved_at=[DateTime]::UtcNow.ToString('o');source_image=$target.ImagePath
         source_sha256=Get-BytesHash ([IO.File]::ReadAllBytes($target.ImagePath))
         output_sha256=Get-BytesHash ([IO.File]::ReadAllBytes($request.Output))
-        pixel_change_policy='Only partial alpha on outermost canvas pixels normalized; interior image RGB preserved. No regeneration or mask compositing.'
+        pixel_change_policy='Byte-for-byte copy of the image explicitly approved by the user. No image processing.'
         product_url=$manifest.product_url;source_batch=$target.Batch;source_feedback_id=$manifest.feedback_id
     }
     Write-FeedbackJson (Join-Path $script:Batch.Dir 'user-approval.json') $evidence

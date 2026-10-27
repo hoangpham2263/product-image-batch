@@ -22,10 +22,10 @@ function Test-ObjectSceneSelection {
     Assert ($selected.Count -eq 1 -and $script:SceneCalls -eq 1) 'Optional second object scene must not trigger more AI calls.'
     $tableRequest = New-ProductImageRequest 'product.jpg' 'one-room' $object $selected ([Collections.ArrayList]::new())
     Assert ($tableRequest.Prompt -match 'A photo watermark is not a product logo' -and $tableRequest.Prompt -match 'Do not replace them with fictional branding' -and $tableRequest.Prompt -match 'unbranded table.*BRAND: none') 'Object generation must remove watermarks without inventing furniture branding.'
-    Assert ($tableRequest.Prompt -match 'IMMUTABLE BASE ROOM' -and $tableRequest.Prompt -match 'LOCAL EDIT MASK REQUIRED' -and $tableRequest.Prompt -match 'Do not relight, recolor' -and $tableRequest.SceneBase -eq $selected[0]) 'Object generation must edit the original room with a localized mask.'
+    Assert ($tableRequest.Prompt -match 'IMMUTABLE BASE ROOM' -and $tableRequest.Prompt -match 'DIRECT IMAGE DELIVERY' -and $tableRequest.Prompt -match 'Do not relight, recolor' -and $tableRequest.SceneBase -eq $selected[0]) 'Object generation must directly deliver its room edit.'
     Assert ($tableRequest.Prompt -notmatch 'standing height|off-center framing|do not inherit its professional lighting') 'Old restyling instructions conflict with the locked room.'
-    Assert ($tableRequest.Prompt -match 'negative spaces between chair legs/rails black' -and $tableRequest.Prompt -match 'Do not bleach, desaturate or restain') 'Localized furniture edits must preserve floor gaps and intrinsic wood color.'
-    Assert ($tableRequest.Prompt -match 'complete uncomposited image-tool edit' -and $tableRequest.Prompt -match 'application alone composites' -and $tableRequest.Prompt -match 'originally bare table bare') 'Generation must not pre-composite polygon patches or invent required tableware.'
+    Assert ($tableRequest.Prompt -match 'Do not bleach, desaturate or restain') 'Direct furniture edits must preserve intrinsic wood color.'
+    Assert ($tableRequest.Prompt -match 'without further image processing' -and $tableRequest.Prompt -match 'originally bare table bare') 'Generation must directly deliver the tool image and preserve originally empty surfaces.'
     Assert ($tableRequest.Prompt -match 'NO INVENTED PROPS' -and $tableRequest.Prompt -match 'Empty areas and bare surfaces must stay empty' -and $tableRequest.Prompt -match 'must not be transplanted into an empty room') 'Empty-room constraints must prevent newly staged props, including objects copied from the product photo.'
 }
 Test-ObjectSceneSelection

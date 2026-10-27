@@ -27,7 +27,7 @@ Per-product steps, in execution order
      Input: reference, context and requested reference count.
      Output: one subject reference plus compatible scene references if available.
      Category takes priority, then original/stock provenance, then mixed review
-     photos. Every candidate still requires a visual suitability check.
+     photos. Library candidates require a suitability check; user-attached photos are used directly after file/hash checks.
      Scene checks include the actual product and the selected person when relevant.
      Candidates come from data/source-photos/ via catalog.json categories.
      A real reference is required. If none passes the check, the item
@@ -40,18 +40,19 @@ Per-product steps, in execution order
      Input: selected references, actual product and writing/scene rules.
      Output: one request with explicit image roles and a destination PNG path.
      ReferenceArchive copies every selected input (subject, scene, product, style)
-     into refs/<item>/ before generation. The generator and quality check use
+     into refs/<item>/ before generation. The generator uses
      those copies. manifest.json records order, roles, source links and SHA256.
      Invoke-ImageGeneration executes that request. The final result is one
      continuous scene. Additional references never become a collage.
 
-  04 ValidateImage
-     Coordinates generation and inspection. PASS allows the workflow to continue.
-     FAIL preserves a copy in logs/rejected/ and runs one corrected generation through
-     step 03. A second FAIL or invalid verdict stops the item before review/export.
+  04 CompleteImage
+     Deliver the first completed PNG, byte-for-byte as returned by the image tool.
+     Only PNG readability is checked in code. The user reviews the exported image.
+     Retry up to 3 submissions only on connection/timeout failures without output;
+     recover an already saved image before submitting another request.
 
   05 WriteReview
-     Input: accepted image and actual product context.
+     Input: delivered image and actual product context.
      Output: short English demo review, focused on visible product details.
      Editorial rules use ordinary language and varied rhythm while preserving
      factual limits. No separate rewrite call is made.

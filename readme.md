@@ -10,7 +10,7 @@ Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. N
 
 Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồng dùng nhiều RAM và hạn mức hơn, có thể làm máy chậm.
 
-Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh/mask đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn review, không AI QA hoặc tự sửa. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
+Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn review, không AI QA hoặc tự sửa. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
 
 ## Workflow
 
@@ -21,7 +21,7 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 | 3. Chọn ảnh tham khảo | Lấy ảnh trong data/source-photos/ đúng danh mục theo catalog.json, kiểm tra người và bối cảnh có phù hợp. |
 | 4. Lưu đầu vào | Sao chép ảnh đã chọn cùng nguồn và SHA256 vào refs/<mã-SP>/. |
 | 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
-| 6. Hoàn tất ảnh | Kiểm tra kỹ thuật và ghép nền bằng code, xuất ảnh để người dùng review. Không gọi AI QA, không tự sửa. |
+| 6. Hoàn tất ảnh | Kiểm tra PNG đọc được rồi xuất nguyên file do AI tạo để người dùng review. |
 | 7. Viết review mẫu | Chọn tối đa 3 review tham khảo đúng danh mục từ review-samples.jsonl, xoay vòng mẫu để học cách viết; nội dung mới dựa trên ảnh. Không bắt buộc ngôi thứ nhất, không chép lời khách khác hay thêm trải nghiệm mua hàng. Câu mở đầu kiểu “I like/I love” hoặc chép câu nguồn sẽ được viết lại tối đa một lần; vẫn lỗi thì dừng sản phẩm. |
 | 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao, email @int và ngày; không gọi Codex cho phần này. |
 | 9. Xuất kết quả | Lưu ảnh và CSV; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
@@ -40,7 +40,7 @@ Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gall
 
 Số ảnh mẫu/SP là mức tối đa. Nếu chỉ có một ảnh đạt với người và bối cảnh phù hợp, app dùng bối cảnh thật đó; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
 
-Với đồ đặt trong không gian như bàn ăn, ảnh phòng được dùng làm nền gốc để ghép, không phải cảm hứng để AI vẽ lại. Chỉ vùng thay bàn ghế, phần nền nhỏ bị lộ và bóng tiếp xúc được phép chỉnh. AI phải cung cấp ảnh ghép và mask cùng kích thước ảnh phòng; mã nguồn khôi phục nguyên pixel nền ngoài mask. Thiếu mask, mask gần toàn ảnh hoặc sai kích thước thì không xuất kết quả. Bước kiểm tra nhận cả ảnh phòng gốc và mask để phát hiện việc thay đổi kiến trúc/đồ vật ngoài sản phẩm trong vùng ghép. Không đổi góc máy, ánh sáng hay phong cách của phòng để làm ảnh đẹp hơn.
+Với đồ đặt trong không gian như bàn ăn, AI chỉnh sửa trực tiếp ảnh phòng tham khảo để thay sản phẩm, giữ góc máy, ánh sáng và đồ vật không liên quan. App xuất nguyên file PNG do AI tạo để bạn xem và yêu cầu sửa nếu cần.
 
 Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử tối đa `MaxTries` ảnh cho đồ vật (mặc định 5), dừng tìm ngay khi có một ảnh đạt và không tìm ảnh thứ hai. Đường dẫn ảnh và kết luận được lưu vào `logs/<mã-SP>-p1-fit-<lượt>.json`; ảnh bị loại có lý do cụ thể. Review chữ và ảnh bối cảnh là hai nguồn dữ liệu riêng: có review chữ chưa có nghĩa là đã có ảnh bối cảnh phù hợp.
 

@@ -45,8 +45,7 @@ function Save-ProductReferenceBundle($Item, [string]$ItemId, $Context, $Request,
         product_url = $Item.Url; reference_count = $ReferenceCount
         product_context = $Context
         feedback_id = $(if ($script:Config.Feedback) { $script:Config.Feedback.Record.id } else { '' })
-        image_mode = $(if ($Request.SceneBase) { 'localized_scene_composite' } else { 'generated_lifestyle' })
-        edit_mask = $(if ($Request.EditMask) { "../../logs/$ItemId-edit-mask.png" } else { '' })
+        image_mode = 'direct_image_output'
         archived_at = [DateTime]::UtcNow.ToString('o')
         output = "../../images/$ItemId.png"; images = $entries
     }
