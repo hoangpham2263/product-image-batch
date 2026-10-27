@@ -1,146 +1,347 @@
 <!doctype html>
 <html lang="vi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Product Images</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' rx='3' fill='%232d6cdf'/></svg>">
+<meta name="description" content="Quản lý ảnh sản phẩm tạo bởi Product Image Batch, lưu trên Google Drive." />
+<link rel="icon" href="brand/favicon.ico" sizes="any" />
+<link rel="icon" href="brand/hp-favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://product-images-api.hoangpham2263.workers.dev" crossorigin />
 <style>
-  :root { --bg:#f6f7f9; --card:#fff; --text:#1f2430; --muted:#6b7280; --line:#e3e6ea; --accent:#2d6cdf; --ok:#1a7f37; --bad:#b42318; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#14161a; --card:#1d2026; --text:#e6e8eb; --muted:#9aa1ab; --line:#2c3038; --accent:#6b9cf0; --ok:#4cc074; --bad:#f07068; } }
+  /* Same tokens and controls as hoangpham.is-a.dev/memories */
+  :root { --bg:#fff; --fg:#0f172a; --muted:#64748b; --border:#e2e8f0; --soft:#f1f5f9; --primary:#2563eb; --ok:#16a34a; --warn:#c2410c; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b1120; --fg:#e2e8f0; --muted:#94a3b8; --border:#1e293b; --soft:#111827; --primary:#3b82f6; --ok:#22c55e; --warn:#fb923c; } }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 400 14px/1.5 system-ui, sans-serif; }
-  header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card); position: sticky; top: 0; }
-  h1 { font-size: 16px; font-weight: 500; margin: 0 auto 0 0; }
-  select, input, button { font: inherit; color: inherit; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
-  button { cursor: pointer; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-  main { padding: 16px; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-  .card img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--line); }
-  .meta { padding: 8px 10px; display: grid; gap: 6px; }
-  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .muted { color: var(--muted); font-size: 12px; }
-  .row { display: flex; gap: 6px; flex-wrap: wrap; }
-  .row button { padding: 4px 8px; font-size: 12px; }
-  .accepted { color: var(--ok); } .rejected { color: var(--bad); }
-  #empty { padding: 32px 16px; color: var(--muted); }
-  dialog { border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--text); width: min(360px, calc(100% - 32px)); }
-  dialog form { display: grid; gap: 10px; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--primary); }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; gap: 16px; }
+  @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; } }
+  @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; } }
+  .top { display: flex; align-items: center; gap: 12px; }
+  .top-text { flex: 1; min-width: 0; }
+  h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 500; }
+  .brand img { display: block; border-radius: 10px; }
+  .back { padding: 6px 10px; border-radius: 999px; font-size: 13px; text-decoration: none; white-space: nowrap; }
+  .back:hover { background: var(--soft); }
+  input, select, button { font: inherit; font-size: 14px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
+  input, select { height: 36px; padding: 0 10px; min-width: 0; }
+  input:focus, select:focus { outline: none; border-color: var(--primary); }
+  button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; white-space: nowrap; cursor: pointer; }
+  button:hover { background: var(--soft); }
+  button:disabled { opacity: .5; cursor: default; }
+  .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .primary:hover { background: var(--primary); filter: brightness(.92); }
+  .icon { width: 36px; padding: 0; flex: none; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+  /* Admin bar */
+  .admin-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--primary); border-radius: 12px; background: color-mix(in srgb, var(--primary) 6%, var(--bg)); font-size: 14px; }
+  .admin-bar.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, var(--bg)); }
+  .admin-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
+  .admin-bar.warn .admin-dot { background: var(--warn); }
+  .admin-text { flex: 1; min-width: 0; }
+  /* Stats */
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--soft); border: 1px solid transparent; text-align: left; height: auto; justify-content: stretch; }
+  .stat strong { font-size: 22px; font-weight: 500; line-height: 1.2; }
+  .stat.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--bg)); }
+  /* Filters */
+  .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
+  .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h2 { margin: 0; font-size: 16px; font-weight: 500; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filters input { width: 220px; }
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .item { display: grid; gap: 6px; padding: 0; height: auto; border: 0; background: none; text-align: left; justify-content: stretch; }
+  .item:hover { background: none; }
+  .thumb { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 10px; background: var(--soft); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s; }
+  .item:hover .thumb img { transform: scale(1.04); }
+  .badge { position: absolute; top: 6px; left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; color: #fff; background: rgba(15, 23, 42, .6); }
+  .badge.accepted { background: var(--ok); }
+  .badge.rejected { background: var(--warn); }
+  .item-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item-meta { font-size: 12px; color: var(--muted); margin-top: -6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; border: 1px dashed var(--border); border-radius: 10px; }
+  /* Dialogs */
+  .dlg { width: min(420px, calc(100% - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); color: var(--fg); }
+  .dlg::backdrop, .viewer::backdrop { background: rgba(15, 23, 42, .6); }
+  .dlg-box { display: grid; gap: 12px; padding: 14px 16px; }
+  .dlg-box p { margin: 0; }
+  .dlg-head { display: flex; justify-content: space-between; align-items: center; }
+  .dlg-box input { width: 100%; }
+  .viewer { width: 100%; max-width: 100%; height: 100%; max-height: 100%; margin: 0; padding: 0; border: 0; background: transparent; color: var(--fg); }
+  .viewer-box { position: relative; display: grid; grid-template-rows: minmax(0, 1fr) auto; height: 100%; padding: 16px; gap: 12px; }
+  .viewer-box > img { max-width: 100%; max-height: 100%; margin: auto; object-fit: contain; border-radius: 8px; }
+  .viewer-close { position: absolute; top: 16px; right: 16px; z-index: 2; }
+  .viewer-nav { position: absolute; top: 45%; z-index: 2; font-size: 20px; }
+  .viewer-nav.prev { left: 16px; } .viewer-nav.next { right: 16px; }
+  .viewer-info { width: min(720px, 100%); margin: 0 auto; padding: 12px 14px; border-radius: 12px; background: var(--bg); font-size: 14px; display: grid; gap: 10px; }
+  .viewer-info p { margin: 0; overflow-wrap: anywhere; }
+  .viewer-info .actions { justify-content: flex-start; }
+  .danger { color: var(--warn); }
+  .toast { position: fixed; left: 50%; bottom: 24px; z-index: 9999; transform: translate(-50%, 12px); padding: 10px 16px; border-radius: 10px; background: #0f172a; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  footer { text-align: center; }
+  @media (max-width: 640px) {
+    input, select { font-size: 16px !important; }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filters, .filters input, .filters select { width: 100%; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .back span { display: none; }
+    .admin-bar { flex-wrap: wrap; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>Product Images</h1>
-  <select id="batch" aria-label="Batch"></select>
-  <select id="status" aria-label="Trạng thái">
-    <option value="">Tất cả</option>
-    <option value="awaiting_review">Chờ duyệt</option>
-    <option value="accepted">Đã duyệt</option>
-    <option value="rejected">Đã loại</option>
-  </select>
-  <button id="csv">Tải danh sách link</button>
-  <button id="connect">Kết nối Drive</button>
-</header>
-<main id="grid"></main>
-<p id="empty" hidden>Chưa có ảnh.</p>
+<main class="wrap">
+  <header class="top">
+    <a class="brand" href="https://hoangpham.is-a.dev" aria-label="HoangPham"><img src="brand/hp-icon.svg" alt="HoangPham" width="40" height="40" /></a>
+    <div class="top-text"><h1>Product Images</h1></div>
+    <button id="lockBtn" class="icon" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    </button>
+    <a class="back" href="https://hoangpham.is-a.dev/tools" aria-label="Portfolio">←<span> Portfolio</span></a>
+  </header>
 
-<dialog id="login">
-  <form method="dialog">
-    <label>Mật khẩu quản lý <input id="key" type="password" required autocomplete="current-password"></label>
-    <button class="primary" value="ok">Đăng nhập</button>
+  <div id="adminBar" class="admin-bar" hidden>
+    <span class="admin-dot"></span>
+    <span id="adminText" class="admin-text"></span>
+    <div class="actions">
+      <button id="connectBtn" type="button" hidden>Kết nối Drive</button>
+      <button id="logoutBtn" type="button">Thoát</button>
+    </div>
+  </div>
+
+  <section id="stats" class="stats" hidden></section>
+
+  <section class="card">
+    <div class="sec-head">
+      <h2 id="listTitle">Ảnh</h2>
+      <div class="filters" id="filters" hidden>
+        <input id="search" type="search" placeholder="Tìm sản phẩm" aria-label="Tìm sản phẩm" />
+        <select id="batch" aria-label="Batch"></select>
+        <button id="csvBtn" type="button">Tải danh sách link</button>
+      </div>
+    </div>
+    <div id="grid" class="grid"></div>
+    <p id="empty" class="empty">Đăng nhập để xem ảnh.</p>
+  </section>
+
+  <footer class="muted small">Làm bởi <a href="https://hoangpham.is-a.dev" target="_blank" rel="noopener">Phạm Quốc Hoàng</a> · Ảnh lưu trên Google Drive</footer>
+</main>
+
+<dialog id="loginDlg" class="dlg">
+  <form method="dialog" class="dlg-box" id="loginForm">
+    <div class="dlg-head"><strong>Đăng nhập quản lý</strong><button class="icon" value="cancel" formnovalidate aria-label="Đóng">✕</button></div>
+    <input id="keyInput" type="password" placeholder="Mật khẩu quản lý" autocomplete="current-password" required />
+    <p id="loginError" class="small danger" hidden></p>
+    <div class="actions"><button class="primary" value="ok">Đăng nhập</button></div>
   </form>
 </dialog>
 
+<dialog id="viewer" class="viewer">
+  <div class="viewer-box">
+    <button class="icon viewer-close" type="button" data-close aria-label="Đóng">✕</button>
+    <button class="icon viewer-nav prev" type="button" data-step="-1" aria-label="Ảnh trước">‹</button>
+    <button class="icon viewer-nav next" type="button" data-step="1" aria-label="Ảnh sau">›</button>
+    <img id="viewerImg" alt="" />
+    <div class="viewer-info">
+      <p><strong id="viewerName"></strong></p>
+      <p id="viewerMeta" class="muted small"></p>
+      <div class="actions">
+        <button type="button" data-act="accepted">Duyệt</button>
+        <button type="button" data-act="rejected">Loại</button>
+        <button type="button" data-act="copy">Copy link</button>
+        <button type="button" data-act="open">Mở ảnh</button>
+        <button type="button" class="danger" data-act="delete">Xoá</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status"></div>
+
 <script>
 const API = "https://product-images-api.hoangpham2263.workers.dev";
-const STATUS_TEXT = { awaiting_review: "Chờ duyệt", accepted: "Đã duyệt", rejected: "Đã loại" };
-let images = [];
+const STATUS = { awaiting_review: "Chờ duyệt", accepted: "Đã duyệt", rejected: "Đã loại" };
+const $ = (id) => document.getElementById(id);
+const state = { images: [], status: "", current: -1, connected: false };
 
-function adminKey() {
-  try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; }
+const store = {
+  get: () => { try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; } },
+  set: (v) => { try { v ? sessionStorage.setItem("pib-key", v) : sessionStorage.removeItem("pib-key"); } catch {} },
+};
+
+function toast(text) {
+  const el = $("toast");
+  el.textContent = text;
+  el.classList.add("show");
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => el.classList.remove("show"), 2200);
 }
 
 async function api(path, init = {}) {
-  const response = await fetch(API + path, { ...init, headers: { ...(init.headers || {}), "x-admin-key": adminKey() } });
-  if (response.status === 401) { await askKey(); return api(path, init); }
-  if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || response.status);
-  return response.json();
-}
-
-function askKey() {
-  const dialog = document.getElementById("login");
-  dialog.showModal();
-  return new Promise((resolve) => dialog.addEventListener("close", () => {
-    try { sessionStorage.setItem("pib-key", document.getElementById("key").value); } catch {}
-    resolve();
-  }, { once: true }));
+  const res = await fetch(API + path, { ...init, headers: { ...(init.headers || {}), "x-admin-key": store.get() } });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(body.error || `Lỗi ${res.status}`), { status: res.status });
+  return body;
 }
 
 function visible() {
-  const batch = document.getElementById("batch").value;
-  const status = document.getElementById("status").value;
-  return images.filter((i) => (!batch || i.batch === batch) && (!status || i.status === status));
+  const q = $("search").value.trim().toLowerCase();
+  const batch = $("batch").value;
+  return state.images.filter((i) =>
+    (!state.status || i.status === state.status) && (!batch || i.batch === batch) &&
+    (!q || `${i.product} ${i.name}`.toLowerCase().includes(q)));
 }
 
-function render() {
-  const grid = document.getElementById("grid");
-  const items = visible();
-  document.getElementById("empty").hidden = items.length > 0;
-  grid.replaceChildren(...items.map((item) => {
-    const card = document.createElement("article");
-    card.className = "card";
-    card.innerHTML = `<a target="_blank" rel="noopener"><img loading="lazy" alt=""></a>
-      <div class="meta"><div class="name"></div><div class="muted"></div>
-      <div class="row"><button data-act="accepted">Duyệt</button><button data-act="rejected">Loại</button><button data-act="copy">Copy link</button><button data-act="delete">Xoá</button></div></div>`;
-    card.querySelector("a").href = item.url;
-    card.querySelector("img").src = item.url;
-    card.querySelector(".name").textContent = item.product || item.name;
-    const meta = card.querySelector(".muted");
-    meta.textContent = `${item.batch} · ${STATUS_TEXT[item.status] || item.status}`;
-    meta.className = `muted ${item.status}`;
-    card.querySelector(".row").addEventListener("click", (event) => act(item, event.target.dataset.act));
-    return card;
+function renderStats() {
+  const count = (s) => state.images.filter((i) => !s || i.status === s).length;
+  const tiles = [["", "Tất cả"], ["awaiting_review", STATUS.awaiting_review], ["accepted", STATUS.accepted], ["rejected", STATUS.rejected]];
+  $("stats").replaceChildren(...tiles.map(([key, label]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "stat" + (state.status === key ? " on" : "");
+    b.innerHTML = `<span class="muted small"></span><strong></strong>`;
+    b.querySelector("span").textContent = label;
+    b.querySelector("strong").textContent = count(key);
+    b.onclick = () => { state.status = key; render(); };
+    return b;
   }));
 }
 
-async function act(item, action) {
-  if (!action) return;
-  if (action === "copy") return navigator.clipboard.writeText(item.url);
-  if (action === "delete") {
-    await api(`/api/images/${item.id}`, { method: "DELETE" });
-    images = images.filter((i) => i.id !== item.id);
-  } else {
-    const updated = await api(`/api/images/${item.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: action }) });
-    images = images.map((i) => (i.id === item.id ? updated : i));
-  }
-  render();
+function render() {
+  renderStats();
+  const items = visible();
+  $("listTitle").textContent = `Ảnh (${items.length})`;
+  $("empty").hidden = items.length > 0;
+  $("empty").textContent = state.images.length ? "Không có ảnh khớp bộ lọc." : "Chưa có ảnh nào được tải lên.";
+  $("grid").replaceChildren(...items.map((item) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "item";
+    b.innerHTML = `<div class="thumb"><img loading="lazy" alt="" /><span class="badge"></span></div><span class="item-name"></span><span class="item-meta"></span>`;
+    b.querySelector("img").src = item.url;
+    const badge = b.querySelector(".badge");
+    badge.textContent = STATUS[item.status] || item.status;
+    badge.classList.add(item.status);
+    b.querySelector(".item-name").textContent = item.product || item.name;
+    b.querySelector(".item-meta").textContent = item.batch;
+    b.onclick = () => openViewer(state.images.indexOf(item));
+    return b;
+  }));
+}
+
+function openViewer(index) {
+  state.current = index;
+  const item = state.images[index];
+  $("viewerImg").src = item.url;
+  $("viewerName").textContent = item.product || item.name;
+  $("viewerMeta").textContent = `${STATUS[item.status] || item.status} · ${item.batch} · ${item.name} · ${new Date(item.createdAt).toLocaleString("vi-VN")}`;
+  if (!$("viewer").open) $("viewer").showModal();
+}
+
+function step(delta) {
+  const list = visible();
+  const at = list.indexOf(state.images[state.current]);
+  const next = list[(at + delta + list.length) % list.length];
+  if (next) openViewer(state.images.indexOf(next));
+}
+
+async function act(action) {
+  const item = state.images[state.current];
+  if (!item) return;
+  try {
+    if (action === "copy") { await navigator.clipboard.writeText(item.url); return toast("Đã copy link"); }
+    if (action === "open") return window.open(item.url, "_blank", "noopener");
+    if (action === "delete") {
+      await api(`/api/images/${item.id}`, { method: "DELETE" });
+      state.images.splice(state.current, 1);
+      $("viewer").close();
+      toast("Đã xoá ảnh");
+    } else {
+      const updated = await api(`/api/images/${item.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: action }) });
+      state.images[state.current] = updated;
+      openViewer(state.current);
+      toast(STATUS[action]);
+    }
+    render();
+  } catch (e) { toast(e.message); }
 }
 
 function downloadCsv() {
   const rows = [["batch", "name", "product", "status", "url"], ...visible().map((i) => [i.batch, i.name, i.product, i.status, i.url])];
   const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
-  link.download = "product-images.csv";
-  link.click();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
+  a.download = "product-images.csv";
+  a.click();
+}
+
+function showAdmin() {
+  const signedIn = !!store.get();
+  $("adminBar").hidden = !signedIn;
+  $("stats").hidden = !signedIn;
+  $("filters").hidden = !signedIn;
+  $("lockBtn").hidden = signedIn;
+  $("adminBar").classList.toggle("warn", !state.connected);
+  $("adminText").textContent = state.connected ? `Đang quản lý · Drive ${state.email || "đã kết nối"}` : "Đang quản lý · chưa kết nối Google Drive";
+  $("connectBtn").hidden = state.connected;
 }
 
 async function load() {
-  images = await api("/api/images");
-  const batches = [...new Set(images.map((i) => i.batch))];
-  const select = document.getElementById("batch");
-  select.replaceChildren(new Option("Mọi batch", ""), ...batches.map((b) => new Option(b, b)));
+  const status = await api("/api/status");
+  state.connected = status.connected;
+  state.email = status.email;
+  state.images = await api("/api/images");
+  const batches = [...new Set(state.images.map((i) => i.batch))];
+  $("batch").replaceChildren(new Option("Mọi batch", ""), ...batches.map((b) => new Option(b, b)));
+  showAdmin();
   render();
 }
 
-document.getElementById("batch").addEventListener("change", render);
-document.getElementById("status").addEventListener("change", render);
-document.getElementById("csv").addEventListener("click", downloadCsv);
-document.getElementById("connect").addEventListener("click", () => {
-  window.open(`${API}/oauth/start?key=${encodeURIComponent(adminKey())}`, "_blank", "noopener");
+$("loginForm").addEventListener("submit", async (event) => {
+  if (event.submitter?.value !== "ok") return;
+  event.preventDefault();
+  store.set($("keyInput").value);
+  try {
+    await load();
+    $("loginDlg").close();
+    $("keyInput").value = "";
+  } catch (e) {
+    store.set("");
+    $("loginError").hidden = false;
+    $("loginError").textContent = e.status === 401 ? "Sai mật khẩu." : e.message;
+  }
 });
-load().catch((error) => { document.getElementById("empty").hidden = false; document.getElementById("empty").textContent = `Không tải được ảnh: ${error.message}`; });
+$("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
+$("logoutBtn").onclick = () => { store.set(""); state.images = []; showAdmin(); render(); $("empty").textContent = "Đăng nhập để xem ảnh."; };
+$("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
+$("csvBtn").onclick = downloadCsv;
+$("search").oninput = render;
+$("batch").onchange = render;
+$("viewer").addEventListener("click", (event) => {
+  const t = event.target.closest("button");
+  if (!t) return;
+  if (t.dataset.close !== undefined) $("viewer").close();
+  else if (t.dataset.step) step(Number(t.dataset.step));
+  else if (t.dataset.act) act(t.dataset.act);
+});
+document.addEventListener("keydown", (event) => {
+  if (!$("viewer").open) return;
+  if (event.key === "ArrowLeft") step(-1);
+  if (event.key === "ArrowRight") step(1);
+});
+// Refresh the Drive state when returning from the Google consent tab.
+window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
+
+if (store.get()) load().catch(() => { store.set(""); showAdmin(); });
+else showAdmin();
 </script>
 </body>
 </html>
