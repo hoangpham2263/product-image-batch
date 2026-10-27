@@ -1,24 +1,32 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
 $project=Split-Path $PSScriptRoot -Parent
 . (Join-Path $project 'src/ui/main-window.ps1') -BuildOnly
 function Assert($Condition,[string]$Message){if(-not $Condition){throw $Message}}
+Assert ($animTimer -is [Windows.Forms.Timer]) 'Run animation timer was not initialized.'
+$animTimer.Start()
+Assert $animTimer.Enabled 'Run animation timer could not start.'
+$animTimer.Stop()
 $testFolder=Join-Path $TestWorkspaceRoot ('inline-main-'+[Guid]::NewGuid().ToString('N'))
 try{
     New-Item -ItemType Directory -Path $testFolder -Force|Out-Null
     $queueEditor.Root=$testFolder;$queueEditor.MapPath=Join-Path $testFolder 'workspace/reference-inputs/references.json'
     $url='https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/'
     Set-ProductQueueUrls $queueEditor @($url,'https://example.test/products/coffee-table')
-    $room=Join-Path $project 'data/source-photos/dining-tables/dutch-012.jpg'
+    $room=Join-Path $project 'data/source-photos/Nội thất/dining-tables-dutch-012.jpg'
     Set-ProductQueueReference $queueEditor $queueEditor.Rows[0] $room
     $form.ShowInTaskbar=$false;$form.StartPosition='Manual';$form.Location=[Drawing.Point]::new(-32000,-32000)
     $form.Show();$form.Refresh()
     Assert ($queueEditor.Rows.Count -eq 2 -and $queueEditor.Rows[0].Preview.Image -and -not $queueEditor.Rows[1].Preview.Image) 'Main screen lost link/image pairing or missing-reference state.'
-    Assert ($queueEditor.Rows[0].Card.Height -le 48 -and $queueEditor.Rows[0].Url.ReadOnly) 'Main queue must use compact rows.'
+    Assert ($queueEditor.Rows[0].Card.Height -le 64 -and $queueEditor.Rows[0].Url.ReadOnly) 'Main queue must use compact rows.'
     $before=[IO.File]::ReadAllText($queueEditor.MapPath)
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[0]
     try{
         $draft=$popup.Tag
+        $groups=$popup.Controls.Find('SourcePhotoGroup',$true)[0]
+        Assert ($groups.Items.Contains('Áo') -and $groups.Items.Contains('Nội thất')) 'Local photo groups are missing.'
+        $groups.SelectedItem='Nội thất'
+        Assert ($draft.Editor.SourceGroup -eq 'Nội thất') 'Group selection did not update the draft picker.'
         Assert ($draft.Row.Url.Text -eq $url -and $draft.Row.Preview.Image) 'Clicking a row must preview the matching URL and image.'
         $draft.Row.Url.Text='https://example.test/products/cancelled'
         Assert (-not $draft.Row.Preview.Image) 'Changed URL retained the old reference.'
@@ -28,6 +36,7 @@ try{
     $popup=New-ProductQueueDialog $queueEditor
     try{
         $draft=$popup.Tag;$draft.Row.Url.Text=$url
+        $popup.Controls.Find('SourcePhotoGroup',$true)[0].SelectedItem='Nội thất'
         $blocked=$false;try{Save-ProductQueueDraft $queueEditor $draft}catch{$blocked=$true}
         Assert $blocked 'Popup accepted a duplicate URL.'
         $draft.Row.Url.Text='https://example.test/products/new'
@@ -35,6 +44,7 @@ try{
         Save-ProductQueueDraft $queueEditor $draft
     }finally{$popup.Dispose()}
     Assert ($queueEditor.Rows.Count -eq 3 -and (Test-Path -LiteralPath $queueEditor.Rows[2].ImagePath)) 'Saving a new popup did not preserve its snapshot after cleanup.'
+    Assert ($queueEditor.SourceGroup -eq 'Nội thất' -and (Read-ManualReferenceMap $queueEditor.MapPath).preferred_source_group -eq 'Nội thất') 'Saved group preference was lost.'
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[0]
     try{
         $popup.StartPosition='Manual';$popup.Location=[Drawing.Point]::new(-32000,-32000);$popup.Show();$popup.Refresh()
@@ -51,7 +61,8 @@ try{
     $form.Size=$form.MinimumSize;$queueEditor.Fallback.Checked=$true;$form.Refresh()
     Assert ($lblStatus.Right -lt $lblPer.Left -and -not $lblProgress.Bounds.IntersectsWith($btnClear.Bounds)) 'Controls overlap at the minimum window size.'
     $sidebar=@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnHelp,$btnClear)
-    Assert (@($sidebar|Where-Object {$_.Left -lt $queueEditor.Panel.Right -or $_.Width -ne $btnSave.Width}).Count -eq 0) 'Action buttons must form a separate right column.'
+    $queueRight=$queueEditor.Panel.PointToScreen([Drawing.Point]::new($queueEditor.Panel.Width,0)).X
+    Assert (@($sidebar|Where-Object {$_.PointToScreen([Drawing.Point]::Empty).X -lt $queueRight -or $_.Width -ne $btnSave.Width}).Count -eq 0) 'Action buttons must form a separate right column.'
     for($i=1;$i -lt $sidebar.Count;$i++){Assert ($sidebar[$i].Top -gt $sidebar[$i-1].Bottom) 'Right-column buttons overlap.'}
     $queueEditor.Panel.Enabled=$false
     Assert (-not $queueEditor.Rows[0].Url.Enabled -and -not $queueEditor.Rows[0].Card.Controls.Find('PreviewProduct',$true)[0].Enabled) 'Running-state lock left row inputs editable.'

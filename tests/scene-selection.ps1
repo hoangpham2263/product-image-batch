@@ -44,6 +44,11 @@ try {
     Assert ($rotated -ne $usedPhoto) 'Previously used editorial room monopolized selection despite unused alternatives.'
     $historyUse = Get-ReferenceLastUse
     Assert ($historyUse.ContainsKey($usedPhoto)) 'Reference history must survive across batches.'
+    $newPhoto=Join-Path $temp 'furniture/dining-tables-1.jpg'
+    $script:Config.SourceCatalog=@{$newPhoto=[pscustomobject]@{previous_file='dining-tables/1.jpg'}}
+    $migratedHistory=Get-ReferenceLastUse
+    Assert ($migratedHistory.ContainsKey($newPhoto) -and -not $migratedHistory.ContainsKey($usedPhoto)) 'Moving library folders reset photo usage history.'
+    $script:Config.SourceCatalog=$null
     $actualProduct = Join-Path $temp 'actual-product.bin'
     [IO.File]::WriteAllText($actualProduct, 'actual product fixture')
     $script:ProductHash = Get-BytesHash ([IO.File]::ReadAllBytes($actualProduct))

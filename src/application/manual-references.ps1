@@ -1,7 +1,9 @@
 ﻿function Read-ManualReferenceMap([string]$Path) {
-    if(-not (Test-Path -LiteralPath $Path)){return [pscustomobject]@{schema_version=1;allow_library_fallback=$false;entries=@()}}
+    if(-not (Test-Path -LiteralPath $Path)){return [pscustomobject]@{schema_version=1;allow_library_fallback=$false;preferred_source_group='Áo';entries=@()}}
     $map=Get-Content -LiteralPath $Path -Raw -Encoding UTF8|ConvertFrom-Json
     if($map.schema_version -ne 1){throw 'Invalid manual reference map.'}
+    if(-not $map.PSObject.Properties['preferred_source_group']){$map|Add-Member NoteProperty preferred_source_group 'Áo'}
+    $map.preferred_source_group=Resolve-SourcePhotoGroup $map.preferred_source_group
     $seen=@{}
     foreach($entry in @($map.entries)){
         $uri=$null

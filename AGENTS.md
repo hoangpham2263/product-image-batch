@@ -1,4 +1,4 @@
-﻿# Hướng dẫn và bài học của dự án
+# Hướng dẫn và bài học của dự án
 
 Áp dụng cho toàn bộ repository Product Image Batch. Đọc file này trước khi sửa workflow, prompt, dữ liệu mẫu hoặc bước kiểm tra. Yêu cầu mới nhất của người dùng được ưu tiên; khi yêu cầu thay đổi, cập nhật bài học liên quan thay vì giữ các quy tắc mâu thuẫn.
 
@@ -53,6 +53,8 @@ Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng g
 - Logo giả phải là thiết kế hoàn chỉnh; không có chữ như “put your brand on it”, “your logo” hay hướng dẫn điền tên.
 
 ## 5. Kho ảnh mẫu: số lượng chưa đủ để chứng minh phù hợp
+
+- Kho local dùng tên tiếng Việt có dấu cho thư mục nhóm hàng chung, không chia theo website: `Áo` cho áo, `Nội thất` cho nội thất và các nhóm khác theo hàng thực tế. Không gọi kho áo là `clothes` rồi ngầm hiểu có cả quần. Giữ các ảnh thuộc nhóm khác để người dùng dùng sau, không xóa chỉ vì hiện tại hai website chưa bán nhóm đó. `source_group` là nhóm thư mục; giữ `category` chi tiết, nguồn và SHA256 trong catalog để không đổi điều kiện chọn ảnh/bài học. Chuyển thư mục phải đối chiếu hash và giữ lịch sử dùng ảnh.
 
 - Người dùng có thể gắn ảnh riêng theo từng URL bằng dán clipboard, chọn file hoặc kéo thả. Ảnh đã gắn phải được ưu tiên và lưu snapshot/hash; không tự lấy ảnh cho link khác. Nếu ảnh chỉ định bị loại, báo lý do và dừng, không âm thầm thay bằng data. Dùng kho cho URL chưa gắn ảnh chỉ khi người dùng bật fallback rõ ràng. Cách này giảm trùng ảnh do chọn tự động nhưng không bảo đảm AI ghép đúng; vẫn cần kiểm tra tỉ lệ, vùng thay thế và QA.
 - Người dùng đã đổi yêu cầu: thêm/sửa link và ảnh trong popup, lưu xong hiển thị một dòng nhỏ có thumbnail và trạng thái; bấm dòng để preview/sửa đúng sản phẩm, không chọn lại link. Hỗ trợ số lượng lớn, hạn chế chữ đậm. Hủy popup không được thay đổi dữ liệu. Đổi URL không được mang ảnh của URL cũ sang. Kiểm tra link trùng/thiếu ảnh trước khi gọi AI để tránh tốn lượt mới phát hiện lỗi nhập.

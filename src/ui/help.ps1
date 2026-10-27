@@ -18,6 +18,7 @@ CÁCH DÙNG
 1. Bấm Thêm sản phẩm: dán link và ảnh trong popup rồi Lưu.
    Danh sách chính hiển thị một dòng nhỏ cho mỗi sản phẩm. Bấm dòng để preview/sửa; Hủy không đổi dữ liệu. Có thể Ctrl+V ảnh, chọn file hoặc kéo ảnh vào popup.
    Thêm nhiều link mở popup nhập hàng loạt, mỗi link một dòng. Bấm từng dòng để gắn ảnh; thumbnail hiện trên đúng sản phẩm.
+   Chọn Kho ảnh local trong popup: Áo cho áo, Nội thất cho nội thất; Chọn ảnh mở đúng nhóm, Mở thư mục để xem kho. Các nhóm cũ vẫn giữ để dùng sau.
    Chỉ bật dùng kho data cho link chưa gắn ảnh khi bạn muốn app tự tìm. Ảnh đã gắn được dùng trực tiếp, không chấm bằng AI và không tự đổi ảnh.
 2. Chọn tuỳ chọn:
    • Ảnh từ kho/SP: số ảnh tham khảo tối đa khi bật tìm trong kho (mặc định 1).

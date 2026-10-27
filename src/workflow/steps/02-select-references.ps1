@@ -5,6 +5,8 @@
 # Prefer unused/least-recently used scenes across archived batches.
 function Get-ReferenceLastUse {
     $used = @{}
+    $aliases=@{}
+    if($script:Config.SourceCatalog){foreach($path in $script:Config.SourceCatalog.Keys){$entry=$script:Config.SourceCatalog[$path];foreach($old in @($entry.previous_file)+@($entry.previous_files)){if($old){$aliases[[IO.Path]::GetFullPath((Join-Path $script:Config.SourceDir $old))]=$path}}}}
     if (-not $script:Batch.Dir) { return $used }
     $outputRoot = Split-Path $script:Batch.Dir -Parent
     if (-not (Test-Path -LiteralPath $outputRoot)) { return $used }
@@ -18,6 +20,7 @@ function Get-ReferenceLastUse {
                 $saved = Get-Content -LiteralPath $manifest.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
                 foreach ($entry in @($saved.images | Where-Object { $_.role -in @('scene', 'subject') })) {
                     $key = $entry.original_path
+                    if($key -and $aliases.ContainsKey($key)){$key=$aliases[$key]}
                     if ($key -and (-not $used.ContainsKey($key) -or $used[$key] -lt $manifest.LastWriteTimeUtc.Ticks)) {
                         $used[$key] = $manifest.LastWriteTimeUtc.Ticks
                     }

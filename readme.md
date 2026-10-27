@@ -1,4 +1,4 @@
-﻿# Product Image Batch
+# Product Image Batch
 
 Ứng dụng Windows tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV.
 
@@ -18,7 +18,7 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 |---|---|
 | 1. Nhận URL | Đọc danh sách sản phẩm, giữ hàng đợi để có thể chạy lại phần lỗi. |
 | 2. Đọc và nhận diện sản phẩm | Tải ảnh gốc, xác định loại sản phẩm từ ảnh. |
-| 3. Chọn ảnh tham khảo | Lấy ảnh trong data/source-photos/ đúng danh mục theo catalog.json, kiểm tra người và bối cảnh có phù hợp. |
+| 3. Chọn ảnh tham khảo | Dùng ảnh đã gắn theo URL; chỉ tự tìm trong kho đúng danh mục và kiểm tra phù hợp khi bật fallback. |
 | 4. Lưu đầu vào | Sao chép ảnh đã chọn cùng nguồn và SHA256 vào refs/<mã-SP>/. |
 | 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
 | 6. Hoàn tất ảnh | Kiểm tra PNG đọc được rồi xuất nguyên file do AI tạo để người dùng review. |
@@ -36,7 +36,9 @@ Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gall
 
 Ảnh gốc quyết định sản phẩm xuất hiện như thế nào: mặc, cầm, đặt trong không gian hoặc sử dụng xe. Kết quả FIT/NOFIT đã lưu chỉ được dùng khi khớp cả URL sản phẩm và hash ảnh; hai listing dùng chung ảnh có thể bán kích thước hoặc bộ phận khác nhau. Với bàn, phòng cần có footprint đồ cũ tương đương để thay cục bộ, không chỉ đủ diện tích chung. Bát đĩa hoặc bữa ăn do AI gợi ý trong context không phải điều kiện bắt buộc.
 
-Ảnh mẫu nằm trong data/source-photos/<danh-mục>/, mỗi ảnh có bản ghi trong catalog.json (danh mục, nguồn, SHA256). Danh mục cho từng loại sản phẩm khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
+Kho chung nằm trong `data/source-photos/<nhóm-hàng>/`, không chia theo website. `Áo` chứa nhóm áo, `Nội thất` chứa nội thất; các ảnh khác giữ trong `Cốc và bình`, `Trang trí nhà cửa`, `Phụ kiện`, `Mũ`, `Đồ bếp`, `Thể thao ngoài trời`, `Đồ thú cưng`, `Quần đùi`, `Đồ lót`, `Đồng phục` để dùng lại sau. Toàn bộ 3.111 ảnh cũ được giữ nguyên nội dung. Trong popup, chọn **Kho ảnh local** rồi **Chọn ảnh** để mở đúng thư mục, hoặc **Mở thư mục** để xem kho; nhóm đã lưu được nhớ cho lần sau.
+
+Mỗi ảnh có bản ghi trong catalog.json (nhóm lưu trữ `source_group`, danh mục sản phẩm `category`, nguồn, SHA256 và đường dẫn cũ). Nhóm thư mục chỉ giúp chọn file; danh mục chi tiết cho từng loại sản phẩm vẫn khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
 
 Số ảnh mẫu/SP là mức tối đa. Nếu chỉ có một ảnh đạt với người và bối cảnh phù hợp, app dùng bối cảnh thật đó; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
 

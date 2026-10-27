@@ -5,10 +5,20 @@ $root = Split-Path $PSScriptRoot -Parent
 $dir = Join-Path $root 'data/source-photos'
 $catalog = Get-SourceCatalog $dir
 if ($catalog.Count -lt 202) { throw 'Expected at least the 202 preserved photos.' }
+$entries=@(Get-SampleCatalogEntries $dir)
+if ($entries.Count -ne 3111) { throw 'The regrouped library must preserve all 3111 photos.' }
+$groups=@(Get-SourcePhotoGroups $dir)
+if ($groups.Count -ne 12 -or $groups[0] -ne 'Áo' -or $groups[1] -ne 'Nội thất') { throw 'Shared merchandise folders are missing or ordered incorrectly.' }
+if ((Get-SourcePhotoDirectory $dir 'Nội thất') -ne [IO.Path]::GetFullPath((Join-Path $dir 'Nội thất'))) { throw 'The file picker opens the wrong local folder.' }
+foreach($entry in $entries){
+    if(($entry.file -split '/')[0] -ne $entry.source_group -or -not $entry.previous_file){throw 'Folder grouping lost category or migration provenance.'}
+}
+$blocked=$false;try{Get-SourcePhotoDirectory $dir '../outside'|Out-Null}catch{$blocked=$true}
+if(-not $blocked){throw 'Local group navigation escaped the library.'}
 $hashes = @{}
 foreach ($path in $catalog.Keys) {
     $entry = $catalog[$path]
-    if ($entry.file -notmatch '^[a-z][a-z0-9-]*/[^/]+$') { throw 'Photo is outside product categories.' }
+    if ($entry.file -notmatch '^[\p{L}\p{N}][\p{L}\p{N} -]*/[^/]+$') { throw 'Photo is outside product categories.' }
     $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
     if ($hash -ine $entry.sha256 -or $hashes.ContainsKey($hash)) { throw 'Changed or duplicate photo.' }
     $hashes[$hash] = $true
