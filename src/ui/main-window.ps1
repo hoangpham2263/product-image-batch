@@ -1,4 +1,5 @@
 ﻿# Desktop GUI for run-images.ps1: URL queue, run/stop, live log (Vietnamese), folder shortcuts.
+param([switch]$BuildOnly)
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'progress.ps1')
@@ -10,19 +11,21 @@ $root = Split-Path $srcDir -Parent   # project root (base data and local workspa
 $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
 . (Join-Path $srcDir 'application/image-feedback.ps1')
+. (Join-Path $srcDir 'application/manual-references.ps1')
 . (Join-Path $PSScriptRoot 'image-feedback.ps1')
+. (Join-Path $PSScriptRoot 'manual-references.ps1')
 $urlFile = $workspace.Queue
 $script:proc = $null
 $script:resultFolder = ''
 $script:currentIndex = 0
 $script:itemStages = @{}
-$script:itemQualityReasons = @{}
+
 $script:activeFeedbackFile = ''
 
 function Open-Path([string]$p) { New-Item -ItemType Directory -Force $p | Out-Null; Start-Process explorer.exe $p }
-function Count-Urls { @($txtUrls.Lines | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') }).Count }
+function Count-Urls { @(Get-ProductQueueUrls $queueEditor).Count }
 
-function New-RunArguments([string]$ScriptPath, [int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile = '', [string]$ApprovedImage = '') {
+function New-RunArguments([string]$ScriptPath, [int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile = '', [string]$ApprovedImage = '', [string]$ReferenceMapFile = '') {
     @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $ScriptPath + '"'),
         '-PhotosPerImage', $PhotosPerImage.ToString([Globalization.CultureInfo]::InvariantCulture),
@@ -30,6 +33,7 @@ function New-RunArguments([string]$ScriptPath, [int]$PhotosPerImage, [int]$Throt
     )
     if ($FeedbackFile) { @('-FeedbackFile', ('"' + $FeedbackFile + '"')) }
     if ($ApprovedImage) { @('-ApprovedImage', ('"' + $ApprovedImage + '"')) }
+    if ($ReferenceMapFile) { @('-ReferenceMapFile', ('"' + $ReferenceMapFile + '"')) }
 }
 
 function Start-RunProcess([string[]]$ArgumentList, [string]$OutputLog, [string]$ErrorLog) {
@@ -41,11 +45,11 @@ function Start-RunProcess([string[]]$ArgumentList, [string]$OutputLog, [string]$
     return $process
 }
 function Update-Status { if (-not $script:proc) { $lblStatus.Text = "Sẵn sàng • $(Count-Urls) sản phẩm" } }
-function Save-Urls {
-    [IO.File]::WriteAllLines($urlFile, [string[]]@($txtUrls.Lines | Where-Object { $_.Trim() }), [Text.UTF8Encoding]::new($true))
+function Save-Urls([switch]$RequireReady) {
+    Save-ProductQueueEditor $queueEditor $urlFile -RequireReady:$RequireReady
 }
 function Load-Urls {
-    if (Test-Path $urlFile) { $txtUrls.Lines = @(Get-Content $urlFile -Encoding UTF8 | Where-Object { $_.Trim() }) }
+    if (Test-Path $urlFile) { Set-ProductQueueUrls $queueEditor @(Get-Content $urlFile -Encoding UTF8 | Where-Object { $_.Trim() }) }
     Update-Status
 }
 # Only explicit user messages are written here. Pipeline output goes through Receive-RunLine.
@@ -78,14 +82,6 @@ function Receive-RunLine([string]$line) {
         }
         'Failed' { $script:itemStages[$event.Index] = $event.Stage; $script:hadFailure = $true }
         'Warning' { $script:hadFailure = $true }
-        'QualityReason' {
-            if (-not $script:itemQualityReasons) { $script:itemQualityReasons=@{} }
-            $script:itemQualityReasons[$event.Index]=$event.QualityReason
-        }
-        'Summary' { $script:runDone = $event.Done; $script:runTotal = $event.Total }
-    }
-    if ($event.Kind -eq 'Failed' -and $event.Text -like '*ảnh chưa đạt yêu cầu*' -and $script:itemQualityReasons -and $script:itemQualityReasons.ContainsKey($event.Index)) {
-        $event.Text="Sản phẩm $($event.Index): ảnh chưa đạt yêu cầu. Link được giữ lại để thử lại. Lý do: $($script:itemQualityReasons[$event.Index])"
     }
     if ($event.Text) { Append-Log $event.Text }
     Update-RunDisplay
@@ -93,41 +89,38 @@ function Receive-RunLine([string]$line) {
 
 $form = New-Object Windows.Forms.Form
 $form.Text = 'Product Image Batch'
-$form.Size = New-Object Drawing.Size(900, 640)
-$form.MinimumSize = New-Object Drawing.Size(900, 640)
+$form.Size = New-Object Drawing.Size(1120, 840)
+$form.MinimumSize = New-Object Drawing.Size(1040, 760)
 $form.StartPosition = 'CenterScreen'
 $form.Font = New-Object Drawing.Font('Segoe UI', 10)
-
-$lblUrls = New-Object Windows.Forms.Label -Property @{ Text = 'Link sản phẩm (mỗi dòng một link)'; Location = '12,10'; AutoSize = $true }
-$txtUrls = New-Object Windows.Forms.TextBox -Property @{ Multiline = $true; ScrollBars = 'Vertical'; Location = '12,34'; Size = '600,170'; Anchor = 'Top,Left,Right'; WordWrap = $false }
-
-$btnSave = New-Object Windows.Forms.Button -Property @{ Text = 'Lưu danh sách'; Location = '628,34'; Size = '240,28'; Anchor = 'Top,Right' }
-$btnOut = New-Object Windows.Forms.Button -Property @{ Text = 'Mở kết quả'; Location = '628,66'; Size = '240,28'; Anchor = 'Top,Right' }
-
-$btnSetup = New-Object Windows.Forms.Button -Property @{ Text = 'Kiểm tra ChatGPT'; Location = '628,98'; Size = '240,28'; Anchor = 'Top,Right' }
-$btnHelp = New-Object Windows.Forms.Button -Property @{ Text = 'Hướng dẫn'; Location = '628,130'; Size = '240,28'; Anchor = 'Top,Right' }
-$btnClear = New-Object Windows.Forms.Button -Property @{ Text = 'Xóa thông báo'; Location = '628,162'; Size = '240,28'; Anchor = 'Top,Right' }
-$btnFeedback = New-Object Windows.Forms.Button -Property @{ Text = 'Kiểm tra ảnh / Làm lại'; Location = '628,194'; Size = '240,28'; Anchor = 'Top,Right' }
-$btnRun = New-Object Windows.Forms.Button -Property @{ Text = 'Bắt đầu'; Location = '12,214'; Size = '140,38'; BackColor = [Drawing.Color]::FromArgb(40, 140, 80); ForeColor = [Drawing.Color]::White; FlatStyle = 'Flat' }
-$btnStop = New-Object Windows.Forms.Button -Property @{ Text = 'Dừng'; Location = '160,214'; Size = '100,38'; Enabled = $false }
-$lblStatus = New-Object Windows.Forms.Label -Property @{ Location = '280,222'; Size = '180,24'; AutoEllipsis = $true }
-$bar = New-Object Windows.Forms.ProgressBar -Property @{ Location = '12,284'; Size = '856,12'; Anchor = 'Top,Left,Right'; Style = 'Blocks' }
-
-$lblProgress = New-Object Windows.Forms.Label -Property @{ Text = 'Thêm link sản phẩm, sau đó bấm Bắt đầu.'; Location = '12,302'; Size = '856,24'; AutoEllipsis = $true; Anchor = 'Top,Left,Right' }
-$txtLog = New-Object Windows.Forms.TextBox -Property @{ Multiline = $true; ReadOnly = $true; ScrollBars = 'Vertical'; Location = '12,330'; Size = '856,262'; Anchor = 'Top,Bottom,Left,Right'; Font = New-Object Drawing.Font('Segoe UI', 10); BackColor = [Drawing.Color]::White }
-
-$lblPer = New-Object Windows.Forms.Label -Property @{ Text = 'Ảnh mẫu/SP:'; Location = '510,218'; Size = '84,28'; TextAlign = 'MiddleLeft'; Anchor = 'Top,Right' }
-$numPer = New-Object Windows.Forms.NumericUpDown -Property @{ Minimum = 1; Maximum = 6; Value = 2; Location = '600,218'; Size = '64,28'; TextAlign = 'Center'; Anchor = 'Top,Right' }
-$lblThr = New-Object Windows.Forms.Label -Property @{ Text = 'Luồng:'; Location = '696,218'; Size = '50,28'; TextAlign = 'MiddleLeft'; Anchor = 'Top,Right' }
-$numThr = New-Object Windows.Forms.NumericUpDown -Property @{ Minimum = 1; Maximum = 4; Value = 1; Location = '752,218'; Size = '64,28'; TextAlign = 'Center'; Anchor = 'Top,Right' }
-$lblThreadHint = New-Object Windows.Forms.Label -Property @{ Text = 'Khuyên dùng 1–2 luồng. Tối đa 4; tăng luồng dùng nhiều RAM và hạn mức hơn.'; Location = '12,258'; Size = '856,20'; ForeColor = [Drawing.Color]::DimGray; Anchor = 'Top,Left,Right' }
-$form.Controls.AddRange(@($lblThreadHint, $lblThr, $numThr, $lblPer, $numPer, $lblUrls, $txtUrls, $btnSave, $btnOut, $btnSetup, $btnHelp, $btnClear, $btnRun, $btnStop, $lblStatus, $lblProgress, $bar, $txtLog))
-$form.Controls.Add($btnFeedback)
-foreach ($control in @($btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr,$lblThreadHint,$bar,$lblProgress,$txtLog)) { $control.Top += 32 }
-$txtLog.Height -= 32
-# NumericUpDown derives its height from the inherited font. Align after parenting.
-$lblPer.Height = $numPer.Height
-$lblThr.Height = $numThr.Height
+$form.BackColor=[Drawing.SystemColors]::Control
+$title=New-Object Windows.Forms.Label -Property @{Text='Sản phẩm & ảnh tham khảo';Location='16,12';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',11,[Drawing.FontStyle]::Regular))}
+$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='856,48';Size='232,32';Anchor='Top,Right'}
+$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='856,88';Size='232,32';Anchor='Top,Right'}
+$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='856,128';Size='232,32';Anchor='Top,Right'}
+$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='856,168';Size='232,32';Anchor='Top,Right'}
+$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='856,208';Size='232,32';Anchor='Top,Right'}
+$queueEditor=New-ProductQueueEditor $root
+$queueEditor.Panel.Location=[Drawing.Point]::new(16,44)
+$queueEditor.Panel.Size=[Drawing.Size]::new(824,342)
+$queueEditor.Panel.Anchor='Top,Left,Right'
+$btnRun=New-Object Windows.Forms.Button -Property @{Text='Bắt đầu';Location='16,404';Size='160,40';BackColor=[Drawing.Color]::FromArgb(40,140,80);ForeColor=[Drawing.Color]::White;FlatStyle='Flat'}
+$btnStop=New-Object Windows.Forms.Button -Property @{Text='Dừng';Location='188,404';Size='100,40';Enabled=$false}
+$lblStatus=New-Object Windows.Forms.Label -Property @{Location='304,412';Size='220,26';AutoEllipsis=$true}
+$lblPer=New-Object Windows.Forms.Label -Property @{Text='Ảnh từ kho/SP:';Location='626,412';Size='110,24';Anchor='Top,Right'}
+$numPer=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=6;Value=1;Location='738,408';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
+$lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='830,412';Size='56,24';Anchor='Top,Right'}
+$numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=1;Location='890,408';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
+$lblThreadHint=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.';Location='16,452';Size='1076,22';ForeColor=[Drawing.Color]::DimGray;Anchor='Top,Left,Right'}
+$bar=New-Object Windows.Forms.ProgressBar -Property @{Location='16,482';Size='1076,12';Anchor='Top,Left,Right';Style='Blocks'}
+$lblProgress=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm và ảnh đi kèm để bắt đầu.';Location='16,504';Size='1076,24';AutoEllipsis=$true;Anchor='Top,Left,Right'}
+$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='856,248';Size='232,32';Anchor='Top,Right'}
+$txtLog=New-Object Windows.Forms.TextBox -Property @{Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Location='16,536';Size='1076,256';Anchor='Top,Bottom,Left,Right';BackColor=[Drawing.Color]::White}
+$form.Controls.AddRange(@($title,$btnSave,$btnOut,$btnSetup,$btnHelp,$btnFeedback,$queueEditor.Panel,$btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr,$lblThreadHint,$bar,$lblProgress,$btnClear,$txtLog))
+$lblStatus.Anchor='Top,Left'
+$lblPer.Height=$numPer.Height;$lblThr.Height=$numThr.Height
+$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked
+$queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnClear.Add_Click({ $txtLog.Clear() })
 $btnFeedback.Add_Click({
@@ -137,7 +130,7 @@ $btnFeedback.Add_Click({
     elseif ($selection.FeedbackPath) { Start-GuiBatch -FeedbackFile $selection.FeedbackPath }
 })
 
-$btnSave.Add_Click({ Save-Urls; Update-Status; Append-Log 'Đã lưu danh sách sản phẩm.' })
+$btnSave.Add_Click({try{Save-Urls;Update-Status;Append-Log 'Đã lưu danh sách link và ảnh đi kèm.'}catch{Append-Log $_.Exception.Message}})
 $btnOut.Add_Click({
     $target = if ($script:resultFolder -and (Test-Path -LiteralPath $script:resultFolder)) { $script:resultFolder } else { $workspace.Output }
     Open-Path $target
@@ -160,7 +153,7 @@ $btnSetup.Add_Click({
         Append-Log 'Chưa kiểm tra được ChatGPT. Vui lòng thử lại hoặc xem setup.txt.'
     } finally { $form.Cursor = 'Default'; $btnSetup.Enabled = $true }
 })
-$txtUrls.Add_TextChanged({ Update-Status })
+$queueEditor.OnChanged={ Update-Status }
 
 $logFile = Join-Path $workspace.Logs "image-batch-gui-$PID.log"
 $errFile = Join-Path $workspace.Logs "image-batch-gui-$PID.err.log"
@@ -201,7 +194,7 @@ $timer.Add_Tick({
         }
         $timer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
-        $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $txtUrls.ReadOnly = $false; $numPer.Enabled = $true; $numThr.Enabled = $true
+        $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numPer.Enabled = $true; $numThr.Enabled = $true
         $btnFeedback.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
@@ -226,7 +219,7 @@ $timer.Add_Tick({
 
 function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '') {
     if ($script:proc) { return }
-    if (-not $FeedbackFile -and -not $ApprovedImage) { Save-Urls }
+    if (-not $FeedbackFile -and -not $ApprovedImage) { try{Save-Urls -RequireReady}catch{Append-Log $_.Exception.Message;return} }
     if (-not $FeedbackFile -and -not $ApprovedImage -and -not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
     if (-not $ApprovedImage -and -not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.') | Out-Null; return }
     $txtLog.Clear()
@@ -236,11 +229,13 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
     $script:activeFeedbackFile = $FeedbackFile
     $script:runTotal = if ($FeedbackFile -or $ApprovedImage) { 1 } else { Count-Urls }; $script:runDone = 0; $script:currentIndex = 0
     $script:itemStages = @{}; $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
-    $script:itemQualityReasons=@{}
+
     $script:runStarted = Get-Date; $script:resultFolder = ''
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0
     $runArgs = @(New-RunArguments -ScriptPath (Join-Path $srcDir 'run-images.ps1') `
         -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value) -FeedbackFile $FeedbackFile -ApprovedImage $ApprovedImage)
+    $referenceMapPath=Join-Path $workspace.Root 'reference-inputs/references.json'
+    if(-not $FeedbackFile -and -not $ApprovedImage -and (Test-Path -LiteralPath $referenceMapPath)){$runArgs+=@('-ReferenceMapFile',('"'+$referenceMapPath+'"'))}
     try { $script:proc = Start-RunProcess -ArgumentList $runArgs -OutputLog $logFile -ErrorLog $errFile }
     catch {
         $script:proc=$null
@@ -249,7 +244,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
         return
     }
     $btnRun.Enabled = $false; $btnRun.Text = 'Đang chạy...'; $btnStop.Enabled = $true
-    $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $txtUrls.ReadOnly = $true; $numPer.Enabled = $false; $numThr.Enabled = $false
+    $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numPer.Enabled = $false; $numThr.Enabled = $false
     $btnFeedback.Enabled = $false
     $lblStatus.Text = 'Đang chạy...'; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay
@@ -274,4 +269,4 @@ $form.Add_FormClosing({
 })
 
 Load-Urls
-[void]$form.ShowDialog()
+if(-not $BuildOnly){[void]$form.ShowDialog()}

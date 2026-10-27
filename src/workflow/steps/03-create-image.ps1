@@ -102,6 +102,8 @@ OUTPUT OWNERSHIP: the image saved at the output path must be the complete uncomp
 Confine the mask tightly to the old/new product silhouettes, the small area revealed by removing old furniture,
 and local contact shadows. Do not mask walls, ceiling, windows or unrelated objects to hide a room redraw.
 Trace individual old AND new furniture contours. Keep negative spaces between chair legs/rails black wherever neither old nor new furniture nor a tight contact shadow occupies the pixel. Do not fill the whole table-and-chairs bounding polygon or broadly repaint visible rug/floor. Areas revealed by removal mean the actual OLD furniture silhouette, not arbitrary surrounding floor. Reuse original floor/rug pixels in all other gaps, even inside the overall furniture bounding box.
+Include the tightly bounded contact shadows of REMOVED furniture too. An old bench foot can disappear while its dark diagonal contact shadow remains as a ghost if the mask omits that strip. Follow the actual old foot and its adjacent shadow separately; do not erase unrelated floor or restore an old contact shadow when creating the mask.
+MASK COVERAGE INVENTORY: identify every old component to remove before drawing the mask: tabletop, ALL old supports/stretchers/feet, bench seats and their legs, and chairs that must be replaced. Include the union of actual OLD and NEW silhouettes, even where a removed bench/support becomes empty floor in the edited image. Those removal pixels must be white; black would resurrect the old furniture during restoration. Do not mistake an old bench seat for a negative-space floor gap. Conversely, genuinely visible floor between components in BOTH images must stay black. Trace against the full-resolution old room AND the full-resolution generated edit, not memory or a coarse bounding polygon. Follow explicit chair corrections without inferring that chairs are sold with the table.
 Do not use a full-frame or near-full-frame mask. All black-mask pixels will be restored from the original room in code.
 No collage, split screen, duplicated product, advertising copy or added endorsement.
 This is a generated demonstration, not evidence of an actual customer's purchase.
@@ -111,19 +113,43 @@ Do not modify any input file. Reply briefly in English.
 "@
     }
     $promptText += "`n" + (Get-ImageFeedbackGuidance $Context $script:Config.ActiveProductUrl)
+    $promptText += "`nSINGLE-PASS DELIVERY: read the input references and applicable user feedback once, create ONE image and its required mask, then return the files. The user performs visual review. Do not run visual QA, compare and score variants, repeatedly refine masks, invoke a reviewer, or regenerate an image to satisfy your own critique. The application handles technical validation and compositing. Only an explicit user correction authorizes changing an already delivered result."
     return [pscustomobject]@{ Images = $images; Prompt = $promptText; Output = $output; SceneBase = $sceneBase; EditMask = $editMask }
 }
 
-function Invoke-ImageGeneration($Request, [string]$ItemId, [int]$Attempt, [string]$PreviousQuality) {
+function Invoke-ImageGeneration($Request, [string]$ItemId, [int]$Attempt, [string]$InterruptionReason) {
     $instruction = $Request.Prompt
+    $images = @($Request.Images)
     if ($Attempt -gt 1) {
-        $instruction += [Environment]::NewLine + "The previous result failed inspection: $PreviousQuality" +
-            [Environment]::NewLine + 'Create a corrected edit at the same output path. Fix that concrete problem. For a locked room, keep the same original room and camera; never invent a replacement scene.'
-        $instruction += [Environment]::NewLine + 'Keep all original product constraints while fixing the failed criterion. For color/lighting feedback, fix local illumination and shadows without changing the material hue, erasing the grain or swinging to the opposite color extreme. A mismatch with other furniture colors alone is not a defect.'
+        $instruction += "`nThe previous submission was interrupted before complete delivery: $InterruptionReason This is a transport retry, not a visual rejection. Keep the same product and original room. Reuse any complete raw image already saved; only finish missing delivery files. Do not visually critique or improve an existing image."
+        if ($Request.SceneBase) {
+            foreach ($evidence in @(
+                @('generated','PREVIOUS RAW EDIT: complete image-tool output before room restoration'),
+                @('mask','PREVIOUS DELIVERY MASK: white permits changes, black restores old room pixels')
+            )) {
+                $path=Join-Path $script:Batch.Logs "$ItemId-attempt-$($Attempt-1)-$($evidence[0]).png"
+                if(Test-Path -LiteralPath $path){$images+=@($path);$instruction+="`nImage $($images.Count) is $($evidence[1]). Diagnostic evidence only; never use it as the base room or product reference."}
+            }
+            $instruction += "`nThese files are delivery-recovery evidence only. Copy an already complete raw image byte-for-byte rather than generating a duplicate, and finish its required mask if missing. Do not run a visual inspection/repair cycle."
+        }
     }
-    $logName = if ($Attempt -eq 1) { "$ItemId-image.txt" } else { "$ItemId-image-repair.txt" }
+    $logName = if ($Attempt -eq 1) { "$ItemId-image.txt" } else { "$ItemId-image-retry-$Attempt.txt" }
     if ($Request.EditMask -and (Test-Path -LiteralPath $Request.EditMask)) { Remove-Item -LiteralPath $Request.EditMask -Force }
-    $reply = Invoke-AI $instruction $Request.Images (Join-Path $script:Batch.Logs $logName) 'workspace-write'
+    # Previous attempts are archived above; a no-op AI call must not pass on a stale output.
+    if(Test-Path -LiteralPath $Request.Output){Remove-Item -LiteralPath $Request.Output -Force}
+    try {
+        $reply = Invoke-AI $instruction $images (Join-Path $script:Batch.Logs $logName) 'workspace-write'
+    } catch {
+        # A timed-out CLI may already have delivered the image and mask. Validate these
+        # before spending another image request; a missing final reply does not mean the files are missing.
+        if($_.Exception.Message -match '\[CAUSE:(AI_TIMEOUT|NETWORK|BUSY)\]' -and
+            (Test-Path -LiteralPath $Request.Output) -and
+            (-not $Request.SceneBase -or (Test-Path -LiteralPath $Request.EditMask))) {
+            Write-Host '  [IMAGE-RECOVERED] Saved image found after interruption; checking it before any new request.' -ForegroundColor Yellow
+            [IO.File]::WriteAllText((Join-Path $script:Batch.Logs "$ItemId-recovered-$Attempt.txt"),$_.Exception.Message)
+            $reply='BRAND: none'
+        } else { throw }
+    }
     if (-not (Test-Path -LiteralPath $Request.Output)) { throw "Output image not found. See $($script:Batch.Logs)" }
     return $reply
 }

@@ -26,13 +26,14 @@ function Save-ProductReferenceBundle($Item, [string]$ItemId, $Context, $Request,
         Copy-Item -LiteralPath $original -Destination $destination -Force
         if ((Get-BytesHash ([IO.File]::ReadAllBytes($destination))) -ne $hash) { throw 'Reference archive copy does not match source.' }
         $entry = $catalog[$original]
+        $manualSource = $role -in @('scene','subject') -and @($script:Config.ManualReferences.entries | Where-Object file -eq $original).Count -gt 0
         $sourcePage = if ($role -eq 'product') { $Item.Url } elseif ($entry) { $entry.source_page } else { '' }
         $entries += [pscustomobject][ordered]@{
             index = $index + 1; role = $role; label = $label; file = $file
             sha256 = $hash; original_path = $original; source_page = $sourcePage
             download_url = $(if ($entry) { $entry.download_url } else { '' })
-            source_kind = $(if ($entry) { $entry.source_kind } elseif ($role -eq 'product') { 'product' } elseif ($role -eq 'style') { 'style_only' } else { 'local' })
-            category = $(if ($entry) { $entry.category } else { '' })
+            source_kind = $(if ($manualSource) { 'user_reference' } elseif ($entry) { $entry.source_kind } elseif ($role -eq 'product') { 'product' } elseif ($role -eq 'style') { 'style_only' } else { 'local' })
+            category = $(if ($entry) { $entry.category } elseif ($manualSource) { @($Context.source_categories)[0] } else { '' })
             rights_status = $(if ($entry) { $entry.rights_status } else { '' })
         }
         $paths.Add($destination)

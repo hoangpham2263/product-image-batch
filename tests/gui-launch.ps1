@@ -19,8 +19,8 @@ New-Item -ItemType Directory -Path $testDir | Out-Null
 try {
     $entry = Join-Path $testDir 'run-images.ps1'
     @'
-param([int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile='', [string]$ApprovedImage='')
-[pscustomobject]@{ PhotosPerImage = $PhotosPerImage; ThrottleLimit = $ThrottleLimit; FeedbackFile=$FeedbackFile; ApprovedImage=$ApprovedImage } | ConvertTo-Json -Compress
+param([int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile='', [string]$ApprovedImage='', [string]$ReferenceMapFile='')
+[pscustomobject]@{ PhotosPerImage = $PhotosPerImage; ThrottleLimit = $ThrottleLimit; FeedbackFile=$FeedbackFile; ApprovedImage=$ApprovedImage;ReferenceMapFile=$ReferenceMapFile } | ConvertTo-Json -Compress
 '@ | Set-Content -LiteralPath $entry -Encoding UTF8
     $runArgs = @(New-RunArguments -ScriptPath $entry -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value))
     $out = Join-Path $testDir 'out.log'; $err = Join-Path $testDir 'err.log'
@@ -45,6 +45,13 @@ param([int]$PhotosPerImage, [int]$ThrottleLimit, [string]$FeedbackFile='', [stri
     $approvedValue=Get-Content -LiteralPath (Join-Path $testDir 'approved-out.log') -Raw|ConvertFrom-Json
     if($approvedChild.ExitCode -ne 0 -or $approvedValue.ApprovedImage -ne $approvedPath){throw 'GUI approved-image argument was lost.'}
     $approvedChild.Dispose()
+    $mapFile=Join-Path $testDir 'reference inputs.json'
+    $mapArgs=@(New-RunArguments -ScriptPath $entry -PhotosPerImage 1 -ThrottleLimit 1 -ReferenceMapFile $mapFile)
+    $mapChild=Start-RunProcess $mapArgs (Join-Path $testDir 'map-out.log') (Join-Path $testDir 'map-err.log')
+    $mapChild.WaitForExit();$mapChild.Refresh()
+    $mapValue=Get-Content -LiteralPath (Join-Path $testDir 'map-out.log') -Raw|ConvertFrom-Json
+    if($mapChild.ExitCode -ne 0 -or $mapValue.ReferenceMapFile -ne $mapFile){throw 'GUI lost the per-product reference map argument.'}
+    $mapChild.Dispose()
     'exit 7' | Set-Content -LiteralPath $entry -Encoding UTF8
     $failed = Start-RunProcess -ArgumentList $runArgs -OutputLog (Join-Path $testDir 'failed-out.log') -ErrorLog (Join-Path $testDir 'failed-err.log')
     $failed.WaitForExit(); $failed.Refresh()

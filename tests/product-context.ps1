@@ -22,11 +22,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($ResultFile -like '*-context.txt') {
         return '{"category_key":"apron","existing_profile":"apron","product":"bib apron","presentation":"worn","setting":"cafe","details":"Black bib, neck strap and front pockets","reject":"decorative gate","search_query":"apron cafe real photos"}'
     }
-    if ($ResultFile -like '*-quality-*.txt') {
-        $script:QualityCalls++
-        if ($script:AlwaysFail -or $script:QualityCalls -eq 1) { return 'FAIL: apron at a decorative gate with golf branding' }
-        return 'PASS'
-    }
+    if ($ResultFile -like '*-quality-*.txt') { throw 'Image QA must not run.' }
     if ($ResultFile -like '*-review.txt') {
         if ($PromptText -notmatch 'reviewed product is: bib apron' -or $PromptText -notmatch 'not the white T-shirt underneath') { throw 'Review is not focused on the apron.' }
         return 'The black bib keeps the simple front pockets easy to see.'
@@ -35,7 +31,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($PromptText -notmatch 'Scene guidance: Show one ordinary moment') { throw 'Missing natural scene guidance.' }
     if ($Images.Count -ne 2 -or $PromptText -notmatch 'Image 1 also supplies the real setting' -or $PromptText -notmatch 'Image 2 is the PRODUCT reference') { throw 'Scene fallback changed reference roles incorrectly.' }
     if ($PromptText -notmatch 'Never add GOLF' -or $PromptText -notmatch 'cafe service counter') { throw 'Apron context rules were not included.' }
-    if ($script:ImageCalls -eq 2 -and $PromptText -notmatch 'previous result failed inspection') { throw 'Rejected scene was not corrected.' }
+    if ($PromptText -notmatch 'SINGLE-PASS DELIVERY') { throw 'Single-pass generation contract is missing.' }
     if ($PromptText -notmatch '(?m)^Save a new PNG at this exact path: (.+)$') { throw 'Missing output path.' }
     'image' | Set-Content -LiteralPath $Matches[1].Trim()
     return 'BRAND: Cedar Kitchen'
@@ -46,15 +42,10 @@ try {
     $brands = [Collections.ArrayList]::Synchronized((New-Object Collections.ArrayList))
     $script:QualityCalls = 0; $script:ImageCalls = 0; $script:AlwaysFail = $false
     $result = Invoke-ProductItem $item '001-apron' $brands
-    if ($script:ImageCalls -ne 2 -or $script:QualityCalls -ne 2 -or $result.body -notmatch 'front pockets') { throw 'Quality repair or product review failed.' }
-    if (-not (Test-Path (Join-Path $tempDir 'rejected/001-apron-attempt-1.png'))) { throw 'Rejected image evidence was lost.' }
-    $script:QualityCalls = 0; $script:ImageCalls = 0; $script:AlwaysFail = $true; $blocked = $false
-    try { Invoke-ProductItem $item '002-apron' $brands | Out-Null } catch {
-        if ($_.Exception.Message -notlike 'Image quality check failed:*') { throw }
-        $blocked = $true
-    }
-    if (-not $blocked -or $script:ImageCalls -ne 2) { throw 'Bad images must stop after one repair and must not be exported.' }
-    Write-Host 'PASS: product contexts, joint scene checks, contextual fallback, bounded quality repair and apron-focused reviews.' -ForegroundColor Green
+    if ($script:ImageCalls -ne 1 -or $script:QualityCalls -ne 0 -or $result.body -notmatch 'front pockets') { throw 'Single-pass image delivery or product review failed.' }
+    $status=Get-Content (Join-Path $tempDir '001-apron-review-status.json') -Raw|ConvertFrom-Json
+    if($status.status -ne 'awaiting_user_review' -or $status.ai_image_qa_performed){throw 'User review was misrepresented as AI approval.'}
+    Write-Host 'PASS: product contexts, single-pass delivery without visual QA, contextual fallback and apron-focused reviews.' -ForegroundColor Green
 } finally {
     $resolved = [IO.Path]::GetFullPath($tempDir)
     $allowed = [IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\') + '\'

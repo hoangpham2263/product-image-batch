@@ -1,4 +1,4 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
@@ -45,7 +45,7 @@ try {
     function Read-ProductInput {throw 'Correction must not download new product inputs.'}
     function Select-ProductReferences {throw 'Correction must not randomly choose a different room.'}
     function Resolve-ProductContext {throw 'Correction with saved context must not reclassify the product.'}
-    function Complete-ProductImage($Request,$Reference,$Context,$ItemId){
+    function Complete-ProductImage($Request,$Context,$ItemId){
         Assert ($Request.Prompt -match 'Replace ALL' -and $Request.Prompt -match 'REJECTED RESULT') 'Current correction or rejected-image role missing from generation.'
         Assert ($Request.Images.Count -eq 3 -and $Request.SceneBase -eq $Request.Images[0]) 'Original scene, actual product and rejected output roles changed.'
         Copy-Item -LiteralPath $Request.Images[2] -Destination $Request.Output
@@ -56,9 +56,7 @@ try {
     Assert ((Test-Path -LiteralPath $result.photo_path) -and (Test-Path -LiteralPath $photo)) 'Revision overwrote the original or did not create a new output.'
     $saved=Get-Content -LiteralPath (Join-Path $script:Batch.Refs '001-table/manifest.json') -Raw -Encoding UTF8|ConvertFrom-Json
     Assert ($saved.feedback_id -eq $feedback.Record.id -and @($saved.images|Where-Object role -eq rejected_result).Count -eq 1) 'Revision provenance or follow-up link missing.'
-    function Invoke-AI($PromptText,$Images,$ResultFile){Assert ($PromptText -match 'Replace ALL' -and $PromptText -match 'correction remains unresolved') 'Human feedback not included in quality inspection.';return 'FAIL: old upholstered chairs remain'}
-    $quality=Test-ProductScene $result.photo_path $feedback.RejectedImage $context '001-table' 1
-    Assert ($quality -match '^FAIL:') 'Human feedback was ignored by image inspection.'
+    Assert (-not (Get-Command Test-ProductScene -ErrorAction SilentlyContinue)) 'Automatic visual QA must not be loaded into the workflow.'
     Set-ImageFeedbackStatus $path running
     Set-ImageFeedbackStatus $path awaiting_review $script:Batch.Dir
     Set-ImageFeedbackStatus $path accepted
@@ -118,7 +116,7 @@ try {
     # Snapshot corruption is rejected rather than silently using modified references.
     [IO.File]::WriteAllText((Join-Path $feedback.Folder 'refs/01-scene.png'),'tampered snapshot')
     $bad=$false;try{Read-ImageFeedback $path|Out-Null}catch{$bad=$true};Assert $bad 'Tampered feedback input was accepted.'
-    Write-Host 'PASS: saved feedback, scoped lessons, immutable retry inputs, generation/QA wiring, review status and real GUI controls.' -ForegroundColor Green
+    Write-Host 'PASS: saved feedback, scoped lessons, immutable retry inputs, generation wiring without visual QA, review status and real GUI controls.' -ForegroundColor Green
 } finally {
     $resolved=[IO.Path]::GetFullPath($temp);$allowed=[IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\')+'\'
     if($resolved.StartsWith($allowed,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -like 'feedback-*'){Remove-Item -LiteralPath $resolved -Recurse -Force}

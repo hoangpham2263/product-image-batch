@@ -1,5 +1,5 @@
 ﻿# All checks run in fresh Windows PowerShell 5.1 processes; no paid AI calls.
-param([string[]]$Name = @('workspace', 'gui-launch', 'ui-status', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'product-context', 'reference-fallback', 'scene-selection', 'scene-composite', 'image-feedback', 'review-writing', 'review-pipeline'))
+param([string[]]$Name = @('workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'product-context', 'reference-fallback', 'scene-selection', 'scene-composite', 'image-delivery', 'image-feedback', 'manual-references', 'review-writing', 'review-pipeline'))
 $ErrorActionPreference = 'Stop'
 # Prefer the Windows PowerShell modules even when launched from PowerShell 7.
 $env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath

@@ -10,8 +10,9 @@ function Invoke-CodexProcess($PromptText, $CommandArgs, $Trace, $TimeoutSeconds,
     $script:LastCliArgs = $CliArgs
     $script:Calls++
     if ($CliArgs[([Array]::IndexOf($CliArgs, '-m') + 1)] -ne 'test-model') { throw 'Model changed on retry.' }
-    if ($script:Scenario -eq 'timeout') { 'Deadline reached' | Set-Content $Trace; return [pscustomobject]@{ExitCode=-1;Cause='AI_TIMEOUT'} }
-    if ($script:Scenario -eq 'network') { 'Connection interrupted' | Set-Content $Trace; return [pscustomobject]@{ExitCode=-1;Cause='NETWORK'} }
+    if ($script:Scenario -eq 'timeout') { 'Deadline reached' | Set-Content $Trace; return [pscustomobject]@{ExitCode=-1;Cause='AI_TIMEOUT';StopConfirmed=$true} }
+    if ($script:Scenario -eq 'network') { 'Connection interrupted' | Set-Content $Trace; return [pscustomobject]@{ExitCode=-1;Cause='NETWORK';StopConfirmed=$true} }
+    if ($script:Scenario -eq 'active') { 'Cannot stop process' | Set-Content $Trace; return [pscustomobject]@{ExitCode=-1;Cause='AI_TIMEOUT';StopConfirmed=$false} }
     if ($script:Scenario -eq 'auth') { 'ERROR: authentication failed' | Set-Content $Trace; return [pscustomobject]@{ExitCode=1;Cause=''} }
     if ($script:Scenario -eq 'always-busy' -or $script:Calls -eq 1) {
         'ERROR: Selected model is at capacity. Please try a different model.' | Set-Content $Trace
@@ -43,11 +44,14 @@ try {
             if($_.Exception.Message -notmatch ([regex]::Escape("[CAUSE:$cause]"))){throw}
             $failed=$true
         }
-        if(-not $failed -or $script:Calls -ne 1){throw 'Timeout/network interruption was submitted again automatically.'}
+        if(-not $failed -or $script:Calls -ne 3){throw 'Text timeout/network retries were not bounded to three.'}
     }
     $script:Scenario='always-busy'; $script:Calls=0; $failed=$false
     try { Invoke-AI 'Generate' @() (Join-Path $testDir 'image.txt') 'workspace-write' | Out-Null } catch { $failed=$true }
     if(-not $failed -or $script:Calls -ne 1){throw 'Image request must not be submitted repeatedly.'}
+    $script:Scenario='active';$script:Calls=0;$failed=$false
+    try{Invoke-AI 'Generate' @() (Join-Path $testDir 'active.txt') 'workspace-write'|Out-Null}catch{$failed=$_.Exception.Message -match '\[CAUSE:PROCESS_ACTIVE\]'}
+    if(-not $failed -or $script:Calls -ne 1){throw 'Unconfirmed process termination allowed a duplicate request.'}
     Write-Host 'PASS: capacity retry recovers, permanent errors stop, retries are bounded, model is preserved.' -ForegroundColor Green
 } finally {
     $resolved = [IO.Path]::GetFullPath($testDir)

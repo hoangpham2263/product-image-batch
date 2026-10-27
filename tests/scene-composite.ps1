@@ -1,4 +1,4 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
@@ -51,34 +51,18 @@ try {
     Merge-ProductIntoScene $request '001-table' 1
     Assert (Test-Path (Join-Path $temp '001-table-attempt-1-generated.png')) 'Original generated output evidence was lost.'
     $context=[pscustomobject]@{product='dining table';details='wood top';setting='dining room';reject='different room';branding='no logo'}
-    function Invoke-AI($PromptText,$Images,$ResultFile){
-        Assert ($Images.Count -eq 4 -and $Images[2] -eq $room -and $Images[3] -eq $mask) 'Quality check did not receive the actual room and mask.'
-        Assert ($PromptText -match 'ORIGINAL LOCKED ROOM' -and $PromptText -match 'EDIT MASK' -and $PromptText -match 'do not reject inherited styling alone') 'Room comparison or mask localization rules missing.'
-        Assert ($PromptText -match 'Judge intrinsic material color separately from illumination' -and $PromptText -match 'not itself a defect' -and $PromptText -match 'bleached wood or lost characteristic grain') 'Color QA must permit room lighting without demanding either palette matching or a changed material.'
-        Assert ($PromptText -match 'ALL main blocking defects together') 'QA must report concurrent blockers instead of hiding them until another image generation.'
-        Assert ($PromptText -match 'A bare tabletop is valid' -and $PromptText -match 'unless explicitly requested by the user') 'Optional scene suggestions must not become mandatory added-prop failures.'
-        Assert ($PromptText -match 'ABSENCE IS A CONSTRAINT' -and $PromptText -match 'reject any newly introduced object' -and $PromptText -match 'AI-inferred activities are not user requests') 'QA must reject invented props rather than merely tolerate their absence.'
-        return 'PASS'
-    }
-    Assert ((Test-ProductScene $edit $room $context '001-table' 1 $room $mask) -eq 'PASS') 'Quality comparison failed.'
     $request.EditMask=Join-Path $temp 'missing.png';$rejected=$false
     try{Merge-ProductIntoScene $request '001-table' 2}catch{$rejected=$true}
     Assert $rejected 'Unmasked generated rooms must never be exported.'
-    # Exercise the full object path: missing mask is repaired once, then the
-    # restored room + mask are compared before the edited photo can be accepted.
-    $backup=Join-Path $temp 'mask-backup.png';Copy-Item -LiteralPath $mask -Destination $backup
-    $request.EditMask=$mask;Remove-Item -LiteralPath $mask -Force
+    $request.EditMask=$mask
     $context|Add-Member NoteProperty presentation 'placed'
     $script:GenerationCalls=0
-    function Invoke-ImageGeneration($Request,$ItemId,$Attempt,$PreviousQuality){
-        $script:GenerationCalls++
-        if($Attempt -eq 2){
-            Assert ($PreviousQuality -match 'mask is missing') 'Mask repair lost its concrete failure reason.'
-            Copy-Item -LiteralPath $backup -Destination $Request.EditMask
-        }
-        return 'BRAND: none'
-    }
-    Assert ((Complete-ProductImage $request $room $context '002-table') -eq 'BRAND: none' -and $script:GenerationCalls -eq 2) 'Localized edit was not repaired and validated through the object workflow.'
+    function Test-ProductScene {throw 'Visual QA must not run.'}
+    function Invoke-ImageGeneration {$script:GenerationCalls++;return 'BRAND: none'}
+    Assert ((Complete-ProductImage $request $context '002-table') -eq 'BRAND: none' -and $script:GenerationCalls -eq 1) 'Technically valid image was not delivered once for user review.'
+    $request.EditMask=Join-Path $temp 'absent-mask.png';$script:GenerationCalls=0;$blocked=$false
+    try{Complete-ProductImage $request $context '003-table'|Out-Null}catch{$blocked=$true}
+    Assert ($blocked -and $script:GenerationCalls -eq 1) 'A missing technical input triggered an automatic visual repair.'
     Write-Host 'PASS: exact background pixel preservation, bounded masks, fixed dimensions, room comparison and fail-closed export.' -ForegroundColor Green
 } finally {
     $resolved=[IO.Path]::GetFullPath($temp);$allowed=[IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\')+'\'

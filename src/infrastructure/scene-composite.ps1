@@ -1,4 +1,4 @@
-# Restore the original room outside the localized furniture edit mask.
+﻿# Restore the original room outside the localized furniture edit mask.
 Add-Type -AssemblyName System.Drawing
 if (-not ('ProductSceneComposite' -as [type])) {
     Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
@@ -66,12 +66,12 @@ public static class ProductSceneComposite {
 
 function Merge-ProductIntoScene($Request, [string]$ItemId, [int]$Attempt) {
     if (-not $Request.SceneBase) { return }
-    if (-not (Test-Path -LiteralPath $Request.EditMask)) { throw 'Image quality check failed: localized edit mask is missing; an unrestricted room redraw cannot be exported.' }
+    if (-not (Test-Path -LiteralPath $Request.EditMask)) { throw 'Image technical validation failed: localized edit mask is missing; an unrestricted room redraw cannot be exported.' }
     $raw = Join-Path $script:Batch.Logs "$ItemId-attempt-$Attempt-generated.png"
     Copy-Item -LiteralPath $Request.Output -Destination $raw -Force
     Copy-Item -LiteralPath $Request.EditMask -Destination (Join-Path $script:Batch.Logs "$ItemId-attempt-$Attempt-mask.png") -Force
     $merged = Join-Path $script:Batch.Logs "$ItemId-attempt-$Attempt-composite.png"
     try { [ProductSceneComposite]::Merge($Request.SceneBase, $raw, $Request.EditMask, $merged) }
-    catch { throw "Image quality check failed: room preservation failed. $($_.Exception.Message)" }
+    catch { throw "Image technical validation failed: room preservation failed. $($_.Exception.Message)" }
     Copy-Item -LiteralPath $merged -Destination $Request.Output -Force
 }

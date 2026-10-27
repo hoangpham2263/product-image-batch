@@ -57,13 +57,11 @@ try {
     if ((ConvertTo-UiEvent '[AI-CONNECTION] Connection interrupted').Text -notmatch '60 giây') { throw 'Live connection interruption is hidden.' }
     if ((ConvertTo-UiEvent '[AI-RESUMED] Response stream resumed.').Text -notmatch 'phản hồi trở lại') { throw 'Connection recovery is hidden.' }
     if ((ConvertTo-UiEvent '[AI-WAIT] 90/480s elapsed.').Stage -notmatch '90/480') { throw 'AI waiting time is hidden.' }
+    if ((ConvertTo-UiEvent '[IMAGE-RETRY] AI_TIMEOUT 2/3').Text -notmatch '2/3') { throw 'Automatic image retry count is hidden.' }
+    if ((ConvertTo-UiEvent '[IMAGE-ATTEMPT] 3/3').Stage -notmatch '3/3') { throw 'Current image attempt is hidden.' }
+    if ((ConvertTo-UiEvent '[IMAGE-RECOVERED] Saved image found').Text -notmatch 'trước khi tạo lại') { throw 'Recovered image validation is hidden.' }
     if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; [CAUSE:AI_TIMEOUT] AI failed').Text -notmatch 'quá thời gian chờ') { throw 'AI deadline must be explained.' }
-    if ((ConvertTo-UiEvent '[QUALITY-REASON] FAIL: The tabletop is too pale and grain is missing.').Text -notmatch 'too pale') { throw 'The concrete reason for repair was hidden.' }
-    if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; Image quality check failed: FAIL: The tabletop is too pale.').Text -notmatch 'too pale') { throw 'The final rejection reason was hidden.' }
-    $fullReason='Angular compositing seams; chair fragments remain; mask exposes unrelated floor.'
-    Receive-RunLine "[QUALITY-REASON] FAIL: $fullReason (#1)"
-    Receive-RunLine 'WARNING: [ITEM 1] Failed; Image quality check failed: FAIL: Angular compositing seams'
-    if($txtLog.Lines[-2] -notmatch [regex]::Escape($fullReason) -or $txtLog.Lines[-2] -match '\(#1\)'){throw 'Wrapped final warnings lost the complete quality reason or leaked worker tags.'}
+    foreach($legacy in @('[QUALITY] Checking','[REFINE] Improving','[QUALITY-REASON] FAIL: obsolete')){if(ConvertTo-UiEvent $legacy){throw 'Retired visual QA events are still active.'}}
     Write-Host 'PASS: parallel live status, completed count, user messages, retry guidance, and diagnostic filtering.' -ForegroundColor Green
 } finally {
     $txtLog.Dispose(); $lblProgress.Dispose(); $bar.Dispose()

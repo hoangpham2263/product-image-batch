@@ -31,7 +31,7 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
     $process = [Diagnostics.Process]::new(); $process.StartInfo = $start
     $writer = [IO.StreamWriter]::new($Trace, $false, [Text.UTF8Encoding]::new($false)); $writer.AutoFlush = $true
     $watch = [Diagnostics.Stopwatch]::StartNew(); $reconnectAt = -1.0; $notified = $false; $nextProgress = $ProgressSeconds
-    $cause = ''; $exitCode = -1; $started = $false
+    $cause = ''; $exitCode = -1; $started = $false; $stopConfirmed = $false
     try {
         [void]$process.Start(); $started = $true
         # Windows PowerShell's default stdin writer may use the system code page.
@@ -57,7 +57,9 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
                     $line = $pending[$i].GetAwaiter().GetResult()
                     if ($null -eq $line) { $pending[$i] = $null; break }
                     $writer.WriteLine($line)
-                    if ($line -match '(?i)Reconnecting|stream disconnected|connection reset|failed to connect|error sending request') {
+                    # Only CLI stream-status lines start the reconnect deadline. Tool
+                    # source text and background MCP/analytics warnings are not a lost model stream.
+                    if ($line -match '(?i)^(?:ERROR:\s*)?(?:Reconnecting\b|stream disconnected\b|connection reset\b|failed to connect\b|error sending request\b)') {
                         if (-not $notified) { Write-Host '  [AI-CONNECTION] Connection interrupted; waiting for recovery...' -ForegroundColor Yellow; $notified = $true }
                         if ($reconnectAt -lt 0) { $reconnectAt = $watch.Elapsed.TotalSeconds }
                     } elseif ($reconnectAt -ge 0 -and $line -match '^(assistant|thinking|tool\s|exec\s)') {
@@ -81,17 +83,21 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
         # Kill only this invocation and its descendants; retain the queue and diagnostic files.
         if ($started -and -not $process.HasExited) {
             & taskkill.exe /PID $process.Id /T /F *> $null
-            [void]$process.WaitForExit(5000)
+            $treeKilled = $LASTEXITCODE -eq 0
+            $exited = $process.WaitForExit(5000)
+            $stopConfirmed = $treeKilled -and $exited
+        } elseif ($started -and -not $cause) {
+            $stopConfirmed = $true
         }
         $writer.Dispose(); $process.Dispose(); $watch.Stop()
     }
-    return [pscustomobject]@{ ExitCode = $exitCode; Cause = $cause }
+    return [pscustomobject]@{ ExitCode = $exitCode; Cause = $cause; StopConfirmed = $stopConfirmed }
 }
 
 # Run `codex exec` with a prompt and optional images. Returns the model's text reply.
 function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, [string]$Sandbox = 'read-only') {
     $isImage = $Sandbox -eq 'workspace-write'
-    # Never automatically submit a second image job after an interrupted image request.
+    # Image retries are owned by Complete-ProductImage, which can first recover saved files.
     $maxAttempts = if ($isImage) { 1 } else { 3 }
     $timeout = if ($isImage) { 480 } else { 180 }
     $timeoutKey = if ($isImage) { 'ImageTimeoutSeconds' } else { 'AiTimeoutSeconds' }
@@ -115,12 +121,13 @@ function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, 
             }
         }
         $failure = if (Test-Path -LiteralPath $trace) { Get-Content -LiteralPath $trace -Raw } else { '' }
-        if ($execution.Cause) { throw "AI failed. Details: $trace [CAUSE:$($execution.Cause)]" }
+        if ($execution.Cause -and -not $execution.StopConfirmed) { throw "AI failed; previous process termination is unconfirmed. Details: $trace [CAUSE:PROCESS_ACTIVE]" }
         # Never change the model, and never retry permanent auth/credit/input failures.
         $permanent = $failure -match '(?i)out of credits|insufficient_quota|invalid.api.key|unauthorized|authentication failed'
-        $transient = $failure -match '(?i)Selected model is at capacity|rate.limit.exceeded|too many requests|HTTP\s*(429|502|503|504)|temporarily unavailable|server overloaded|connection reset|Reconnecting|stream disconnected'
+        $transient = $execution.Cause -in @('AI_TIMEOUT','NETWORK') -or $failure -match '(?i)Selected model is at capacity|rate.limit.exceeded|too many requests|HTTP\s*(429|502|503|504)|temporarily unavailable|server overloaded|connection reset|Reconnecting|stream disconnected'
         if ($permanent -or -not $transient -or $attempt -eq $maxAttempts) {
-            $cause = if ($failure -match '(?i)out of credits|insufficient_quota|usage limit|quota exceeded') { 'QUOTA' }
+            $cause = if ($execution.Cause) { $execution.Cause }
+                elseif ($failure -match '(?i)out of credits|insufficient_quota|usage limit|quota exceeded') { 'QUOTA' }
                 elseif ($failure -match '(?i)invalid.api.key|unauthorized|authentication failed') { 'AUTH' }
                 elseif ($failure -match '(?i)connection reset|timed out|name resolution|Reconnecting|stream disconnected|Transport channel closed') { 'NETWORK' }
                 elseif ($transient) { 'BUSY' } else { 'UNKNOWN' }

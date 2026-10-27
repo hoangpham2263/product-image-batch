@@ -15,17 +15,20 @@
     }
     $content = @'
 CÁCH DÙNG
-1. Dán link sản phẩm, mỗi dòng một link.
+1. Bấm Thêm sản phẩm: dán link và ảnh trong popup rồi Lưu.
+   Danh sách chính hiển thị một dòng nhỏ cho mỗi sản phẩm. Bấm dòng để preview/sửa; Hủy không đổi dữ liệu. Có thể Ctrl+V ảnh, chọn file hoặc kéo ảnh vào popup.
+   Thêm nhiều link mở popup nhập hàng loạt, mỗi link một dòng. Bấm từng dòng để gắn ảnh; thumbnail hiện trên đúng sản phẩm.
+   Chỉ bật dùng kho data cho link chưa gắn ảnh khi bạn muốn app tự tìm. Ảnh đã gắn được dùng trực tiếp, không chấm bằng AI và không tự đổi ảnh.
 2. Chọn tuỳ chọn:
-   • Ảnh mẫu/SP: số ảnh tham khảo tối đa cho một ảnh kết quả (mặc định 2).
+   • Ảnh từ kho/SP: số ảnh tham khảo tối đa khi bật tìm trong kho (mặc định 1).
      Nếu chỉ có một ảnh đạt, app dùng cả người và bối cảnh thật trong ảnh đó.
      Đồ vật như bàn ăn dùng ngay một bối cảnh đạt, không chờ tìm ảnh thứ hai.
    • Luồng: số sản phẩm xử lý cùng lúc; mặc định 1, tối đa 4.
      Khuyên dùng 1–2; nhiều luồng dùng thêm RAM, có thể làm máy chậm và hết hạn mức sớm.
-3. Bấm Bắt đầu. Khi xong, bấm Mở kết quả để lấy ảnh và CSV.
+3. Bấm Bắt đầu. Tạo một ảnh rồi xuất để bạn review, không AI QA/tự sửa. Khi xong, bấm Mở kết quả để lấy ảnh và CSV.
    Mỗi lần chạy là một thư mục: images/, refs/, logs/ và loox_import.csv.
    Mỗi lượt AI chờ tối đa 3 phút; riêng tạo ảnh tối đa 8 phút.
-   Nếu mất kết nối không phục hồi trong 60 giây, app dừng lượt và giữ link để thử lại.
+   Nếu mất kết nối không phục hồi trong 60 giây, app dừng tiến trình cũ. Ảnh đã lưu được kiểm tra trước; nếu chưa có ảnh thì tự thử tiếp, tối đa 3 lượt gửi do lỗi kết nối khi chưa nhận đủ file. Hết lượt vẫn lỗi thì giữ link.
 4. Bấm Kiểm tra ảnh / Làm lại: chọn ảnh, so với sản phẩm gốc và ghi cụ thể chỗ sai.
    Lưu và làm lại dùng đúng sản phẩm/phòng đã lưu; bản cũ giữ nguyên, kết quả ở thư mục mới.
    Có thể lưu bài học cho riêng sản phẩm (mặc định) hoặc cả danh mục.

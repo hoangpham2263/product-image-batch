@@ -33,7 +33,7 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
         }
         $bundle = Save-ProductReferenceBundle $Item $ItemId $product.Context $request $picked.Count
         $product.Reference = $bundle.ProductPath
-        $reply = Complete-ProductImage $request $product.Reference $product.Context $ItemId
+        $reply = Complete-ProductImage $request $product.Context $ItemId
     } finally {
         # The downloaded original is archived as refs/<item>/NN-product; drop the loose copy.
         if ((Split-Path $download -Parent) -eq $script:Batch.Refs -and (Test-Path -LiteralPath $download)) { Remove-Item -LiteralPath $download -Force }

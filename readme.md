@@ -10,7 +10,7 @@ Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. N
 
 Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồng dùng nhiều RAM và hạn mức hơn, có thể làm máy chậm.
 
-Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó và giữ URL. Lượt tạo ảnh bị gián đoạn không được tự gửi lại để tránh tạo trùng. Đây là giới hạn cho từng lượt gọi, không phải cam kết tổng thời gian cho một sản phẩm.
+Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh/mask đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn review, không AI QA hoặc tự sửa. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
 
 ## Workflow
 
@@ -21,12 +21,16 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 | 3. Chọn ảnh tham khảo | Lấy ảnh trong data/source-photos/ đúng danh mục theo catalog.json, kiểm tra người và bối cảnh có phù hợp. |
 | 4. Lưu đầu vào | Sao chép ảnh đã chọn cùng nguồn và SHA256 vào refs/<mã-SP>/. |
 | 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
-| 6. Kiểm tra ảnh kết quả | Đối chiếu sản phẩm và ngữ cảnh; nếu chưa đạt thì sửa tối đa một lần. |
+| 6. Hoàn tất ảnh | Kiểm tra kỹ thuật và ghép nền bằng code, xuất ảnh để người dùng review. Không gọi AI QA, không tự sửa. |
 | 7. Viết review mẫu | Chọn tối đa 3 review tham khảo đúng danh mục từ review-samples.jsonl, xoay vòng mẫu để học cách viết; nội dung mới dựa trên ảnh. Không bắt buộc ngôi thứ nhất, không chép lời khách khác hay thêm trải nghiệm mua hàng. Câu mở đầu kiểu “I like/I love” hoặc chép câu nguồn sẽ được viết lại tối đa một lần; vẫn lỗi thì dừng sản phẩm. |
 | 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao, email @int và ngày; không gọi Codex cho phần này. |
 | 9. Xuất kết quả | Lưu ảnh và CSV; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
 
 ### Thư viện ảnh mẫu
+
+Bấm Thêm sản phẩm để mở popup, dán link rồi Ctrl+V ảnh, chọn file hoặc kéo ảnh vào khung preview. Bấm Lưu sản phẩm: danh sách chính chỉ hiện một dòng nhỏ với link, thumbnail và trạng thái. Bấm dòng hoặc Xem / sửa để mở lại đúng sản phẩm. Hủy không đổi dữ liệu. Thêm nhiều link mở ô nhập nhiều dòng; mỗi link được tạo thành một mục để gắn ảnh sau. Đổi URL không mang ảnh cũ sang; link trùng và ảnh thiếu được kiểm tra trước khi chạy AI. Ảnh được sao chép vào `workspace/reference-inputs/`, kiểm tra SHA256 và lưu trong `refs/` của kết quả.
+
+Mặc định không tự lấy data cho link chưa gắn ảnh. Có thể bật **Cho phép dùng kho data cho các link chưa gắn ảnh**; ảnh bạn đã chỉ định mà bị loại vẫn dừng và báo lý do, không tự thay ảnh khác. Dùng CLI với `-ReferenceMapFile <references.json>`. Đây là cách kiểm soát nguồn ảnh và giảm lặp, không phải cam kết chất lượng ghép.
 
 Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gallery của The Appel Shop, The Amish Home Gallery, The Amish Home và Dutch Craft Furniture. Nguồn, hash và kết quả kiểm tra bối cảnh lưu trong `data/source-photos/catalog.json` và `data/dining-gallery-expansion.json`. Có 6 ảnh mới đạt kiểm tra bối cảnh với ảnh sản phẩm bộ bàn 12 ghế đang thử. Kết quả này kiểm tra khả năng bố trí, chưa xác nhận chất lượng ảnh ghép cuối cùng. App ưu tiên ảnh đạt cho đúng hash sản phẩm, bỏ qua ảnh đã bị loại cho hash đó; các ảnh phù hợp được luân phiên theo lịch sử sử dụng và vẫn được kiểm tra trước khi ghép.
 
@@ -44,11 +48,11 @@ Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử t�
 
 ### Phản bác kết quả và lưu bài học
 
-Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo batch mới và vẫn phải qua QA. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
+Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo một kết quả mới để bạn review, không chạy AI QA hay tự sửa thêm. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
 
-Tùy chọn **Lưu thành bài học** mặc định áp dụng cho riêng URL sản phẩm; chỉ chọn cả danh mục khi quy tắc thật sự phù hợp với các sản phẩm khác. Các bài học được đưa vào prompt tạo ảnh và QA ở lần chạy sau, không phải huấn luyện lại mô hình. Lưu tại `workspace/feedback/<id>/feedback.json` cùng ảnh lỗi và bản sao `refs/`; không tự ghi đè `AGENTS.md`.
+Tùy chọn **Lưu thành bài học** mặc định áp dụng cho riêng URL sản phẩm; chỉ chọn cả danh mục khi quy tắc thật sự phù hợp với các sản phẩm khác. Các bài học được đưa vào prompt tạo ảnh ở lần chạy sau, không phải huấn luyện lại mô hình. Lưu tại `workspace/feedback/<id>/feedback.json` cùng ảnh lỗi và bản sao `refs/`; không tự ghi đè `AGENTS.md`.
 
-Tab **Bài học & lịch sử** hiển thị phản hồi, trạng thái, lỗi và thư mục kết quả. Có thể bật/tắt bài học, chạy lại phản hồi đã lưu hoặc lượt bị lỗi/dừng. AI qua QA chỉ chuyển sang **chờ bạn kiểm tra**; bấm **Ảnh mới đã đúng** sau khi bạn đã xem kết quả. Nếu còn sai, chọn ảnh mới để phản bác tiếp; manifest liên kết phản hồi trước. Bản cũ và hàng đợi URL chính được giữ nguyên khi làm lại.
+Tab **Bài học & lịch sử** hiển thị phản hồi, trạng thái, lỗi và thư mục kết quả. Có thể bật/tắt bài học, chạy lại phản hồi đã lưu hoặc lượt bị lỗi/dừng. Ảnh tạo xong chuyển sang **chờ bạn kiểm tra**; bấm **Ảnh mới đã đúng** sau khi bạn đã xem kết quả. Nếu còn sai, chọn ảnh mới để phản bác tiếp; manifest liên kết phản hồi trước. Bản cũ và hàng đợi URL chính được giữ nguyên khi làm lại.
 
 ```
 workspace/output/<thời-gian>/

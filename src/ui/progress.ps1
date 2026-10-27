@@ -2,7 +2,7 @@
 function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     $line = ($Line -replace '\x1b\[[0-9;]*m', '').Trim()
     if (-not $line) { return }
-    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = ''; QualityReason = '' }
+    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = '' }
     if ($line -match '\(#(\d+)\)\s*$') { $event.Index = [int]$Matches[1] }
     if ($line -match '^Starting: (\d+) URLs') {
         $event.Kind = 'Start'; $event.Total = [int]$Matches[1]
@@ -25,6 +25,9 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         $event.Kind = 'Stage'; $event.Stage = 'Đang chọn người mẫu'
     } elseif ($line -match '^\[SELECT\] Scene') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang chọn bối cảnh'
+    } elseif ($line -match '^\[MANUAL-REFERENCE\]') {
+        $event.Kind='Stage';$event.Stage='Đã nhận ảnh bạn gắn'
+        $event.Text="Sản phẩm $($event.Index): dùng ảnh bạn gắn cho link, không chọn ngẫu nhiên từ data."
     } elseif ($line -match '^\[IMAGE\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang tạo ảnh'
         $event.Text = "Sản phẩm $($event.Index): đang tạo ảnh."
@@ -36,16 +39,18 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     } elseif ($line -match '^\[REVIEW\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang viết đánh giá'
         $event.Text = "Sản phẩm $($event.Index): đang viết đánh giá."
-    } elseif ($line -match '^\[QUALITY\]') {
-        $event.Kind = 'Stage'; $event.Stage = 'Đang kiểm tra kết quả'
-    } elseif ($line -match '^\[REFINE\]') {
-        $event.Kind = 'Stage'; $event.Stage = 'Đang hoàn thiện ảnh'
-        $event.Text = "Sản phẩm $($event.Index): đang hoàn thiện ảnh cho phù hợp hơn."
-    } elseif ($line -match '^\[QUALITY-REASON\]\s*(?:FAIL:\s*)?(.+)') {
-        $event.Kind = 'QualityReason'
-        $reason = ($Matches[1] -replace '\s*\(#\d+\)\s*$','').Trim()
-        $event.QualityReason = $reason
-        $event.Text = "Sản phẩm $($event.Index): lý do cần sửa ảnh: $reason"
+    } elseif ($line -match '^\[IMAGE-ATTEMPT\]\s*(\d+)/(\d+)') {
+        $event.Kind='Stage';$event.Stage="Đang tạo ảnh, lượt gửi $($Matches[1])/$($Matches[2])"
+        $event.Text="Sản phẩm $($event.Index): đang tạo ảnh, lượt gửi $($Matches[1])/$($Matches[2]). Chỉ thử lại khi kết nối lỗi và chưa nhận đủ file."
+    } elseif ($line -match '^\[IMAGE-RETRY\]\s*(\S+)\s+(\d+)/(\d+)') {
+        $event.Kind='Retry';$event.Stage="Đang tự thử lại lượt $($Matches[2])/$($Matches[3])"
+        $event.Text="Sản phẩm $($event.Index): lượt trước bị gián đoạn ($($Matches[1])). Đã dừng tiến trình cũ; tự thử lượt $($Matches[2])/$($Matches[3]) với cùng ảnh đầu vào."
+    } elseif ($line -match '^\[IMAGE-RECOVERED\]') {
+        $event.Kind='Stage';$event.Stage='Đang kiểm tra ảnh đã lưu'
+        $event.Text="Sản phẩm $($event.Index): đã tìm thấy ảnh lưu trước khi timeout; kiểm tra ảnh này trước khi tạo lại."
+    } elseif ($line -match '^\[AWAITING-REVIEW\]') {
+        $event.Kind='Stage';$event.Stage='Ảnh đã tạo, chờ bạn kiểm tra'
+        $event.Text="Sản phẩm $($event.Index): ảnh đã tạo để bạn review. Không chạy QA hoặc tự sửa ảnh."
     } elseif ($line -match '^\[DOWNLOAD-RETRY\]') {
         $event.Kind = 'Retry'; $event.Stage = 'Đang thử tải lại sản phẩm'
         $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh phản hồi chậm. Đang tự thử tải lại."
@@ -90,17 +95,16 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
             $event.Text = 'Tài khoản đã hết hạn mức. Kiểm tra tài khoản hoặc chờ hạn mức được cấp lại.'
         } elseif ($line -match '\[CAUSE:AI_TIMEOUT\]') {
             $event.Text = 'AI phản hồi quá thời gian chờ. Đã dừng lượt xử lý; link được giữ lại để thử lại.'
+        } elseif ($line -match '\[CAUSE:PROCESS_ACTIVE\]') {
+            $event.Text = 'Chưa xác nhận tiến trình AI cũ đã dừng. App giữ link và không gửi lượt mới để tránh tạo trùng.'
         } elseif ($line -match '\[CAUSE:NETWORK\]') {
             $event.Text = 'Kết nối bị gián đoạn. Kiểm tra Internet rồi chạy lại các link còn lại.'
         } elseif ($line -match '\[CAUSE:BUSY\]') {
             $event.Text = 'Dịch vụ vẫn đang bận. Vui lòng thử lại sau.'
         } elseif ($line -match 'No product reference found|Invalid reference image URL') {
             $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm. Vui lòng kiểm tra link."
-        } elseif ($line -match 'Image quality check failed|Invalid image quality response') {
-            $event.Text = "Sản phẩm $($event.Index): ảnh chưa đạt yêu cầu. Link được giữ lại để thử lại."
-            if ($line -match 'Image quality check failed:\s*(?:FAIL:\s*)?(.+)$') {
-                $event.Text += " Lý do: $($Matches[1].Trim())"
-            }
+        } elseif ($line -match 'Image technical validation failed') {
+            $event.Text="Sản phẩm $($event.Index): file ảnh hoặc mask chưa hợp lệ để ghép/xuất. Link được giữ lại. Đây là kiểm tra kỹ thuật, không phải AI chấm chất lượng."
         } elseif ($line -match 'No suitable real scene reference|No suitable source photo found') {
             $event.Text = "Sản phẩm $($event.Index): chưa tìm được ảnh mẫu thực tế phù hợp. Link được giữ lại."
         }

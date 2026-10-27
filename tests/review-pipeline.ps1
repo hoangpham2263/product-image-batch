@@ -54,14 +54,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
         if ($ResultFile -like '*-p2-fit-*.txt' -and $Images.Count -ne 3) { throw 'Scene compatibility must include the selected person.' }
         'FIT' | Set-Content -LiteralPath $ResultFile; return 'FIT'
     }
-    if ($ResultFile -like '*-quality-*.txt') {
-        if ($Images.Count -ne 2 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Quality check needs the generated image and actual product.' }
-        if ($PromptText -notmatch 'Reject template or customization wording' -or $PromptText -notmatch 'put your brand on it' -or $PromptText -notmatch 'even if copied from the reference') { throw 'Quality check must reject placeholder branding from references.' }
-        if ($PromptText -notmatch 'not physical product branding' -or $PromptText -notmatch 'even if the brand is fictional' -or $PromptText -notmatch 'wall logo') { throw 'Quality check must reject fictional watermarks and wall branding.' }
-        if ($PromptText -notmatch 'preserve the original room.s camera character' -or $PromptText -notmatch 'Do not demand damage') { throw 'Quality check must preserve room photography without demanding product damage.' }
-        'PASS' | Set-Content -LiteralPath $ResultFile
-        return 'PASS'
-    }
+    if ($ResultFile -like '*-quality-*.txt') { throw 'Image QA must not run.' }
     if ($ResultFile -like '*-review.txt') {
         if ($Images.Count -ne 1 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Review missing finished image.' }
         if ($PromptText -notmatch 'Writing style direction') { throw 'Missing data-driven writing style.' }
@@ -133,7 +126,8 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-image.txt' -Recurse).Count -eq 3) 'Expected one image AI call per product, not one per reference.'
     Assert (-not (Test-Path (Join-Path $csv.DirectoryName 'parts'))) 'Single-scene runs must not create a collage parts folder.'
     Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-review.txt' -Recurse).Count -eq 2) 'Unexpected review AI calls.'
-    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-quality-1.txt' -Recurse).Count -eq 3) 'Each image must be checked before review/export.'
+    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-quality-1.txt' -Recurse).Count -eq 0) 'Single-pass delivery unexpectedly ran AI visual QA.'
+    Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-review-status.json' -Recurse).Count -eq 3) 'Delivered images must await user review.'
     # Resume the failed queue through the same public entry point.
     'allow success' | Set-Content (Join-Path $tempRoot 'data/source-photos/allow-review-success.flag')
     & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2

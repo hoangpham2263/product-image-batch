@@ -22,6 +22,13 @@ if($mode -eq 'recover'){
     Start-Sleep -Milliseconds 1500
     exit 0
 }
+if($mode -eq 'auxiliary'){
+    [Console]::Out.WriteLine('2026-10-27 WARN codex_analytics: error sending request for url analytics-events')
+    [Console]::Out.WriteLine('2026-10-27 WARN codex_mcp: MCP startup reconnect failed; continuing with cached tools')
+    [Console]::Out.WriteLine('    if ($line -match Reconnecting) { tool source text }')
+    Start-Sleep -Milliseconds 1800
+    exit 0
+}
 # A harmless local child lets the test detect process leaks on cancellation.
 $child=Start-Process ping.exe -WindowStyle Hidden -PassThru -ArgumentList '127.0.0.1','-n','45'
 [IO.File]::WriteAllText($dest,$child.Id.ToString())
@@ -45,6 +52,8 @@ Start-Sleep -Seconds 45
     } finally { [Console]::InputEncoding=$priorInputEncoding }
     $execution=Invoke-CodexProcess 'prompt' ($prefix+@('recover',$resultPath)) (Join-Path $testArea 'recover.log') 10 1 $powershellPath
     Assert ($execution.ExitCode -eq 0 -and -not $execution.Cause) 'Recovered stream was terminated by a stale reconnect timer.'
+    $execution=Invoke-CodexProcess 'prompt' ($prefix+@('auxiliary',$resultPath)) (Join-Path $testArea 'auxiliary.log') 10 1 $powershellPath
+    Assert ($execution.ExitCode -eq 0 -and -not $execution.Cause) 'Auxiliary warnings/tool source were mistaken for a disconnected model stream.'
     foreach($mode in @('timeout','network')){
         $pidPath=Join-Path $testArea "$mode.pid"; $tracePath=Join-Path $testArea "$mode.log"
         $watcher=[Diagnostics.Stopwatch]::StartNew()
@@ -52,7 +61,7 @@ Start-Sleep -Seconds 45
         $probePrompt=if($mode -eq 'timeout'){'x' * 1048576}else{'prompt'}
         $execution=Invoke-CodexProcess $probePrompt ($prefix+@($mode,$pidPath)) $tracePath 5 1 $powershellPath 1
         $expected=if($mode -eq 'timeout'){'AI_TIMEOUT'}else{'NETWORK'}
-        Assert ($execution.Cause -eq $expected -and $watcher.Elapsed.TotalSeconds -lt 15) 'Deadline did not terminate the invocation promptly.'
+        Assert ($execution.Cause -eq $expected -and $execution.StopConfirmed -and $watcher.Elapsed.TotalSeconds -lt 15) 'Deadline did not terminate the invocation promptly and confirm cleanup.'
         Assert (Test-Path $pidPath) 'Fixture did not start its child.'
         $childId=[int](Get-Content $pidPath -Raw)
         Assert (-not (Get-Process -Id $childId -ErrorAction SilentlyContinue)) 'Timed-out child process was left running.'
