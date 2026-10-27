@@ -37,12 +37,15 @@
   .primary:hover { background: var(--primary); filter: brightness(.92); }
   .icon { width: 36px; padding: 0; flex: none; }
   .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
-  /* Admin bar */
-  .admin-bar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--primary); border-radius: 12px; background: color-mix(in srgb, var(--primary) 6%, var(--bg)); font-size: 14px; }
-  .admin-bar.warn { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 6%, var(--bg)); }
+  /* Settings (manage mode), as in memories */
+  .settings-btn { position: relative; }
+  .settings-btn.warn::after { content: ""; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+  .settings-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .settings-status { display: flex; align-items: center; gap: 8px; font-size: 14px; overflow-wrap: anywhere; margin: 0; }
   .admin-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
-  .admin-bar.warn .admin-dot { background: var(--warn); }
-  .admin-text { flex: 1; min-width: 0; }
+  .dlg.warn .admin-dot { background: var(--warn); }
+  .settings-list { display: grid; gap: 8px; }
+  .settings-list > * { width: 100%; justify-content: flex-start; }
   /* Stats */
   .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--soft); border: 1px solid transparent; text-align: left; height: auto; justify-content: stretch; }
@@ -93,7 +96,9 @@
     .filters, .filters input, .filters select { width: 100%; }
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .back span { display: none; }
-    .admin-bar { flex-wrap: wrap; }
+    .dlg-menu { width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+    .dlg-menu .dlg-box { align-content: start; gap: 16px; }
+    .dlg-menu .settings-list > * { height: 48px; font-size: 15px; }
   }
 </style>
 </head>
@@ -105,17 +110,11 @@
     <button id="lockBtn" class="icon" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
     </button>
+    <button id="settingsBtn" class="icon settings-btn" type="button" title="Cài đặt" aria-label="Cài đặt" hidden>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
     <a class="back" href="https://hoangpham.is-a.dev/tools" aria-label="Portfolio">←<span> Portfolio</span></a>
   </header>
-
-  <div id="adminBar" class="admin-bar" hidden>
-    <span class="admin-dot"></span>
-    <span id="adminText" class="admin-text"></span>
-    <div class="actions">
-      <button id="connectBtn" type="button" hidden>Kết nối Drive</button>
-      <button id="logoutBtn" type="button">Thoát</button>
-    </div>
-  </div>
 
   <section id="stats" class="stats" hidden></section>
 
@@ -125,7 +124,6 @@
       <div class="filters" id="filters" hidden>
         <input id="search" type="search" placeholder="Tìm sản phẩm" aria-label="Tìm sản phẩm" />
         <select id="batch" aria-label="Batch"></select>
-        <button id="csvBtn" type="button">Tải danh sách link</button>
       </div>
     </div>
     <div id="grid" class="grid"></div>
@@ -141,6 +139,19 @@
     <input id="keyInput" type="password" placeholder="Mật khẩu quản lý" autocomplete="current-password" required />
     <p id="loginError" class="small danger" hidden></p>
     <div class="actions"><button class="primary" type="submit" id="loginBtn">Đăng nhập</button></div>
+  </form>
+</dialog>
+
+<dialog id="settingsDlg" class="dlg dlg-menu">
+  <form method="dialog" class="dlg-box">
+    <div class="dlg-head"><strong>Cài đặt</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
+    <span class="settings-label">Google Drive</span>
+    <p class="settings-status"><span class="admin-dot"></span><span id="adminText"></span></p>
+    <div class="settings-list">
+      <button id="csvBtn" type="button">Tải danh sách link</button>
+      <button id="connectBtn" type="button">Kết nối Drive</button>
+      <button id="logoutBtn" type="button">Thoát quản lý</button>
+    </div>
   </form>
 </dialog>
 
@@ -283,15 +294,17 @@ function downloadCsv() {
   a.click();
 }
 
+// Signed out: lock button only. Signed in: settings button; Drive and sign-out live in its dialog.
 function showAdmin() {
   const signedIn = !!store.get();
-  $("adminBar").hidden = !signedIn;
+  $("lockBtn").hidden = signedIn;
+  $("settingsBtn").hidden = !signedIn;
   $("stats").hidden = !signedIn;
   $("filters").hidden = !signedIn;
-  $("lockBtn").hidden = signedIn;
-  $("adminBar").classList.toggle("warn", !state.connected);
-  $("adminText").textContent = state.connected ? `Đang quản lý · Drive ${state.email || "đã kết nối"}` : "Đang quản lý · chưa kết nối Google Drive";
-  $("connectBtn").hidden = state.connected;
+  $("settingsBtn").classList.toggle("warn", !state.connected);
+  $("settingsDlg").classList.toggle("warn", !state.connected);
+  $("adminText").textContent = state.connected ? `Đã kết nối${state.email ? " · " + state.email : ""}` : "Chưa kết nối";
+  $("connectBtn").textContent = state.connected ? "Đổi tài khoản Drive" : "Kết nối Drive";
 }
 
 async function load() {
@@ -322,9 +335,10 @@ $("loginForm").addEventListener("submit", async (event) => {
 });
 document.querySelector("[data-close-login]").onclick = () => $("loginDlg").close();
 $("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
-$("logoutBtn").onclick = () => { store.set(""); state.images = []; showAdmin(); render(); $("empty").textContent = "Đăng nhập để xem ảnh."; };
+$("settingsBtn").onclick = () => $("settingsDlg").showModal();
+$("logoutBtn").onclick = () => { $("settingsDlg").close(); store.set(""); state.images = []; showAdmin(); render(); $("empty").textContent = "Đăng nhập để xem ảnh."; };
 $("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
-$("csvBtn").onclick = downloadCsv;
+$("csvBtn").onclick = () => { $("settingsDlg").close(); downloadCsv(); };
 $("search").oninput = render;
 $("batch").onchange = render;
 $("viewer").addEventListener("click", (event) => {
