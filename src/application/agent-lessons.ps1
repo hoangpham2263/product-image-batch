@@ -1,4 +1,18 @@
-# AGENTS.md is the source of saved visual lessons; feedback folders hold run history.
+﻿# AGENTS.md is the source of saved visual lessons; feedback folders hold run history.
+$script:AgentLessonIntro=@'
+Đây là các bài học đang bật mà app đọc trực tiếp trước khi tạo ảnh. Chỉ áp dụng khi khớp URL sản phẩm (`product`) hoặc mã danh mục (`category`); phản hồi sửa hiện tại được ưu tiên hơn bài học cũ. Nội dung phải tự đủ nghĩa, không cần ảnh hoặc log của lượt cũ.
+
+Khối JSON bên dưới là dữ liệu của app, không phải lịch sử chat. Giữ nguyên tên các trường kỹ thuật để app đọc và bật/tắt được:
+
+- `id`: mã ổn định của bài học, dùng để cập nhật hoặc bật/tắt, không phải đường dẫn ảnh.
+- `scope`: `product` cho một URL, `category` cho cả danh mục.
+- `product_url`: URL áp dụng khi phạm vi là sản phẩm; để trống khi phạm vi là danh mục.
+- `category`: mã danh mục trong catalog, không phải tên thư mục kho ảnh tiếng Việt.
+- `requested_change`: bài học bằng tiếng Việt, nêu lỗi/yêu cầu và hành vi đúng; không chỉ chép câu nhận xét thiếu ngữ cảnh.
+- `created_at`: thời điểm ghi nhận, dùng sắp thứ tự; không phải trạng thái ảnh đã được duyệt.
+
+Bài học có mặt trong danh sách nghĩa là đang bật. App lấy tối đa 10 bài học khớp, từ cũ đến mới. Tắt bài học trong app sẽ gỡ bản ghi khỏi mục này; lịch sử phản hồi và trạng thái duyệt ảnh được giữ riêng trong workspace.
+'@
 $script:AgentLessonPattern='(?ms)^<!-- app-lessons:start -->\r?\n.*?^```json\r?\n(?<json>.*?)^```\r?\n<!-- app-lessons:end -->'
 function Read-AgentLessons([string]$Path) {
     if(-not $Path -or -not (Test-Path -LiteralPath $Path)){return}
@@ -28,8 +42,8 @@ function Set-AgentLesson([string]$ProjectRoot,$Record) {
             $records+=@([pscustomobject][ordered]@{id=$Record.id;scope=$Record.scope;product_url=$Record.product_url;category=$Record.category;requested_change=$Record.requested_change;created_at=$Record.created_at})
         }
         $json=ConvertTo-Json -InputObject @($records|Sort-Object created_at,id) -Depth 6
-        $section='<!-- app-lessons:start -->'+"`r`n"+'## Saved user lessons'+"`r`n`r`n"+
-            'Apply only to the matching product URL or category. Newer explicit corrections take precedence. This section is the source used by image generation.'+"`r`n`r`n"+
+        $section='<!-- app-lessons:start -->'+"`r`n"+'## Bài học đã lưu'+"`r`n`r`n"+
+            $script:AgentLessonIntro+"`r`n`r`n"+
             '```json'+"`r`n"+$json+"`r`n"+'```'+"`r`n"+'<!-- app-lessons:end -->'
         $content=if(Test-Path -LiteralPath $path){[IO.File]::ReadAllText($path)}else{"# Project instructions`r`n"}
         $block=[regex]::Match($content,$script:AgentLessonPattern)

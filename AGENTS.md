@@ -1,177 +1,156 @@
 ﻿# Hướng dẫn và bài học của dự án
 
-Áp dụng cho toàn bộ repository Product Image Batch. Đọc file này trước khi sửa workflow, prompt, dữ liệu mẫu hoặc bước kiểm tra. Yêu cầu mới nhất của người dùng được ưu tiên; khi yêu cầu thay đổi, cập nhật bài học liên quan thay vì giữ các quy tắc mâu thuẫn.
+Áp dụng cho repository Product Image Batch. Đọc trước khi sửa workflow, prompt, giao diện hoặc dữ liệu mẫu. Yêu cầu mới nhất của người dùng có ưu tiên cao nhất; cập nhật quy tắc cũ khi yêu cầu thay đổi, không giữ chỉ dẫn mâu thuẫn.
 
-## Luồng hiện tại (yêu cầu mới nhất)
+## 1. Workflow hiện tại
 
-- Tạo một kết quả rồi xuất cho người dùng review. Không chạy AI QA sau tạo ảnh, không tự sửa ảnh theo đánh giá AI và không tự lặp preview để cải thiện ảnh. Chỉ sửa khi người dùng yêu cầu.
-- Giao diện dùng bố cục cũ: danh sách sản phẩm bên trái, các nút thao tác xếp dọc bên phải, Bắt đầu/Dừng bên dưới danh sách; giữ popup thêm/sửa và mỗi sản phẩm một dòng nhỏ, hạn chế chữ đậm.
-- Ảnh người dùng gắn được dùng trực tiếp sau kiểm tra file/hash, không chấm FIT bằng AI. Kho tự tìm chỉ dùng khi bật fallback rõ ràng.
-- Xuất nguyên file PNG do AI tạo, giữ nguyên nội dung và byte của ảnh. Chỉ kiểm tra file ảnh có đọc được. Có ảnh xuất nghĩa là chờ người dùng xem, không phải chất lượng đã được AI/người dùng chấp nhận.
-- Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối/timeout khi chưa nhận đủ file; đã có ảnh thì xuất trực tiếp, không tạo lại vì nhận xét thẩm mỹ.
-- Những mục QA bên dưới là lịch sử lỗi và tiêu chí để soạn prompt/đối chiếu khi người dùng yêu cầu, không kích hoạt vòng AI QA trong luồng hiện tại.
+1. Nhận URL và ảnh tham khảo gắn riêng cho từng sản phẩm; kiểm tra link trùng, ảnh thiếu và file/hash trước khi gọi AI.
+2. Tải ảnh sản phẩm từ URL và nhận diện sản phẩm từ ảnh thực tế. Ảnh gắn theo URL được dùng trực tiếp; chỉ tự tìm trong kho và kiểm tra FIT khi người dùng bật fallback.
+3. Lưu snapshot đầu vào và nguồn vào kết quả của lượt đang chạy. Đọc các bài học còn bật, khớp URL hoặc danh mục từ mục Bài học đã lưu bên dưới; áp dụng yêu cầu sửa hiện tại sau cùng.
+4. Tạo một ảnh hoàn chỉnh, kiểm tra PNG đọc được rồi xuất nguyên file AI tạo. Không chấm chất lượng bằng AI sau tạo, không tự sửa hoặc lặp tạo để cải thiện thẩm mỹ.
+5. Viết review mẫu từ nguồn tham khảo đúng danh mục, xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
+6. Người dùng xem kết quả và yêu cầu sửa khi cần. Làm lại dùng snapshot đầu vào đã kiểm tra hash, lưu batch mới; chỉ người dùng xác nhận mới đánh dấu `accepted`.
 
-## Mục tiêu đã thống nhất
+Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, tối đa 3 lượt gửi với cùng đầu vào. Phải xác nhận tiến trình cũ đã dừng, tìm ảnh đã lưu trước khi gửi lại; có ảnh thì xuất, không tạo trùng. Lỗi đăng nhập, hết hạn mức hoặc đầu vào sai không tự thử lại. Không chạy lại ảnh hay test khi người dùng đã yêu cầu bỏ qua.
 
-- Lấy đúng sản phẩm từ URL và đặt vào ảnh phòng có sẵn cho tự nhiên.
-- Với nội thất, ảnh phòng là nền để chỉnh sửa cục bộ, không phải gợi ý để AI vẽ lại một phòng khác.
-- Ưu tiên đúng sản phẩm và ảnh trông thật. Ảnh đẹp hơn nhưng sai sản phẩm hoặc đổi phòng là kết quả lỗi.
+## 2. Đúng sản phẩm và từng chi tiết
 
-## 1. Phân biệt ảnh sản phẩm và ảnh phòng
+- Ảnh sản phẩm quyết định thiết kế, cấu tạo, vật liệu, màu, vân và các thành phần bán kèm. Đọc ảnh đầu vào hiện tại, không chỉ suy luận từ tên hoặc handle.
+- Chú ý chi tiết, không chỉ giống tổng thể. Với áo: hình cổ, mép viền, thứ tự màu, số/độ rộng sọc, đường may, nút, nẹp, mảng phối và vị trí logo. Với nội thất: hình dáng, cạnh, độ dày, vân, chân đỡ, lưng/mặt ghế và tỉ lệ. Đưa đặc điểm nhìn thấy cụ thể vào yêu cầu tạo ngay từ đầu.
+- Không thêm/bớt hoặc đơn giản hóa chi tiết để ảnh trông đẹp hơn. Không lấy thiết kế sản phẩm từ áo của người mẫu hay đồ trong phòng tham khảo. Góc nhìn và ánh sáng có thể đổi cách hiển thị, không đổi cấu tạo.
+- Xác định bàn riêng hay cả bộ từ nguồn; không mặc định có ghế bán kèm hoặc luôn có 12 ghế. Ghi nhận giới hạn của ảnh nguồn; không bịa chi tiết bị che khuất.
+- Không hứa giữ chính xác 100% hình dáng/vân chỉ vì prompt có yêu cầu. Khi được yêu cầu kiểm tra ảnh, đối chiếu thực tế và nêu rõ phần chưa xác minh.
 
-- Ảnh sản phẩm gốc quyết định kiểu dáng, vật liệu, màu, vân, chân, lưng ghế, mặt ghế và các thành phần được bán kèm.
-- Chú ý chi tiết, không chỉ giống tổng thể: trước khi tạo phải quan sát các phần nhìn thấy trong ảnh sản phẩm và đưa đặc điểm cụ thể vào yêu cầu tạo ảnh. Với áo, chú ý hình cổ, mép viền, thứ tự màu, số/độ rộng sọc, đường may, nút, nẹp, mảng phối và vị trí logo; với sản phẩm khác, áp dụng cùng nguyên tắc cho cấu tạo riêng của nó. Chi tiết nhỏ vẫn là thiết kế sản phẩm, không được tự đơn giản hóa, thêm bớt hoặc lấy từ ảnh người/phòng tham khảo. Phần bị che không được coi là đã xác minh. Ví dụ viền cổ dưới đây minh họa nguyên tắc này, không giới hạn bài học ở một đường viền. Đây là yêu cầu đọc ảnh và soạn prompt kỹ từ đầu, không thêm vòng AI QA hay tự tạo lại.
-- Ảnh phòng chỉ quyết định không gian, góc máy, phối cảnh và ánh sáng sẵn có. Không lấy kiểu bàn hoặc ghế trong phòng để thay chi tiết sản phẩm.
-- Đối chiếu ảnh thực tế đã tải từ URL và bản sao trong `refs/<mã-SP>/`, không chỉ suy luận từ tên hoặc handle.
-- Xác định sản phẩm là bàn riêng hay cả bộ bàn ghế từ nguồn. Không mặc định mọi bàn đều kèm ghế, hoặc mọi ảnh đều cần 12 ghế.
-- Nếu nguồn ghi số lượng nhưng ảnh chỉ thể hiện một phần, ghi nhận giới hạn đó; không tự đoán các chi tiết khuất như thể đã xác minh.
-- Bài học viền cổ áo (27/10/2026): mẫu polo xanh `work-polo-shirt-logo-shoulder-block` có viền trắng sát mép ngoài cổ; ảnh tạo đã thêm dải xanh mỏng ra ngoài viền trắng. Khi tạo áo phải giữ đúng vị trí, thứ tự màu, số sọc và độ rộng tương đối của viền cổ/tay theo ảnh sản phẩm; không lấy viền từ áo người mẫu hoặc tự thêm đường màu. Đặc điểm đúng: nền cổ xanh navy, một viền trắng kết thúc ngay tại mép ngoài; lỗi: có thêm dải xanh nằm giữa viền trắng và mép ngoài cổ. Đối chiếu cận hai bên cổ với ảnh sản phẩm đầu vào của lượt đang chạy; chỉ kết luận phần nhìn thấy, không coi đổi góc/ánh sáng là lý do đổi cấu trúc viền. Không áp thiết kế viền trắng này cho mẫu áo khác. Đã xác minh sai khác ở ảnh hiện tại; chưa tạo lại để chứng minh lỗi đã hết.
+## 3. Bối cảnh tự nhiên và ghế đi kèm
 
-## 2. Bài học: chỉ đổi mặt bàn, giữ ghế phòng mẫu là sai với sản phẩm cả bộ
+- Ảnh tham khảo cung cấp người, không gian, góc máy và ánh sáng; không thay thế thiết kế sản phẩm.
+- Với nội thất, dùng ảnh phòng có sẵn làm nền chỉnh sửa. Giữ canvas, góc máy, tường, sàn, cửa, cửa sổ và đồ không liên quan. Chỉ đổi sản phẩm, vùng nền nhỏ lộ ra khi bỏ đồ cũ và bóng tiếp xúc cần thiết.
+- Không có trong ảnh gốc thì không tự thêm để dàn cảnh: giữ mặt bàn trống nếu vốn trống, không mang bát đĩa, cây, sách, người hay đồ trang trí từ ảnh sản phẩm sang phòng. Gợi ý trang trí do AI viết trong context không phải yêu cầu người dùng.
+- Nếu bán cả bộ, thay đủ bàn và ghế theo nguồn; không chỉ đổi mặt bàn rồi giữ ghế cũ sai kiểu. Theo yêu cầu người dùng, các chỗ ngồi hiện có ngay quanh bàn cũng cần đồng bộ phong cách và chiều cao sử dụng, kể cả khi chỉ bán bàn; không suy ra chúng được bán kèm.
+- Bàn trà thấp cần chỗ ngồi phù hợp, không giữ ghế ăn cao chỉ vì có sẵn. Dùng kiểu ghế được nguồn hiện tại hỗ trợ; không áp ghế gỗ cong/mặt đan của một mẫu cho mọi sản phẩm. Không tự thêm số chỗ ngồi hoặc đổi toàn phòng.
+- Giữ chân ghế, thanh nối và phần đỡ nhìn thấy liền mạch, hợp phối cảnh và tiếp xúc sàn. Không để sót đồ cũ giao nhau với sản phẩm mới.
+- Màu sản phẩm chưa hòa với phòng mặc định cần chỉnh ánh sáng cục bộ, phơi sáng, cân bằng trắng và bóng; giữ màu vật liệu, lớp hoàn thiện và vân. Không đổi màu gỗ cho giống tủ/ghế hoặc làm nhạt vân, trừ khi người dùng yêu cầu đổi màu rõ ràng.
 
-Trong lần thử bộ bàn ăn gỗ me tây, kết quả có bàn gỗ nhưng giữ các ghế bọc nệm trắng của phòng. Người dùng đã chỉ ra ảnh gốc có bàn gỗ nguyên tấm, chân gỗ dạng khối và ghế gỗ lưng cong, mặt đan. Mô tả trước đó của trợ lý về ghế cũng không chính xác.
+## 4. Logo và chữ
 
-- Với sản phẩm bán cả bộ, phải thay cả bàn và các ghế liên quan bằng đúng bộ từ nguồn.
-- Người dùng bổ sung cho bàn ăn/bàn trà: ghế hiện có ngay quanh bàn cũng phải đồng bộ phong cách và tỉ lệ sử dụng với bàn mới, kể cả khi chỉ bán bàn. Lượt bàn trà oval ngày 27/10 vẫn giữ bốn ghế ăn đen cao từ phòng bếp, trong khi ảnh sản phẩm là bàn thấp trong phòng khách. Phải chỉnh các chỗ ngồi liên quan sang kiểu phù hợp với bàn trà và phong cách ảnh sản phẩm; không mặc định dùng ghế gỗ lưng cong/mặt đan của sản phẩm khác. Đây là yêu cầu phối ghế hiện có, không chứng minh ghế bán kèm. Giữ kiến trúc và đồ không liên quan; không tự thêm chỗ ngồi hay chuyển toàn phòng thành phòng khác.
-- Khi chỉnh sửa bằng AI, thay đủ thành phần sản phẩm được yêu cầu, không chỉ đổi mặt bàn rồi giữ ghế sai.
-- Không tự phối thêm ghế sofa, ghế nệm hoặc kiểu ghế khác khi người dùng yêu cầu giữ sản phẩm gốc.
-- QA phải so từng thành phần: hình mặt bàn, độ dày, cạnh, vân, chân đỡ, kiểu lưng và mặt ghế, số lượng theo nguồn. Không chỉ kiểm tra có một bàn gỗ trong phòng.
-- Phối cảnh và bóng tiếp xúc có thể điều chỉnh để ghép tự nhiên; không dùng việc đó để biện minh cho việc đổi thiết kế.
-- Đây là lỗi đã được người dùng chỉ ra, không phải tính năng phối nội thất theo ý thích. Ghi bài học không có nghĩa lỗi tạo ảnh đã được sửa và kiểm chứng.
+- Chỉ thay thương hiệu khi logo thực sự in, khắc, thêu hoặc gắn trên sản phẩm; giữ vị trí và cách thể hiện vật lý đó. Không có logo vật lý thì không thêm logo, chữ góc ảnh hoặc biển tên trên tường.
+- Watermark, logo cửa hàng góc ảnh và địa chỉ web là lớp phủ, không phải logo sản phẩm. Không biến chúng thành thương hiệu giả hoặc đồ vật trong cảnh; tránh chọn ảnh nền có watermark.
+- Thương hiệu giả phải hoàn chỉnh, không giữ chữ hướng dẫn như “put your brand on it”, “your logo”, “your brand” hoặc lời nhắc điền tên.
 
-## 3. Giữ phòng gốc và giới hạn của cam kết 100%
+## 5. Giao diện và kho ảnh
 
-- Giữ nguyên canvas, góc máy, tường, sàn, cửa, cửa sổ và đồ vật không liên quan.
-- Chỉ chỉnh vùng thay sản phẩm, nền nhỏ lộ ra khi bỏ đồ cũ và bóng tiếp xúc cần thiết. Không trang trí thêm hoặc làm lại ánh sáng toàn phòng.
-- Người dùng đã chốt: không có trong ảnh gốc thì không tự thêm để làm cảnh “tự nhiên”. Khoảng trống/mặt bàn trống phải giữ trống. Chỉ thêm sản phẩm đích và thành phần người dùng yêu cầu rõ; giữ đồ vốn có trong phòng, không mang bát đĩa/cây/sách/người/đồ trang trí từ ảnh sản phẩm sang phòng. QA phải loại đồ thêm không được yêu cầu, không chỉ coi chúng là “không bắt buộc”.
-- Không cam kết AI giữ chính xác 100% hình dáng/vân của sản phẩm chỉ vì prompt yêu cầu. Phải xem ảnh kết quả và nói rõ giới hạn thực tế.
+- Danh sách bên trái, nút thao tác bên phải, Bắt đầu/Dừng bên dưới. Thêm/sửa trong popup; lưu xong mỗi sản phẩm một dòng nhỏ có thumbnail/trạng thái, bấm để xem lại đúng link/ảnh. Hạn chế chữ đậm, hỗ trợ danh sách lớn.
+- Dán clipboard, chọn file hoặc kéo thả ảnh cho từng URL. Đổi URL không mang ảnh cũ sang. Hủy popup không thay dữ liệu. Lưu snapshot/hash; không dùng ảnh của URL khác hoặc âm thầm thay ảnh chỉ định bằng ảnh trong kho.
+- Kho dùng tên tiếng Việt có dấu theo nhóm hàng chung như `Áo`, `Nội thất`; không chia theo website, không gọi kho áo là kho cả quần áo. Giữ nhóm khác để dùng về sau. `source_group` là nhóm thư mục; `category` là mã danh mục chi tiết để chọn ảnh và áp dụng bài học.
+- Chuyển kho phải cập nhật đường dẫn, giữ nguồn, hash và lịch sử sử dụng. Kiểm tra inventory thực tế trong catalog, không coi số đếm trong tài liệu là luôn cập nhật.
+- Khi bật fallback, chọn đúng danh mục, góc ghép, độ nét và diện tích thay thế tương đương; phòng bàn nhỏ hoặc bàn tiệc quá dài không mặc nhiên hợp sản phẩm khác. Không kéo dài sản phẩm để lấp đồ cũ. Tránh CGI, collage, ảnh cận hoặc bị che vùng ghép.
+- Luân phiên ảnh phù hợp theo lịch sử. Có một ảnh đạt thì dừng tìm, không cần đủ số ảnh tối đa. FIT/NOFIT đã lưu chỉ áp dụng khi khớp cả URL sản phẩm và hash ảnh; FIT chỉ nói về bối cảnh, không xác nhận chất lượng kết quả.
+- Dữ liệu bổ sung cần file thật, nguồn, SHA256, kích thước và ghi nhận kiểm tra. Phân biệt gallery khách hàng, ảnh nhà sản xuất và ảnh review; không gắn nhãn Judge.me cho nguồn khác.
+- Có review chữ không có nghĩa có ảnh phù hợp. Khi cần dùng kho mà không có ảnh đạt, lưu missing-data và giữ URL; không tự tạo phòng thay thế.
 
-## 4. Logo và watermark
+## 6. Review mẫu và báo cáo
 
-- Chỉ thay bằng thương hiệu giả khi logo thực sự in, khắc, thêu hoặc gắn trên sản phẩm, và đặt đúng vị trí vật lý đó.
-- Sản phẩm không có logo vật lý thì không thêm logo, chữ góc ảnh hoặc biển tên trên tường.
-- Watermark, logo cửa hàng ở góc và địa chỉ web là lớp phủ ảnh, không phải thương hiệu gắn trên sản phẩm.
-- Không biến watermark thành logo giả. Với ảnh phòng cần giữ nguyên, loại ảnh có watermark trước khi chọn nền.
-- Logo giả phải là thiết kế hoàn chỉnh; không có chữ như “put your brand on it”, “your logo” hay hướng dẫn điền tên.
+- Đưa review tham khảo đúng danh mục vào luồng viết thực tế. Học cách diễn đạt và độ dài, không chép nội dung hoặc trải nghiệm của người khác.
+- Không ép mở đầu bằng “I like”, “I love”, “tôi thích”. Không bịa trải nghiệm mua hàng, giao hàng hay sử dụng. Đây là dữ liệu mẫu được tạo, không phải lời chứng thực khách thật.
+- Phân biệt thời gian một lượt AI với tổng thời gian sản phẩm; giữ timeout, tiến độ, số lượt thử và lý do lỗi. Không tắt tiến trình không thuộc lượt workflow.
+- Báo riêng code đã sửa, kiểm tra offline, ảnh đã tạo thật và ảnh đã xem đối chiếu. Không dùng mock để khẳng định chất lượng ảnh đã đạt. Ghi bài học không có nghĩa lỗi đã được sửa và kiểm chứng.
+- Chỉ nói đã cập nhật Git sau commit/push thành công. Kiểm tra diff, giữ thay đổi đang có và không đưa output tạm vào repository.
 
-## 5. Kho ảnh mẫu: số lượng chưa đủ để chứng minh phù hợp
+## 7. Cách ghi bài học
 
-- Kho local dùng tên tiếng Việt có dấu cho thư mục nhóm hàng chung, không chia theo website: `Áo` cho áo, `Nội thất` cho nội thất và các nhóm khác theo hàng thực tế. Không gọi kho áo là `clothes` rồi ngầm hiểu có cả quần. Giữ các ảnh thuộc nhóm khác để người dùng dùng sau, không xóa chỉ vì hiện tại hai website chưa bán nhóm đó. `source_group` là nhóm thư mục; giữ `category` chi tiết, nguồn và SHA256 trong catalog để không đổi điều kiện chọn ảnh/bài học. Chuyển thư mục phải đối chiếu hash và giữ lịch sử dùng ảnh.
+- Quy tắc chung ở các mục trên dành cho người/agent sửa dự án. Các bài học theo URL/danh mục mà luồng tạo ảnh đọc nằm trong khối dữ liệu bên dưới. Không chỉ thêm văn xuôi rồi coi như app đã nhận bài học theo phạm vi.
+- Mỗi bài học cần rõ phạm vi, lỗi hoặc yêu cầu thực tế, hành vi đúng và cách đối chiếu với ảnh đầu vào hiện tại. Không lưu riêng câu như “thiếu chân kìa”, “màu chưa hợp” mà thiếu mô tả áp dụng.
+- Viết tiếng Việt, tự đủ nghĩa khi clone source mới. Không yêu cầu ảnh, log hoặc batch cũ trong `workspace` để hiểu bài học; đường dẫn lịch sử chỉ là bằng chứng phụ. Ảnh hiện tại không rõ thì ghi nhận chưa xác minh.
+- Giữ `id` khi làm rõ bài học cũ để liên kết bật/tắt còn đúng. Cập nhật mục trùng thay vì chép lặp; lỗi riêng của một mẫu không biến thành thiết kế bắt buộc cho cả danh mục. Không tự biến lời AI thành yêu cầu người dùng.
+- App lưu nguyên nội dung người dùng nhập vào `requested_change`, không tự biên tập thành bài học. Khi biên tập trong source, giữ đúng ý người dùng, không thêm yêu cầu mới; không tự đổi trạng thái ảnh thành đã duyệt.
+- `workspace/feedback/<id>/feedback.json` giữ phản hồi/lịch sử và snapshot cục bộ; không phải nguồn bài học đi theo Git. Khi bật lại bài học từ phản hồi cũ, app có thể lưu lại nội dung phản hồi đó; cần dùng mô tả đủ ngữ cảnh ngay từ lúc nhập.
 
-- Người dùng có thể gắn ảnh riêng theo từng URL bằng dán clipboard, chọn file hoặc kéo thả. Ảnh đã gắn phải được ưu tiên và lưu snapshot/hash; không tự lấy ảnh cho link khác. Nếu ảnh chỉ định bị loại, báo lý do và dừng, không âm thầm thay bằng data. Dùng kho cho URL chưa gắn ảnh chỉ khi người dùng bật fallback rõ ràng. Cách này giảm trùng ảnh do chọn tự động nhưng không bảo đảm AI ghép đúng; vẫn cần kiểm tra tỉ lệ, vùng thay thế và QA.
-- Người dùng đã đổi yêu cầu: thêm/sửa link và ảnh trong popup, lưu xong hiển thị một dòng nhỏ có thumbnail và trạng thái; bấm dòng để preview/sửa đúng sản phẩm, không chọn lại link. Hỗ trợ số lượng lớn, hạn chế chữ đậm. Hủy popup không được thay đổi dữ liệu. Đổi URL không được mang ảnh của URL cũ sang. Kiểm tra link trùng/thiếu ảnh trước khi gọi AI để tránh tốn lượt mới phát hiện lỗi nhập.
+## 8. Vị trí cần đọc khi sửa
 
-- Chọn đúng danh mục, kiểm tra phòng có đủ chỗ cho toàn bộ sản phẩm, góc ghép và mặt sàn có phù hợp, ảnh có đủ nét không.
-- Phòng cho bàn nhỏ không tự nhiên phù hợp với bộ bàn lớn. Góc rộng không chứng minh phòng có thêm diện tích.
-- Tránh ảnh CGI, collage, ảnh cận chỉ thấy sản phẩm, ảnh có watermark hoặc đồ vật che khuất vùng ghép.
-- Luân phiên các ảnh phù hợp theo lịch sử dùng. Không để ưu tiên loại nguồn khiến một ảnh độc chiếm mọi lần chạy.
-- Kết quả FIT/NOFIT đã lưu cho một hash ảnh sản phẩm chỉ áp dụng cho đúng hash đó. FIT là đánh giá bối cảnh, chưa chứng minh ảnh ghép cuối cùng thành công.
-- Cache FIT/NOFIT phải khớp cả URL sản phẩm và hash ảnh, vì các listing có thể dùng chung ảnh nhưng bán kích thước/bộ phận khác. Không quy lỗi cho cache nếu chưa kiểm tra hash thật. Ở lượt lỗi 14:54 ngày 26/10/2026, hash không khớp cache bộ 12 ghế; AI đã trực tiếp chấm FIT cho phòng bàn tiệc quá dài. Kiểm tra footprint thay thế tương đương, không chỉ phòng đủ rộng; không kéo dài sản phẩm để lấp footprint đồ cũ.
-- “Bày cho bữa ăn”, bát đĩa, sách và đồ trang trí do AI gợi ý trong context không phải yêu cầu người dùng. Không loại bàn trống vì thiếu các món đó. Phản hồi người dùng về kiểu ghế vẫn phải được áp dụng, kể cả khi ghế không được xác minh là hàng bán kèm.
-- Dữ liệu bổ sung phải có file thật, nguồn, SHA256, kích thước và ghi nhận kiểm tra. Phân biệt ảnh gallery khách hàng, ảnh nhà sản xuất và ảnh review; không gắn nhãn Judge.me khi nguồn không phải Judge.me.
-- Có review chữ không có nghĩa đã có ảnh phòng phù hợp. Không có ảnh đạt thì lưu missing-data và giữ URL để thử lại, không tự tạo một phòng thay thế.
-- Xem inventory trong catalog; không coi số lượng ghi trong tài liệu là số liệu luôn cập nhật.
-
-## 6. Review mẫu
-
-- Phải đọc và đưa các review tham khảo đúng danh mục vào luồng viết thực tế; chỉ tải về mà không dùng thì chưa hoàn thành.
-- Học cách diễn đạt và độ dài, không chép nội dung hoặc trải nghiệm của người khác.
-- Không ép mọi câu mở đầu bằng “I like”, “I love”, “tôi thích”. Luân phiên mẫu và kiểm tra câu mở đầu rập khuôn.
-- Không bịa trải nghiệm giao hàng, mua hàng hoặc sử dụng. Đầu ra là dữ liệu mẫu được tạo, không phải lời chứng thực của khách thật.
-
-## 7. Thời gian chạy và báo cáo kết quả
-
-- Bài học lỗi màu: đã có lượt QA lần 1 chê bàn đỏ không giống bảng màu của phòng, sửa nhạt rồi QA lần 2 chê mất màu/vân gốc. Tạo ảnh và QA phải dùng cùng tiêu chí: phản hồi màu chưa hòa với phòng mặc định yêu cầu sửa ánh sáng, cân bằng trắng và bóng cục bộ, không phải đổi màu vật liệu. Chỉ đổi stain/màu gỗ khi người dùng yêu cầu rõ. Không bắt các đồ nội thất khác vật liệu có cùng màu, cũng không bắt RGB giống ảnh nguồn dưới ánh sáng khác. Hiển thị lý do QA khi sửa và khi dừng để người dùng không bị yêu cầu thử lại mù.
-
-- Phân biệt thời gian từng lượt AI với tổng thời gian một sản phẩm; không hứa một sản phẩm hoàn tất trong giới hạn của một lượt.
-- Có một phòng đạt cho đồ vật thì dừng chọn; không tiếp tục kiểm tra ảnh thứ hai chỉ vì cấu hình số ảnh tối đa là 2.
-- Người dùng cho phép tự thử lại khi timeout/mất kết nối: tối đa 3 lượt gửi do lỗi kết nối/timeout, dùng cùng snapshot đầu vào, dừng khi nhận được ảnh. Chỉ thử sau khi xác nhận tiến trình cũ đã dừng; nếu đã có ảnh thì xuất nguyên file cho người dùng review, không tạo trùng ngay. Không thử lại lỗi đăng nhập/hết hạn mức/đầu vào sai. Hiển thị số lượt, giữ timeout và lý do khi hết lượt; không đánh dấu ảnh đã được người dùng duyệt khi chưa có xác nhận.
-- Chỉ kết thúc tiến trình thuộc lượt gọi của workflow; không tắt các tiến trình không liên quan.
-- Báo riêng: code đã sửa, test offline đã pass, ảnh đã được tạo thật, ảnh đã được xem và đối chiếu. Không dùng test mock để tuyên bố chất lượng ảnh thực tế đã đạt.
-- Không nói đã cập nhật Git nếu chưa commit/push thành công. Khi người dùng yêu cầu cập nhật Git, kiểm tra diff để giữ các thay đổi đang có và không đưa output tạm vào repository.
-
-## Vị trí cần đọc khi sửa
-
-- `src/workflow/steps/02-select-references.ps1`: chọn và kiểm tra phòng.
-- `src/workflow/steps/03-create-image.ps1`: yêu cầu tạo ảnh, vai trò từng ảnh và xuất PNG trực tiếp.
-- `src/infrastructure/image-output.ps1`: kiểm tra PNG đọc được, không thay đổi file.
-- `src/workflow/steps/04-complete-image.ps1`: hoàn tất ảnh và thử lại lỗi kết nối, không AI QA.
-- `src/application/reference-archive.ps1`: bản sao đầu vào và nguồn.
-- `data/source-photos/catalog.json`: inventory, provenance và đánh giá phù hợp đã lưu.
-- `tests/run.ps1`: chạy các suite liên quan bằng Windows PowerShell; chọn kiểm tra phù hợp với thay đổi.
-- `workspace/output/`: ảnh và log cần đối chiếu khi điều tra lỗi; là dữ liệu sinh ra, Git bỏ qua.
-
-## Cách bổ sung bài học
-
-Bài học được lưu tập trung trong phần Saved user lessons của `AGENTS.md`, có phạm vi URL sản phẩm hoặc danh mục do người dùng chọn. Luồng tạo ảnh đọc trực tiếp phần này; bật/tắt bài học trong app cập nhật phần này. `workspace/feedback/<id>/feedback.json` chỉ giữ lịch sử thao tác, ảnh và trạng thái lần chạy. Đưa bài học còn bật vào bước tạo ảnh; yêu cầu sửa mới nhất có ưu tiên cao hơn phản hồi cũ. Khi làm lại, dùng bản sao đầu vào đã kiểm tra hash và tạo batch mới. Xuất ảnh chỉ có nghĩa chờ người dùng xem; chỉ thao tác xác nhận của người dùng mới đánh dấu `accepted`. Không tự biến văn bản AI thành chỉ dẫn trong `AGENTS.md`.
-
-Bài học phải tự đủ nghĩa khi clone source sang máy mới: ghi rõ mẫu/URL hoặc phạm vi danh mục, chi tiết đúng, lỗi đã gặp và cách áp dụng với ảnh đầu vào hiện tại. Không yêu cầu đọc ảnh, log hay batch cũ trong `workspace` để hiểu hoặc làm theo; thư mục này không đi kèm source trên Git. Đường dẫn lịch sử nếu có chỉ là bằng chứng phụ. Không có ảnh hiện tại đủ rõ thì ghi nhận chưa xác minh, không coi mô tả bài học là bằng chứng đã xem ảnh mới.
-
-Khi người dùng chỉ ra lỗi mới, ghi ngắn gọn: tình huống thực tế, điều đã làm sai, hành vi đúng và cách kiểm chứng. Cập nhật mục tương ứng nếu đã có; tránh ghi lặp hoặc biến một trường hợp riêng thành quy tắc cho mọi sản phẩm. Chỉ đánh dấu lỗi đã xử lý khi có bằng chứng tương ứng.
+- `src/application/agent-lessons.ps1`: đọc và ghi khối bài học trong file này.
+- `src/application/image-feedback.ps1`: lọc bài học theo URL/danh mục và ghép yêu cầu sửa hiện tại.
+- `src/workflow/steps/02-select-references.ps1`: chọn ảnh tham khảo và lịch sử dùng kho.
+- `src/workflow/steps/03-create-image.ps1`: vai trò ảnh đầu vào và yêu cầu tạo ảnh.
+- `src/workflow/steps/04-complete-image.ps1`, `src/infrastructure/image-output.ps1`: xuất PNG và phục hồi lỗi kết nối.
+- `src/application/reference-archive.ps1`: snapshot, nguồn và hash đầu vào.
+- `data/source-photos/catalog.json`: inventory và thông tin nguồn ảnh.
+- `tests/run.ps1`: chạy suite liên quan bằng Windows PowerShell khi được phép.
+- `workspace/output/`: kết quả và log cục bộ, Git bỏ qua.
 
 <!-- app-lessons:start -->
-## Saved user lessons
+## Bài học đã lưu
 
-Apply only to the matching product URL or category. Newer explicit corrections take precedence. This section is the source used by image generation.
+Đây là các bài học đang bật mà app đọc trực tiếp trước khi tạo ảnh. Chỉ áp dụng khi khớp URL sản phẩm (`product`) hoặc mã danh mục (`category`); phản hồi sửa hiện tại được ưu tiên hơn bài học cũ. Nội dung phải tự đủ nghĩa, không cần ảnh hoặc log của lượt cũ.
+
+Khối JSON bên dưới là dữ liệu của app, không phải lịch sử chat. Giữ nguyên tên các trường kỹ thuật để app đọc và bật/tắt được:
+
+- `id`: mã ổn định của bài học, dùng để cập nhật hoặc bật/tắt, không phải đường dẫn ảnh.
+- `scope`: `product` cho một URL, `category` cho cả danh mục.
+- `product_url`: URL áp dụng khi phạm vi là sản phẩm; để trống khi phạm vi là danh mục.
+- `category`: mã danh mục trong catalog, không phải tên thư mục kho ảnh tiếng Việt.
+- `requested_change`: bài học bằng tiếng Việt, nêu lỗi/yêu cầu và hành vi đúng; không chỉ chép câu nhận xét thiếu ngữ cảnh.
+- `created_at`: thời điểm ghi nhận, dùng sắp thứ tự; không phải trạng thái ảnh đã được duyệt.
+
+Bài học có mặt trong danh sách nghĩa là đang bật. App lấy tối đa 10 bài học khớp, từ cũ đến mới. Tắt bài học trong app sẽ gỡ bản ghi khỏi mục này; lịch sử phản hồi và trạng thái duyệt ảnh được giữ riêng trong workspace.
 
 ```json
 [
-    {
-        "id":  "2b459eefc9514ffa999909bbc85d42ea",
-        "scope":  "product",
-        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-        "category":  "dining-tables",
-        "requested_change":  "thiếu cái chân ghế kìa",
-        "created_at":  "2026-10-26T07:04:24.644366Z"
-    },
-    {
-        "id":  "f84798614e0d45a1a9d46ec91a0b33ca",
-        "scope":  "product",
-        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-        "category":  "dining-tables",
-        "requested_change":  "ưu tiên lấy ghê bàn giống trong ảnh gốc cho đồng bộ style",
-        "created_at":  "2026-10-26T07:12:01.185526Z"
-    },
-    {
-        "id":  "7aeb3fcd590741439c8b449ca7d36cc3",
-        "scope":  "product",
-        "product_url":  "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
-        "category":  "dining-tables",
-        "requested_change":  "ổn mà tôi thấy là màu của bàn hiện tại ko match với ngữ cảnh và màu các bố cục ảnh",
-        "created_at":  "2026-10-26T07:36:05.4286701Z"
-    },
-    {
-        "id":  "table-seating-dining-tables",
-        "scope":  "category",
-        "product_url":  "",
-        "category":  "dining-tables",
-        "requested_change":  "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
-        "created_at":  "2026-10-27T06:48:09.3468036Z"
-    },
-    {
-        "id":  "table-seating-coffee-table",
-        "scope":  "category",
-        "product_url":  "",
-        "category":  "coffee-table",
-        "requested_change":  "USER TABLE-SEATING PREFERENCE: update the existing seats immediately associated with this table so their style, material character and seating height suit the target table and the seating/use shown in the product reference. These related seats are explicitly part of the requested edit, not unrelated room objects to freeze. For a low coffee table, do not retain tall dining chairs merely because the base room originally used a dining table; adapt the existing seating to appropriate low lounge seating consistent with the reference. For a dining table, use dining-height seating. Where a set is sold, preserve its actual chairs; where only the table is sold, this seating styling does not imply chairs are included. Do not reuse curved wooden backs or woven seats from another product unless supported by the current reference. Replace existing related seats only; do not add extra seats, props, a new room, or redesign architecture. Keep unrelated furniture unchanged. A newer explicit user correction overrides this default preference.",
-        "created_at":  "2026-10-27T06:48:09.3592337Z"
-    },
-    {
-        "id":  "polo-shoulder-block-collar-edge-20261027",
-        "scope":  "product",
-        "product_url":  "https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block",
-        "category":  "polo-shirts",
-        "requested_change":  "Giữ đúng viền cổ theo ảnh sản phẩm gốc của mẫu polo xanh này: sọc trắng chạy sát mép ngoài cổ, không có dải xanh hẹp nằm ra ngoài sọc trắng. Ảnh tạo ngày 27/10/2026 đã thêm dải xanh bên ngoài viền trắng, làm sai thiết kế. Giữ vị trí, thứ tự màu, số sọc và độ rộng tương đối của viền ở cả hai bên cổ; không sao chép cấu trúc viền của áo người trong ảnh tham khảo. Đổi góc nhìn, nếp gấp và ánh sáng không được biến viền trắng sát mép thành sọc trắng nằm lọt trong nền xanh. Mẫu áp dụng là polo xanh navy phối vai trắng tại URL sản phẩm của bài học này. Cấu trúc đúng từ phía trong cổ ra mép ngoài: nền xanh navy → một viền trắng → mép ngoài cổ; cấu trúc sai: nền xanh navy → sọc trắng → dải xanh mỏng → mép ngoài cổ. Khi chạy, đối chiếu phần cổ nhìn thấy với ảnh sản phẩm đầu vào hiện tại của đúng URL. Không cần ảnh hay thư mục batch cũ để hiểu bài học; nếu đầu vào hiện tại không cho thấy chi tiết thì ghi nhận chưa xác minh, không tự đoán. Đây là quy tắc riêng mẫu áo này, không ép mẫu khác dùng cùng viền. Chỉ sửa chi tiết người dùng yêu cầu; không tự tạo thêm lượt QA hoặc tạo lại khi chưa được yêu cầu.",
-        "created_at":  "2026-10-27T16:03:29.9593975+07:00"
-    },
-    {
-        "id":  "polo-detail-fidelity-20261027",
-        "scope":  "category",
-        "product_url":  "",
-        "category":  "polo-shirts",
-        "requested_change":  "Chú ý từng chi tiết áo, không chỉ làm giống tổng thể. Trước khi tạo, quan sát ảnh sản phẩm và giữ chính xác hình cổ, vị trí mép viền, thứ tự màu, số sọc và độ rộng tương đối, đường may, nút, nẹp, mảng phối vai/tay và vị trí logo theo quy tắc thương hiệu hiện có. Không tự thêm/bớt dải màu, đơn giản hóa thiết kế hoặc lấy chi tiết áo người mẫu từ ảnh tham khảo. Mỗi mẫu có thiết kế riêng: không dùng cấu trúc viền của mẫu khác. Chi tiết bị che phải ghi nhận chưa xác minh; góc nhìn và ánh sáng chỉ đổi cách nhìn, không đổi cấu tạo. Lỗi thêm dải xanh ra ngoài viền trắng ở mẫu shoulder-block là ví dụ về sai chi tiết, không phải quy tắc mọi polo đều có viền trắng. Áp dụng khi đọc ảnh và soạn yêu cầu tạo ngay từ đầu; giữ luồng tạo một lần để người dùng review, không thêm AI QA hay tự tạo lại.",
-        "created_at":  "2026-10-27T16:04:20.7937109+07:00"
-    }
+  {
+    "id": "2b459eefc9514ffa999909bbc85d42ea",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "Lỗi đã gặp: chân ghế bị thiếu trong ảnh ghép bàn ăn. Khi thay bàn và ghế, giữ cấu tạo đầy đủ của những phần ghế nhìn thấy theo ảnh sản phẩm: chân, thanh nối, lưng và mặt ghế phải liền mạch, đúng phối cảnh, có điểm tiếp xúc sàn hợp lý. Không để chân bị cụt, đứt hoặc xuyên vào bàn/sàn. Phần bị che khuất không được tự coi là đã xác minh. Áp dụng với ảnh sản phẩm và ảnh phòng đầu vào hiện tại của URL này.",
+    "created_at": "2026-10-26T07:04:24.644366Z"
+  },
+  {
+    "id": "f84798614e0d45a1a9d46ec91a0b33ca",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "Yêu cầu người dùng: bàn và các ghế ngay quanh bàn phải đồng bộ với phong cách ảnh sản phẩm. Dùng thiết kế ghế được thể hiện trong nguồn hiện tại; không giữ ghế của phòng mẫu nếu sai kiểu, cũng không lấy ghế từ một sản phẩm khác. Nếu bán cả bộ thì giữ đúng ghế của bộ; nếu chỉ bán bàn thì phối lại các ghế hiện có theo yêu cầu này không có nghĩa ghế được bán kèm. Không tự thêm chỗ ngồi.",
+    "created_at": "2026-10-26T07:12:01.185526Z"
+  },
+  {
+    "id": "7aeb3fcd590741439c8b449ca7d36cc3",
+    "scope": "product",
+    "product_url": "https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/",
+    "category": "dining-tables",
+    "requested_change": "Lỗi đã gặp: màu bàn chưa hòa với ánh sáng của phòng. Điều chỉnh ánh sáng cục bộ, độ phơi sáng, cân bằng trắng và bóng tiếp xúc để ghép tự nhiên; giữ màu vật liệu, lớp hoàn thiện và vân gỗ theo ảnh sản phẩm. Không đổi màu gỗ cho giống tủ/ghế trong phòng, không làm nhạt hoặc xóa vân. Chỉ đổi màu vật liệu khi người dùng yêu cầu rõ; không đổi ánh sáng toàn phòng.",
+    "created_at": "2026-10-26T07:36:05.4286701Z"
+  },
+  {
+    "id": "table-seating-dining-tables",
+    "scope": "category",
+    "product_url": "",
+    "category": "dining-tables",
+    "requested_change": "Yêu cầu cho bàn ăn: chỉnh các ghế hiện có ngay quanh bàn để phù hợp phong cách sản phẩm và chiều cao sử dụng của bàn ăn. Nếu nguồn bán cả bộ, dùng đúng ghế của bộ. Nếu chỉ bán bàn, yêu cầu phối ghế không có nghĩa ghế bán kèm. Không mặc định ghế nào cũng phải có lưng gỗ cong hoặc mặt đan; chỉ dùng đặc điểm đó khi nguồn hiện tại thể hiện. Không tự thêm chỗ ngồi, đồ trang trí hay đổi kiến trúc; giữ đồ không liên quan.",
+    "created_at": "2026-10-27T06:48:09.3468036Z"
+  },
+  {
+    "id": "table-seating-coffee-table",
+    "scope": "category",
+    "product_url": "",
+    "category": "coffee-table",
+    "requested_change": "Lỗi đã gặp: thay bàn trà thấp nhưng giữ ghế ăn cao của phòng mẫu, làm sai công năng và tỉ lệ. Chỉnh các chỗ ngồi hiện có ngay quanh bàn sang kiểu, chất liệu và chiều cao phù hợp với bàn trà và ảnh sản phẩm hiện tại. Không mặc định dùng ghế ăn gỗ cong/mặt đan của sản phẩm khác. Đây là yêu cầu phối chỗ ngồi, không chứng minh ghế bán kèm. Không tự thêm chỗ ngồi hoặc chuyển toàn phòng thành không gian khác; giữ kiến trúc và đồ không liên quan.",
+    "created_at": "2026-10-27T06:48:09.3592337Z"
+  },
+  {
+    "id": "polo-shoulder-block-collar-edge-20261027",
+    "scope": "product",
+    "product_url": "https://forteraapparel.com/products/work-polo-shirt-logo-shoulder-block",
+    "category": "polo-shirts",
+    "requested_change": "Mẫu áp dụng: polo xanh navy phối vai trắng tại URL này. Chi tiết đúng từ phía trong cổ ra ngoài: nền xanh navy → một viền trắng → mép ngoài cổ. Lỗi đã gặp: ảnh tạo thêm một dải xanh mỏng giữa viền trắng và mép ngoài. Giữ viền trắng sát mép ở cả hai bên cổ, đúng số sọc và độ rộng tương đối theo ảnh sản phẩm hiện tại; không lấy cấu trúc cổ từ áo người mẫu trong ảnh bối cảnh. Góc nhìn, nếp gấp và ánh sáng không được đổi thứ tự màu. Nếu ảnh đầu vào không cho thấy rõ thì ghi nhận chưa xác minh, không đoán. Quy tắc viền trắng này chỉ áp dụng cho mẫu này.",
+    "created_at": "2026-10-27T16:03:29.9593975+07:00"
+  },
+  {
+    "id": "polo-detail-fidelity-20261027",
+    "scope": "category",
+    "product_url": "",
+    "category": "polo-shirts",
+    "requested_change": "Chú ý từng chi tiết áo, không chỉ giống tổng thể. Trước khi tạo, quan sát hình cổ, mép viền, thứ tự màu, số sọc, độ rộng tương đối, đường may, nút, nẹp, mảng phối vai/tay và vị trí logo trong ảnh sản phẩm. Giữ các chi tiết đó theo đúng mẫu hiện tại, chỉ thay thương hiệu theo quy tắc chung. Không thêm/bớt sọc, đơn giản hóa thiết kế hoặc lấy chi tiết áo của người mẫu trong ảnh tham khảo. Phần bị che phải ghi nhận chưa xác minh. Lỗi viền cổ của mẫu shoulder-block là ví dụ về sai chi tiết, không có nghĩa mọi polo đều có cùng viền trắng.",
+    "created_at": "2026-10-27T16:04:20.7937109+07:00"
+  }
 ]
 ```
 <!-- app-lessons:end -->
