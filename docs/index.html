@@ -136,11 +136,11 @@
 </main>
 
 <dialog id="loginDlg" class="dlg">
-  <form method="dialog" class="dlg-box" id="loginForm">
-    <div class="dlg-head"><strong>Đăng nhập quản lý</strong><button class="icon" value="cancel" formnovalidate aria-label="Đóng">✕</button></div>
+  <form class="dlg-box" id="loginForm">
+    <div class="dlg-head"><strong>Đăng nhập quản lý</strong><button class="icon" type="button" data-close-login aria-label="Đóng">✕</button></div>
     <input id="keyInput" type="password" placeholder="Mật khẩu quản lý" autocomplete="current-password" required />
     <p id="loginError" class="small danger" hidden></p>
-    <div class="actions"><button class="primary" value="ok">Đăng nhập</button></div>
+    <div class="actions"><button class="primary" type="submit" id="loginBtn">Đăng nhập</button></div>
   </form>
 </dialog>
 
@@ -306,9 +306,10 @@ async function load() {
 }
 
 $("loginForm").addEventListener("submit", async (event) => {
-  if (event.submitter?.value !== "ok") return;
+  // Enter in the password field and the button both submit here.
   event.preventDefault();
   store.set($("keyInput").value);
+  $("loginBtn").disabled = true;
   try {
     await load();
     $("loginDlg").close();
@@ -317,8 +318,9 @@ $("loginForm").addEventListener("submit", async (event) => {
     store.set("");
     $("loginError").hidden = false;
     $("loginError").textContent = e.status === 401 ? "Sai mật khẩu." : e.message;
-  }
+  } finally { $("loginBtn").disabled = false; }
 });
+document.querySelector("[data-close-login]").onclick = () => $("loginDlg").close();
 $("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
 $("logoutBtn").onclick = () => { store.set(""); state.images = []; showAdmin(); render(); $("empty").textContent = "Đăng nhập để xem ảnh."; };
 $("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
