@@ -1,9 +1,9 @@
 ﻿# All checks run in fresh PowerShell processes (Windows PowerShell 5.1 on Windows, pwsh on macOS); no paid AI calls.
-param([string[]]$Name = @('csv', 'workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-tool-errors', 'image-feedback', 'manual-references', 'review-writing', 'review-metadata', 'review-pipeline', 'browser-backend', 'drive-storage', 'drive-delivery', 'multi-scene', 'batch-review', 'app-update'))
+param([string[]]$Name = @('csv', 'workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-tool-errors', 'manual-references', 'review-writing', 'review-metadata', 'review-pipeline', 'browser-backend', 'drive-storage', 'drive-delivery', 'multi-scene', 'batch-review', 'app-update'))
 $ErrorActionPreference = 'Stop'
 $onWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
 # WinForms suites test the Windows desktop window and are skipped on macOS.
-$windowsOnly = @('gui-launch', 'ui-status', 'inline-ui', 'image-feedback', 'manual-references')
+$windowsOnly = @('gui-launch', 'ui-status', 'inline-ui', 'manual-references')
 if ($onWindows) {
     # Prefer the Windows PowerShell modules even when launched from PowerShell 7.
     $env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath

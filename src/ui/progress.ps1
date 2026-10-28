@@ -30,10 +30,6 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         $event.Kind='Stage';$event.Stage='Đã nhận ảnh bạn gắn'
     } elseif ($line -match '^\[IMAGE\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang tạo ảnh'
-    } elseif ($line -match '^\[HUMAN-APPROVED\]') {
-        $event.Kind='Stage';$event.Stage='Đang lưu ảnh đã duyệt'
-    } elseif ($line -match '^WARNING: Approved image saved; review text unavailable') {
-        $event.Kind='Info';$event.Text='Ảnh đã lưu, chưa có nội dung đánh giá (ô trong CSV để trống).'
     } elseif ($line -match '^\[REVIEW\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang viết đánh giá'
     } elseif ($line -match '^\[IMAGE-ATTEMPT\]\s*(\d+)/(\d+)') {

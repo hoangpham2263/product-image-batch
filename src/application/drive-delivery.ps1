@@ -1,7 +1,6 @@
 ﻿# Keep finished images/review text until every scene of a URL is delivered.
 function Get-DeliveryKey($Item) {
     $parts=@($Item.Url)
-    if($Item.PSObject.Properties['ApprovedImageHash']){return Get-BytesHash ([Text.Encoding]::UTF8.GetBytes(($parts+@('approved',$Item.ApprovedImageHash) -join "`n")))}
     $entry=@($script:Config.ManualReferences.entries|Where-Object product_url -eq $Item.Url)
     if($entry.Count -and $entry[0].product_file){
         if(-not (Test-Path -LiteralPath $entry[0].product_file) -or (Get-BytesHash ([IO.File]::ReadAllBytes($entry[0].product_file))) -ne $entry[0].product_sha256){throw '[CAUSE:PRODUCT_INPUT] Attached product changed.'}
@@ -12,7 +11,6 @@ function Get-DeliveryKey($Item) {
         if(-not (Test-Path -LiteralPath $scene.file) -or (Get-BytesHash ([IO.File]::ReadAllBytes($scene.file))) -ne $scene.sha256){throw '[CAUSE:PRODUCT_INPUT] Attached scene changed.'}
         $parts+=@($scene.sha256)
     }
-    if($script:Config.Feedback){$parts+=@($script:Config.Feedback.Record.id,$script:Config.Feedback.Record.requested_change)}
     return Get-BytesHash ([Text.Encoding]::UTF8.GetBytes(($parts -join "`n")))
 }
 

@@ -16,8 +16,6 @@ function Save-ProductReferenceBundle($Item, [string]$ItemId, $Context, $Request,
             $role = if ($isPerson) { 'subject' } else { 'scene' }
             $label = if ($isPerson) { 'Người và bối cảnh tham khảo' } elseif ($Request.SceneBase -and $index -eq 0) { 'Phòng gốc dùng để ghép sản phẩm' } else { 'Bối cảnh tham khảo' }
         } elseif ($index -eq $ReferenceCount) { $role = 'product'; $label = 'Sản phẩm gốc' }
-        if ($Request.RejectedInput -and $original -eq $Request.RejectedInput) { $role = 'rejected_result'; $label = 'Ảnh bị người dùng phản bác' }
-        if ($Request.ApprovedInput -and $original -eq $Request.ApprovedInput) { $role = 'user_approved_result'; $label = 'Ảnh do người dùng duyệt để bàn giao' }
         $extension = [IO.Path]::GetExtension($original).ToLowerInvariant()
         if ($extension -notmatch '^\.[a-z0-9]+$') { throw 'Invalid image extension for reference archive.' }
         $file = '{0:D2}-{1}{2}' -f ($index + 1), $role, $extension
@@ -45,7 +43,6 @@ function Save-ProductReferenceBundle($Item, [string]$ItemId, $Context, $Request,
         schema_version = 1; item_id = $ItemId; product = $Context.product
         product_url = $Item.Url; reference_count = $ReferenceCount
         product_context = $Context
-        feedback_id = $(if ($script:Config.Feedback) { $script:Config.Feedback.Record.id } else { '' })
         image_mode = 'direct_image_output'
         archived_at = [DateTime]::UtcNow.ToString('o')
         output = "../../images/$ItemId.png"; images = $entries

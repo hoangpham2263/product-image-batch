@@ -1,4 +1,4 @@
-﻿# Human corrections keep local run history; remembered lessons are written to AGENTS.md.
+﻿# Shared helpers for saved run inputs (refs/manifest.json) and the lessons kept in AGENTS.md.
 function Write-FeedbackJson([string]$Path, $Value) {
     $temporary = "$Path.$([Guid]::NewGuid().ToString('N')).tmp"
     [IO.File]::WriteAllText($temporary, ($Value | ConvertTo-Json -Depth 30), [Text.UTF8Encoding]::new($true))
@@ -20,7 +20,7 @@ function Get-FeedbackTarget([string]$ImagePath) {
     if ($itemId -notmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]*$') { throw 'Mã sản phẩm không hợp lệ.' }
     $batch = $image.Directory.Parent.FullName
     $manifestPath = Join-Path $batch "refs/$itemId/manifest.json"
-    if (-not (Test-Path -LiteralPath $manifestPath)) { throw 'Ảnh này thiếu refs/manifest.json để làm lại đúng đầu vào. Hãy chọn ảnh trong kết quả của app.' }
+    if (-not (Test-Path -LiteralPath $manifestPath)) { throw 'Ảnh này thiếu refs/manifest.json. Hãy chọn ảnh trong kết quả của app.' }
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $uri = $null
     if ($manifest.item_id -ne $itemId -or -not [Uri]::TryCreate($manifest.product_url, [UriKind]::Absolute, [ref]$uri) -or $uri.Scheme -notin @('http', 'https')) { throw 'Thông tin nguồn sản phẩm không hợp lệ.' }
@@ -30,61 +30,6 @@ function Get-FeedbackTarget([string]$ImagePath) {
     $productPath = Resolve-FeedbackChild $folder $product[0].file
     $category = if ($manifest.product_context.source_categories) { @($manifest.product_context.source_categories)[0] } else { @($manifest.images | Where-Object { $_.role -in @('scene', 'subject') -and $_.category } | Select-Object -First 1).category }
     [pscustomobject]@{ ImagePath=$image.FullName; Batch=$batch; Folder=$folder; Manifest=$manifest; ProductPath=$productPath; Category=[string]$category }
-}
-
-function Save-ImageFeedback([string]$ProjectRoot, [string]$ImagePath, [string]$Text, [ValidateSet('product', 'category')][string]$Scope = 'product', [bool]$Remember = $true) {
-    if (-not $Text.Trim() -or $Text.Length -gt 4000) { throw 'Nhập phản hồi từ 1 đến 4000 ký tự.' }
-    $target = Get-FeedbackTarget $ImagePath
-    if ($Scope -eq 'category' -and -not $target.Category) { throw 'Chưa xác định được danh mục; hãy lưu bài học cho riêng sản phẩm.' }
-    $id = [Guid]::NewGuid().ToString('N')
-    $folder = Join-Path $ProjectRoot "workspace/feedback/$id"
-    $refs = Join-Path $folder 'refs'
-    New-Item -ItemType Directory -Path $refs -Force | Out-Null
-    # Copy and hash-check the exact original inputs, not any new product page download.
-    foreach ($entry in $target.Manifest.images) {
-        $source = Resolve-FeedbackChild $target.Folder $entry.file
-        if ((Get-BytesHash ([IO.File]::ReadAllBytes($source))) -ine $entry.sha256) { throw "Ảnh đầu vào đã thay đổi: $($entry.file)" }
-        $destination = Resolve-FeedbackChild $refs $entry.file
-        New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
-        Copy-Item -LiteralPath $source -Destination $destination
-    }
-    Write-FeedbackJson (Join-Path $refs 'manifest.json') $target.Manifest
-    Copy-Item -LiteralPath $target.ImagePath -Destination (Join-Path $folder 'rejected.png')
-    $record = [ordered]@{
-        schema_version=1; id=$id; created_at=[DateTime]::UtcNow.ToString('o'); updated_at=[DateTime]::UtcNow.ToString('o')
-        product_url=$target.Manifest.product_url; product=$target.Manifest.product; category=$target.Category
-        requested_change=$Text.Trim(); scope=$Scope; remember=$Remember; status='saved'
-        parent_feedback_id=$target.Manifest.feedback_id
-        original_image=$target.ImagePath; original_sha256=Get-BytesHash ([IO.File]::ReadAllBytes($target.ImagePath))
-        result_folder=''; error=''
-    }
-    $path = Join-Path $folder 'feedback.json'
-    Write-FeedbackJson $path $record
-    Set-AgentLesson $ProjectRoot $record
-    return $path
-}
-
-function Read-ImageFeedback([string]$Path) {
-    $record = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($record.schema_version -ne 1 -or $record.id -notmatch '^[a-f0-9]{32}$' -or -not $record.requested_change -or $record.requested_change.Length -gt 4000 -or $record.scope -notin @('product', 'category')) { throw 'Invalid image feedback record.' }
-    $folder = Split-Path ([IO.Path]::GetFullPath($Path)) -Parent
-    $manifest = Get-Content -LiteralPath (Join-Path $folder 'refs/manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($record.product_url -ne $manifest.product_url) { throw 'Feedback product does not match archived inputs.' }
-    foreach ($entry in $manifest.images) {
-        $inputPath = Resolve-FeedbackChild (Join-Path $folder 'refs') $entry.file
-        if ((Get-BytesHash ([IO.File]::ReadAllBytes($inputPath))) -ine $entry.sha256) { throw 'Feedback reference snapshot has changed.' }
-    }
-    $rejected = Join-Path $folder 'rejected.png'
-    if ((Get-BytesHash ([IO.File]::ReadAllBytes($rejected))) -ine $record.original_sha256) { throw 'Rejected image snapshot has changed.' }
-    [pscustomobject]@{ Record=$record; Manifest=$manifest; Folder=$folder; RejectedImage=$rejected }
-}
-
-function Set-ImageFeedbackStatus([string]$Path, [ValidateSet('saved','running','awaiting_review','accepted','failed','stopped')][string]$Status, [string]$ResultFolder='', [string]$ErrorText='') {
-    $record = Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
-    if ($Status -eq 'accepted' -and ($record.status -ne 'awaiting_review' -or -not (Test-Path -LiteralPath (Join-Path $record.result_folder 'images')))) { throw 'Chỉ đánh dấu đã đúng sau khi có kết quả mới chờ kiểm tra.' }
-    $record.status=$Status; $record.updated_at=[DateTime]::UtcNow.ToString('o'); $record.error=$ErrorText
-    if ($ResultFolder) { $record.result_folder=$ResultFolder }
-    Write-FeedbackJson $Path $record
 }
 
 function Get-ImageFeedbackGuidance($Context, [string]$Url) {

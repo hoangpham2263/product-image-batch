@@ -57,7 +57,7 @@ function rpc(cmd, args = {}) {
 }
 
 // ----- Batch run (same arguments as New-RunArguments in main-window.ps1) -----
-const run = { proc: null, events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", logFile: "", errFile: "", feedback: "", done: false };
+const run = { proc: null, events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", logFile: "", errFile: "", done: false };
 async function receive(line) {
   const event = await rpc("event", { line, index: run.index }).catch(() => null);
   if (!event) return;
@@ -65,17 +65,15 @@ async function receive(line) {
   if (event.Kind === "Output") run.resultFolder = event.Path;
   run.events.push(event);
 }
-async function startRun({ per = 1, threads = 1, feedback = "", approved = "" }) {
+async function startRun({ per = 1, threads = 1 }) {
   if (run.proc) throw new Error("Đang chạy.");
   await mkdir(logs, { recursive: true });
   const stamp = Date.now();
-  Object.assign(run, { events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", feedback, done: false,
+  Object.assign(run, { events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", done: false,
     logFile: join(logs, `image-batch-mac-${stamp}.log`), errFile: join(logs, `image-batch-mac-${stamp}.err.log`) });
   const args = ["-NoProfile", "-File", join(root, "src", "run-images.ps1"), "-PhotosPerImage", String(per), "-ThrottleLimit", String(threads)];
-  if (feedback) args.push("-FeedbackFile", feedback);
-  if (approved) args.push("-ApprovedImage", approved);
   const map = join(workspace, "reference-inputs", "references.json");
-  if (!feedback && !approved && existsSync(map)) args.push("-ReferenceMapFile", map);
+  if (existsSync(map)) args.push("-ReferenceMapFile", map);
   // Own process group, so Dừng stops codex and every other child too.
   const proc = spawn(PWSH, args, { cwd: root, env: toolEnv, detached: true, stdio: ["ignore", "pipe", "pipe"] });
   run.proc = proc;
@@ -97,7 +95,6 @@ async function startRun({ per = 1, threads = 1, feedback = "", approved = "" }) 
           await rm(from, { force: true });
         }
       }
-      if (run.stopped && run.feedback) await rpc("feedbackStatus", { path: run.feedback, status: "stopped", folder: run.resultFolder }).catch(() => {});
       run.proc = null;
       run.done = true;
     });
@@ -148,14 +145,6 @@ async function handle(req, res) {
     execFile(PWSH, ["-NoProfile", "-File", join(root, "src", "setup-check.ps1"), "-AsJson"], { cwd: root, env: toolEnv, timeout: 120000 }, (err, stdout) => {
       try { send(res, 200, JSON.parse(stdout)); } catch { send(res, 500, { error: "setup" }); }
     });
-    return;
-  }
-  if (path === "/api/choose-file" && req.method === "POST") {
-    // macOS file dialog, for pickers that need the file's real path (a result image in its batch).
-    const { folder = "", prompt = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
-    const at = folder && existsSync(folder) ? ` default location (POSIX file ${JSON.stringify(folder)})` : "";
-    const script = `POSIX path of (choose file with prompt ${JSON.stringify(prompt)} of type {"png"}${at})`;
-    execFile("osascript", ["-e", script], (err, stdout) => send(res, 200, { path: err ? "" : stdout.trim() }));
     return;
   }
   if (path === "/api/setup-step" && req.method === "POST") {

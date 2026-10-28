@@ -9,7 +9,7 @@
 3. Lưu snapshot đầu vào và nguồn vào kết quả của lượt đang chạy. Đọc các bài học còn bật, khớp URL hoặc danh mục từ mục Bài học đã lưu bên dưới; áp dụng yêu cầu sửa hiện tại sau cùng.
 4. Tạo một ảnh hoàn chỉnh, kiểm tra PNG đọc được rồi xuất nguyên file AI tạo. Không chấm chất lượng bằng AI sau tạo, không tự sửa hoặc lặp tạo để cải thiện thẩm mỹ.
 5. Viết review mẫu từ nguồn tham khảo đúng danh mục, xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
-6. Người dùng xem kết quả và yêu cầu sửa khi cần. Làm lại dùng snapshot đầu vào đã kiểm tra hash, lưu batch mới; chỉ người dùng xác nhận mới đánh dấu `accepted`.
+6. Người dùng duyệt từng ảnh (Giữ/Bỏ) rồi xuất file Loox; app không có bước làm lại ảnh.
 
 Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, tối đa 3 lượt gửi với cùng đầu vào. Phải xác nhận tiến trình cũ đã dừng, tìm ảnh đã lưu trước khi gửi lại; có ảnh thì xuất, không tạo trùng. Lỗi đăng nhập, hết hạn mức hoặc đầu vào sai không tự thử lại. Không chạy lại ảnh hay test khi người dùng đã yêu cầu bỏ qua.
 
@@ -75,12 +75,11 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 - Viết tiếng Việt, tự đủ nghĩa khi clone source mới. Không yêu cầu ảnh, log hoặc batch cũ trong `workspace` để hiểu bài học; đường dẫn lịch sử chỉ là bằng chứng phụ. Ảnh hiện tại không rõ thì ghi nhận chưa xác minh.
 - Giữ `id` khi làm rõ bài học cũ để liên kết bật/tắt còn đúng. Cập nhật mục trùng thay vì chép lặp; lỗi riêng của một mẫu không biến thành thiết kế bắt buộc cho cả danh mục. Không tự biến lời AI thành yêu cầu người dùng.
 - Khi cập nhật bài học, agent phải hiểu ngữ cảnh rồi rút ra quy tắc áp dụng lại được; giữ đúng ý người dùng, không tự thêm yêu cầu hay đánh dấu ảnh đã duyệt. Ví dụ “màu chưa hợp” được đúc kết thành “Hòa ánh sáng và bóng cục bộ; giữ màu vật liệu và vân gốc”.
-- `workspace/feedback/<id>/feedback.json` giữ lời phản hồi gốc, lịch sử và snapshot cục bộ. Phần bài học trong source giữ quy tắc đã đúc kết, không cần workspace cũ để hiểu. Bộ ghi của app giữ định dạng Markdown; việc đúc kết ý nghĩa do agent thực hiện, không phải chỉ tách câu tự động.
 
 ## 8. Vị trí cần đọc khi sửa
 
-- `src/application/agent-lessons.ps1`: đọc và ghi khối bài học trong file này.
-- `src/application/image-feedback.ps1`: lọc bài học theo URL/danh mục và ghép yêu cầu sửa hiện tại.
+- `src/application/agent-lessons.ps1`: đọc khối bài học trong file này.
+- `src/application/image-feedback.ps1`: lọc bài học theo URL/danh mục để đưa vào prompt.
 - `src/workflow/steps/02-select-references.ps1`: chọn ảnh tham khảo và lịch sử dùng kho.
 - `src/workflow/steps/03-create-image.ps1`: vai trò ảnh đầu vào và yêu cầu tạo ảnh.
 - `src/workflow/steps/04-complete-image.ps1`, `src/infrastructure/image-output.ps1`: xuất PNG và phục hồi lỗi kết nối.

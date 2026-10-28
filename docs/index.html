@@ -125,6 +125,7 @@
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
+  .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
@@ -164,7 +165,12 @@
       <h2>Hướng dẫn</h2>
       <ol class="steps">
         <li>Giải nén file zip.</li>
-        <li>Mở app: Windows chạy <b>start-app.cmd</b>, Mac chạy <b>start-app.command</b>.</li>
+        <li>Mở app:
+          <ul>
+            <li>Windows: <b>start-app.cmd</b></li>
+            <li>Mac: <b>start-app.command</b></li>
+          </ul>
+        </li>
         <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
       </ol>
     </div>

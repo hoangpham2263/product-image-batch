@@ -67,7 +67,7 @@ try{
     try{$form.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save($screenshot,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     $form.Size=$form.MinimumSize;$queueEditor.Fallback.Checked=$true;$form.Refresh()
     Assert ($lblStatus.Right -lt $lblPer.Left -and -not $lblProgress.Bounds.IntersectsWith($btnDrive.Bounds)) 'Controls overlap at the minimum window size.'
-    $sidebar=@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive)
+    $sidebar=@($btnSave,$btnOut,$btnReview,$btnSetup,$btnDrive)
     $queueRight=$queueEditor.Panel.PointToScreen([Drawing.Point]::new($queueEditor.Panel.Width,0)).X
     Assert (@($sidebar|Where-Object {$_.PointToScreen([Drawing.Point]::Empty).X -lt $queueRight -or $_.Width -ne $btnSave.Width}).Count -eq 0) 'Action buttons must form a separate right column.'
     for($i=1;$i -lt $sidebar.Count;$i++){Assert ($sidebar[$i].Top -gt $sidebar[$i-1].Bottom) 'Right-column buttons overlap.'}

@@ -29,7 +29,6 @@ function Assert-DraftRoot([string]$Path) {
     $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
     if (-not $Path -or -not [IO.Path]::GetFullPath($Path).StartsWith($temp) -or (Split-Path $Path -Leaf) -notmatch '^product-reference-[0-9a-f]{32}$') { throw 'Invalid draft.' }
 }
-$statusNames = @{ saved = 'Đã lưu, chưa chạy'; running = 'Đang làm lại'; awaiting_review = 'Có ảnh mới, chờ bạn kiểm tra'; accepted = 'Bạn đã xác nhận đúng'; failed = 'Làm lại bị lỗi'; stopped = 'Đã dừng' }
 
 function Invoke-Rpc([string]$Cmd, $A) {
     switch ($Cmd) {
@@ -136,35 +135,6 @@ function Invoke-Rpc([string]$Cmd, $A) {
         }
         'reviewDecide' { Set-BatchReviewDecision ([string]$A.batch) ([string]$A.id) ([string]$A.decision); return $true }
         'reviewExport' { return (Export-ReviewedCsv ([string]$A.batch)) }
-        'feedbackChoices' {
-            if (-not (Test-Path -LiteralPath $workspace.Output)) { return @() }
-            return @(Get-ChildItem -LiteralPath $workspace.Output -Directory | Sort-Object Name -Descending | Select-Object -First 30 | ForEach-Object {
-                    $images = Join-Path $_.FullName 'images'; if (Test-Path -LiteralPath $images) { Get-ChildItem -LiteralPath $images -File -Filter '*.png' }
-                } | Select-Object -First 200 | ForEach-Object { [pscustomobject]@{ label = "$($_.Directory.Parent.Name) / $($_.Name)"; image = $_.FullName } })
-        }
-        'feedbackTarget' { $t = Get-FeedbackTarget ([string]$A.image); return [pscustomobject]@{ product = $t.ProductPath; image = $t.ImagePath; title = [string]$t.Manifest.product } }
-        'feedbackSave' { return (Save-ImageFeedback $root ([string]$A.image) ([string]$A.text) $(if ($A.scope -eq 'category') { 'category' } else { 'product' }) ([bool]$A.remember)) }
-        'feedbackHistory' {
-            $feedbackRoot = Join-Path $root 'workspace/feedback'
-            if (-not (Test-Path -LiteralPath $feedbackRoot)) { return @() }
-            return @(Get-ChildItem -LiteralPath $feedbackRoot -Directory | Sort-Object LastWriteTimeUtc -Descending | ForEach-Object {
-                    $path = Join-Path $_.FullName 'feedback.json'
-                    if (Test-Path -LiteralPath $path) { try { $r = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json; [pscustomobject]@{ label = "$($r.created_at) • $($statusNames[$r.status]) • $($r.product)"; path = $path } } catch { Write-Verbose $_ } }
-                })
-        }
-        'feedbackDetails' {
-            $r = Get-Content -LiteralPath ([string]$A.path) -Raw -Encoding UTF8 | ConvertFrom-Json
-            $r.remember = [bool]@(Read-AgentLessons (Join-Path $root 'AGENTS.md') | Where-Object id -eq $r.id).Count
-            return "Sản phẩm: $($r.product_url)`r`nTrạng thái: $($statusNames[$r.status])`r`nPhạm vi: $($r.scope) • Dùng làm bài học: $($r.remember)`r`n`r`nYêu cầu sửa:`r`n$($r.requested_change)`r`n`r`nKết quả mới: $($r.result_folder)`r`nLỗi: $($r.error)`r`nPhản hồi trước: $($r.parent_feedback_id)"
-        }
-        'feedbackAccept' { Set-ImageFeedbackStatus ([string]$A.path) accepted; return $true }
-        'feedbackToggle' {
-            $r = Get-Content -LiteralPath ([string]$A.path) -Raw -Encoding UTF8 | ConvertFrom-Json
-            $enabled = [bool]@(Read-AgentLessons (Join-Path $root 'AGENTS.md') | Where-Object id -eq $r.id).Count
-            Set-ImageFeedbackRemember $root ([string]$A.path) (-not $enabled); return $true
-        }
-        'feedbackRecord' { return (Get-Content -LiteralPath ([string]$A.path) -Raw -Encoding UTF8 | ConvertFrom-Json) }
-        'feedbackStatus' { Set-ImageFeedbackStatus ([string]$A.path) ([string]$A.status) ([string]$A.folder) ([string]$A.error); return $true }
         'driveLogin' { Connect-DriveAccount $workspace.Root ([string]$A.password); return $true }
         'driveLogout' { Disconnect-DriveAccount $workspace.Root; return $true }
         'event' { return (ConvertTo-UiEvent ([string]$A.line) ([int]$A.index)) }

@@ -64,14 +64,6 @@ Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử t�
 
 ## Kết quả: mỗi lần chạy là một thư mục
 
-### Phản bác kết quả và lưu bài học
-
-Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo một kết quả mới để bạn xem. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
-
-Tùy chọn **Lưu thành bài học** mặc định áp dụng cho riêng URL sản phẩm; chỉ chọn cả danh mục khi quy tắc thật sự phù hợp với các sản phẩm khác. Bài học nằm tập trung trong phần Saved user lessons của `AGENTS.md` và được đọc trực tiếp vào prompt theo đúng URL/danh mục. App cập nhật riêng phần đó khi lưu hoặc bật/tắt bài học; các hướng dẫn khác được giữ nguyên. `workspace/feedback/<id>/feedback.json` cùng ảnh lỗi và `refs/` là lịch sử lần chạy, không phải nguồn bài học.
-
-Tab **Bài học & lịch sử** hiển thị phản hồi, trạng thái, lỗi và thư mục kết quả. Có thể bật/tắt bài học, chạy lại phản hồi đã lưu hoặc lượt bị lỗi/dừng. Ảnh tạo xong chuyển sang **chờ bạn kiểm tra**; bấm **Ảnh mới đã đúng** sau khi bạn đã xem kết quả. Nếu còn sai, chọn ảnh mới để phản bác tiếp; manifest liên kết phản hồi trước. Bản cũ và hàng đợi URL chính được giữ nguyên khi làm lại.
-
 ```
 workspace/output/<thời-gian>/
   images/<mã-SP>.png      ảnh kết quả

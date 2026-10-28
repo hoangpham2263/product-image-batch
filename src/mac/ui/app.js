@@ -160,7 +160,7 @@ function messageBox(text, title = "", buttons = ["OK"]) {
 // ---------- main window ----------
 const ui = { client: document.getElementById("client") };
 const state = { rows: [], fallback: false, library: "drive", group: "Áo", drive: false, version: "", output: "", codex: false };
-const run = { active: false, since: 0, total: 0, done: 0, index: 0, stages: new Map(), jobRows: [], stage: "", stopped: false, failure: false, started: 0, feedback: "", resultFolder: "", anim: 0 };
+const run = { active: false, since: 0, total: 0, done: 0, index: 0, stages: new Map(), jobRows: [], stage: "", stopped: false, failure: false, started: 0, resultFolder: "", anim: 0 };
 
 function buildMain() {
   const c = ui.client;
@@ -189,7 +189,7 @@ function buildMain() {
   // Thao tác (856,78 224x344, Top/Right).
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
-  const names = [["btnSave", "Lưu danh sách"], ["btnOut", "Mở kết quả"], ["btnReview", "Duyệt & xuất file"], ["btnFeedback", "Kiểm tra ảnh / Làm lại"], ["btnSetup", "Kiểm tra ChatGPT"], ["btnDrive", "Google Drive"]];
+  const names = [["btnSave", "Lưu danh sách"], ["btnOut", "Mở kết quả"], ["btnReview", "Duyệt & xuất file"], ["btnSetup", "Kiểm tra ChatGPT"], ["btnDrive", "Google Drive"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -553,112 +553,6 @@ function showReviewPreview(item, decide) {
   refresh();
 }
 
-// ----- Kiểm tra ảnh, phản bác và bài học (New-ImageFeedbackDialog) -----
-async function showFeedbackDialog() {
-  const view = openWindow("Kiểm tra ảnh, phản bác và bài học", 904, 701);
-  const result = { feedback: "", approved: "" };
-  const tabs = at(el("div", "tabs"), 12, 12, 880, 676);
-  const strip = el("div", "tabstrip");
-  const tabEdit = el("button", "on", { text: "Kiểm tra & làm lại", type: "button" });
-  const tabHistory = el("button", "", { text: "Bài học & lịch sử", type: "button" });
-  strip.append(tabEdit, tabHistory);
-  const edit = el("div", "tabpage"), history = el("div", "tabpage");
-  history.hidden = true;
-  tabs.append(strip, edit, history);
-  view.body.append(tabs);
-
-  const choices = at(combo(), 12, 12, 708, 24);
-  const browse = at(button("Chọn ảnh…"), 730, 10, 124, 30);
-  const resultLabel = at(label("Ảnh cần kiểm tra"), 448, 52, 406, 24);
-  const productPreview = at(picture(), 12, 78, 410, 240), resultPreview = at(picture(), 448, 78, 406, 240);
-  for (const p of [productPreview, resultPreview]) p.style.background = "var(--smoke)";
-  const text = at(el("textarea", "text", { maxLength: 4000 }), 12, 358, 842, 106);
-  const remember = at(checkbox("Lưu bài học vào AGENTS.md"), 12, 478, 400, 28);
-  remember.input.checked = true;
-  const scope = at(combo(), 448, 478, 406, 24);
-  scope.setItems(["product", "category"], ["Chỉ sản phẩm này", "Cả danh mục sản phẩm"]);
-  const save = at(button("Lưu phản hồi"), 12, 522, 160, 36), retry = at(button("Lưu và làm lại"), 184, 522, 180, 36), deliver = at(button("Duyệt ảnh này & bàn giao"), 376, 522, 250, 36);
-  const note = at(label("Làm lại dùng đúng ảnh sản phẩm và phòng đã lưu, tạo kết quả mới. Bản cũ được giữ lại."), 12, 570, 842, 48);
-  note.style.color = "var(--dim)";
-  edit.append(choices, browse, at(label("Sản phẩm gốc"), 12, 52, null, 22), resultLabel, productPreview, resultPreview,
-    at(label("Nêu rõ chỗ sai và kết quả cần sửa (ví dụ: thay cả ghế nệm bằng đúng ghế gỗ của sản phẩm)."), 12, 328, 842, 26), text, remember, scope, save, retry, deliver, note);
-
-  let target = null;
-  const loadTarget = async () => {
-    target = null;
-    if (!choices.value) return;
-    try {
-      target = await api("feedbackTarget", { image: choices.value });
-      productPreview.set(target.product); resultPreview.set(target.image); resultLabel.textContent = target.title;
-    } catch (e) { resultLabel.textContent = e.message; productPreview.set(""); resultPreview.set(""); }
-  };
-  choices.onchange = loadTarget;
-  browse.onclick = async () => {
-    const r = await (await fetch("/api/choose-file", { method: "POST", body: JSON.stringify({ folder: state.output, prompt: "Chọn ảnh trong thư mục images của app" }) })).json();
-    if (!r.path) return;
-    choices.append(new Option(r.path, r.path));
-    choices.value = r.path;
-    loadTarget();
-  };
-  const done = (kind) => { view.close(); return kind; };
-  deliver.onclick = () => {
-    if (!target) return messageBox("Hãy chọn ảnh cần duyệt có bản lưu đầu vào hợp lệ.");
-    result.approved = target.image; done();
-  };
-  save.onclick = async () => {
-    try {
-      if (!target) throw new Error("Hãy chọn ảnh có bản lưu đầu vào hợp lệ.");
-      await api("feedbackSave", { image: target.image, text: text.value, scope: scope.value, remember: remember.input.checked });
-      text.value = "";
-      messageBox("Đã lưu phản hồi và lựa chọn bài học. Xem tab Bài học & lịch sử.", "Đã lưu");
-    } catch (e) { messageBox(e.message, "Chưa lưu được"); }
-  };
-  retry.onclick = async () => {
-    try {
-      if (!target) throw new Error("Hãy chọn ảnh có bản lưu đầu vào hợp lệ.");
-      result.feedback = await api("feedbackSave", { image: target.image, text: text.value, scope: scope.value, remember: remember.input.checked });
-      done();
-    } catch (e) { messageBox(e.message, "Chưa làm lại được"); }
-  };
-
-  // Bài học & lịch sử.
-  const listBox = at(el("div", "list"), 12, 12, 842, 170);
-  const details = at(el("textarea", "text", { readOnly: true }), 12, 194, 842, 300);
-  const accept = at(button("Ảnh mới đã đúng"), 12, 516, 180, 36), toggle = at(button("Bật/tắt bài học"), 204, 516, 180, 36), open = at(button("Mở kết quả mới"), 396, 516, 180, 36), resume = at(button("Chạy lại phản hồi này"), 588, 516, 266, 36);
-  history.append(listBox, details, accept, toggle, open, resume);
-  let selected = "";
-  const refreshHistory = async () => {
-    selected = ""; details.value = "";
-    const rows = list(await api("feedbackHistory").catch(() => []));
-    listBox.replaceChildren(...rows.map((r) => {
-      const item = el("div", "", { text: r.label });
-      item.onclick = async () => {
-        for (const x of listBox.children) x.classList.toggle("on", x === item);
-        selected = r.path;
-        details.value = await api("feedbackDetails", { path: r.path }).catch((e) => e.message);
-      };
-      return item;
-    }));
-  };
-  const showTab = (h) => { tabEdit.classList.toggle("on", !h); tabHistory.classList.toggle("on", h); edit.hidden = h; history.hidden = !h; if (h) refreshHistory(); };
-  tabEdit.onclick = () => showTab(false);
-  tabHistory.onclick = () => showTab(true);
-  accept.onclick = async () => { if (!selected) return; try { await api("feedbackAccept", { path: selected }); refreshHistory(); } catch (e) { messageBox(e.message); } };
-  toggle.onclick = async () => { if (!selected) return; try { await api("feedbackToggle", { path: selected }); refreshHistory(); } catch (e) { messageBox(e.message); } };
-  open.onclick = async () => { if (!selected) return; const r = await api("feedbackRecord", { path: selected }); if (r.result_folder) api("openPath", { path: r.result_folder }); };
-  resume.onclick = async () => {
-    if (!selected) return;
-    const r = await api("feedbackRecord", { path: selected });
-    if (!["saved", "failed", "stopped"].includes(r.status)) return messageBox("Phản hồi này đang chạy hoặc đã có kết quả. Hãy chọn ảnh mới ở tab Kiểm tra & làm lại để phản bác tiếp.");
-    result.feedback = selected; done();
-  };
-
-  const photos = list(await api("feedbackChoices").catch(() => []));
-  choices.setItems(photos.map((p) => p.image), photos.map((p) => p.label));
-  if (photos.length) await loadTarget();
-  return new Promise((resolve) => { view.onClose = () => resolve(result); });
-}
-
 // ----- Google Drive (Show-DriveLogin) -----
 function showDriveDialog() {
   const view = openWindow("Google Drive", 400, 170);
@@ -688,7 +582,7 @@ function showDriveDialog() {
 function setRunning(on) {
   run.active = on;
   ui.btnRun.disabled = on; ui.btnStop.disabled = !on;
-  for (const b of [ui.btnSave, ui.btnSetup, ui.btnFeedback, ui.btnDrive, ui.btnReview, ui.btnAdd, ui.btnBulk]) b.disabled = on;
+  for (const b of [ui.btnSave, ui.btnSetup, ui.btnDrive, ui.btnReview, ui.btnAdd, ui.btnBulk]) b.disabled = on;
   ui.fallback.input.disabled = on;
   ui.library.disabled = on || !ui.fallback.input.checked;
   ui.numPer.enabled = !on; ui.numThr.enabled = !on;
@@ -726,20 +620,19 @@ function receive(event) {
   }
   if (event.Text) appendLog(event.Text);
 }
-async function startBatch({ feedback = "", approved = "" } = {}) {
+async function startBatch() {
   if (run.active) return;
   if (!state.drive) return appendLog("Đăng nhập Google Drive trước khi chạy để CSV có link ảnh công khai.");
-  if (!feedback && !approved) { try { await saveQueue(true); } catch (e) { return appendLog(e.message); } }
-  if (!feedback && !approved && !countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
-  if (!approved && !state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.');
+  try { await saveQueue(true); } catch (e) { return appendLog(e.message); }
+  if (!countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
+  if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.');
   ui.txtLog.value = "";
-  Object.assign(run, { since: 0, total: feedback || approved ? 1 : countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), feedback, resultFolder: "" });
+  Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "" });
   for (const r of state.rows) r.stage = null;
   await updateReviewButton();
-  const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: ui.numPer.value, threads: ui.numThr.value, feedback, approved }) });
+  const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: ui.numPer.value, threads: ui.numThr.value }) });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
-    if (feedback) api("feedbackStatus", { path: feedback, status: "failed", folder: "", error: body.error || "" }).catch(() => {});
     return appendLog("Chưa khởi động được lượt xử lý: " + (body.error || r.status));
   }
   setRunning(true);
@@ -770,7 +663,7 @@ async function finish(r) {
   if (r.stopped) { setStatus("Đã dừng", "var(--muted)"); appendLog("Đã dừng. Các link chưa hoàn tất được giữ lại."); }
   else if (r.exitCode === 0 && !run.failure) {
     setStatus("✔ Hoàn tất", "var(--ok)");
-    appendLog(run.feedback ? "Đã có ảnh làm lại. Bấm Kiểm tra ảnh / Làm lại để đối chiếu; chỉ đánh dấu đã đúng sau khi bạn xem ảnh." : "Xong. Bấm Duyệt & xuất file để duyệt từng ảnh; file Loox chỉ tạo khi duyệt xong.");
+    appendLog("Xong. Bấm Duyệt & xuất file để duyệt từng ảnh; file Loox chỉ tạo khi duyệt xong.");
   } else {
     setStatus("! Cần thử lại", "var(--warn)");
     appendLog("Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.");
@@ -799,12 +692,6 @@ function wire() {
   ui.btnSave.onclick = async () => { try { await saveQueue(); updateStatus(); appendLog("Đã lưu danh sách link và ảnh đi kèm."); } catch (e) { appendLog(e.message); } };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
-  ui.btnFeedback.onclick = async () => {
-    if (run.active) return;
-    const pick = await showFeedbackDialog();
-    if (pick.approved) startBatch({ approved: pick.approved });
-    else if (pick.feedback) startBatch({ feedback: pick.feedback });
-  };
   // Kiểm tra ChatGPT turns into Cài Codex / Đăng nhập Codex when the check finds that step missing.
   ui.btnSetup.onclick = async () => {
     if (setupAction) {
