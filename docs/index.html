@@ -70,6 +70,10 @@
   .item-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-meta { font-size: 12px; color: var(--muted); margin-top: -6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .more { justify-self: center; }
+  .help { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 4px; }
+  .cmd { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-radius: 8px; background: var(--soft); }
+  .cmd code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+  .cmd button { height: 30px; }
   .drop-on { outline: 2px dashed var(--primary); outline-offset: -2px; }
   .empty { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; border: 1px dashed var(--border); border-radius: 10px; }
   /* Dialogs */
@@ -160,6 +164,7 @@
       <div class="filters">
         <select id="group" aria-label="Nhóm"></select>
         <button id="newGroupBtn" type="button">Tạo nhóm</button>
+        <button id="srcHelpBtn" class="icon" type="button" title="Hướng dẫn" aria-label="Hướng dẫn">?</button>
         <button id="uploadBtn" class="primary" type="button">Tải ảnh lên</button>
         <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
       </div>
@@ -188,6 +193,25 @@
     <input id="groupInput" placeholder="Tên nhóm, ví dụ: Áo" maxlength="60" required />
     <p id="groupError" class="small danger" hidden></p>
     <div class="actions"><button class="primary" type="submit">Tạo</button></div>
+  </form>
+</dialog>
+
+<dialog id="srcHelpDlg" class="dlg">
+  <form method="dialog" class="dlg-box">
+    <div class="dlg-head"><strong>Cập nhật nguồn ảnh</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
+    <span class="settings-label">Trên trang này</span>
+    <ol class="help">
+      <li>Chọn nhóm, hoặc bấm <b>Tạo nhóm</b>.</li>
+      <li>Bấm <b>Tải ảnh lên</b>, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh.</li>
+      <li>Bấm vào ảnh để xem hoặc xoá.</li>
+    </ol>
+    <span class="settings-label">Từ thư mục trên máy</span>
+    <ol class="help">
+      <li>Chép ảnh vào <code>data/source-photos/&lt;nhóm&gt;/</code> trong thư mục source (bản git).</li>
+      <li>Mở Terminal ở thư mục source và chạy lệnh dưới. Chỉ ảnh chưa có mới được đẩy lên; nhóm mới tự được tạo.</li>
+    </ol>
+    <div class="cmd"><code id="srcCmd">node tools/upload-sources.mjs</code><button id="copyCmdBtn" type="button">Copy</button></div>
+    <p class="muted small">App chỉ tải nhóm đang chọn về máy khi chạy, ảnh đã có không tải lại.</p>
   </form>
 </dialog>
 
@@ -489,6 +513,8 @@ document.addEventListener("paste", (e) => {
   e.preventDefault();
   upload(files);
 });
+$("srcHelpBtn").onclick = () => $("srcHelpDlg").showModal();
+$("copyCmdBtn").onclick = async () => { try { await navigator.clipboard.writeText($("srcCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
 document.querySelector("[data-close-group]").onclick = () => $("groupDlg").close();
 $("groupForm").addEventListener("submit", async (event) => {
