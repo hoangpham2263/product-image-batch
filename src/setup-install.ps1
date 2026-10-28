@@ -1,5 +1,5 @@
-﻿# One-time install on Windows (setup.cmd): Node.js, Codex CLI, ChatGPT sign-in and the browser
-# bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
+﻿# Install on Windows, run from the app's Cài Codex button: Node.js, Codex CLI, ChatGPT sign-in and the
+# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path $PSScriptRoot -Parent
@@ -11,8 +11,9 @@ Step 'Node.js'
 if (-not (Test-Tool node)) {
     if (Test-Tool winget) { winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements; Update-SessionPath }
     if (-not (Test-Tool node)) {
-        Write-Host 'Chưa cài được Node.js tự động. Tải bản LTS ở trang vừa mở, cài xong chạy lại setup.cmd.' -ForegroundColor Yellow
+        Write-Host 'Chưa cài được Node.js tự động. Tải bản LTS ở trang vừa mở, cài xong bấm Cài Codex lại.' -ForegroundColor Yellow
         Start-Process 'https://nodejs.org'
+        Read-Host 'Nhấn Enter để đóng'
         exit 1
     }
 }
@@ -20,7 +21,7 @@ Write-Host "Node.js $(node --version)"
 
 Step 'Codex'
 if (-not (Test-Tool codex)) { npm install -g @openai/codex; Update-SessionPath }
-if (-not (Test-Tool codex)) { Write-Host 'Chưa cài được Codex. Chạy lại: npm install -g @openai/codex' -ForegroundColor Yellow; exit 1 }
+if (-not (Test-Tool codex)) { Write-Host 'Chưa cài được Codex. Bấm Cài Codex lại để thử tiếp.' -ForegroundColor Yellow; Read-Host 'Nhấn Enter để đóng'; exit 1 }
 Write-Host (codex --version)
 
 Step 'Đăng nhập ChatGPT'

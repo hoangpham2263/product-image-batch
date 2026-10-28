@@ -162,7 +162,7 @@ async function handle(req, res) {
     // Cài Codex (npm) or Đăng nhập Codex (opens the browser, waits for the sign-in to finish).
     const { step } = JSON.parse((await body(req)).toString("utf8") || "{}");
     const npm = findTool("npm"), codex = findTool("codex");
-    if (step === "install" && !npm) return send(res, 400, { error: "Chưa có Node.js. Chạy setup.command trong thư mục app để cài đủ Node.js và Codex." });
+    if (step === "install" && !npm) return send(res, 400, { error: "Chưa có Node.js. Mở lại start-app.command để cài." });
     const [cmd, args] = step === "install" ? [npm, ["install", "-g", "@openai/codex"]] : [codex || "codex", ["login"]];
     execFile(cmd, args, { cwd: root, timeout: 15 * 60000, env: toolEnv }, (err, stdout, stderr) => {
       if (err) return send(res, 500, { error: (String(stderr || stdout).trim().split("\n").pop() || err.message).slice(0, 300) });

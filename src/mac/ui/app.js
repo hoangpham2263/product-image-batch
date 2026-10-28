@@ -189,7 +189,7 @@ function buildMain() {
   // Thao tác (856,78 224x344, Top/Right).
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
-  const names = [["btnSave", "Lưu danh sách"], ["btnOut", "Mở kết quả"], ["btnReview", "Duyệt & xuất file"], ["btnFeedback", "Kiểm tra ảnh / Làm lại"], ["btnSetup", "Kiểm tra ChatGPT"], ["btnDrive", "Google Drive"], ["btnClear", "Xóa thông báo"]];
+  const names = [["btnSave", "Lưu danh sách"], ["btnOut", "Mở kết quả"], ["btnReview", "Duyệt & xuất file"], ["btnFeedback", "Kiểm tra ảnh / Làm lại"], ["btnSetup", "Kiểm tra ChatGPT"], ["btnDrive", "Google Drive"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -796,7 +796,6 @@ function wire() {
     for (const e of [ui.lblPer, ui.numPer]) e.hidden = !on;
   };
   ui.btnDrive.onclick = showDriveDialog;
-  ui.btnClear.onclick = () => { ui.txtLog.value = ""; };
   ui.btnSave.onclick = async () => { try { await saveQueue(); updateStatus(); appendLog("Đã lưu danh sách link và ảnh đi kèm."); } catch (e) { appendLog(e.message); } };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };

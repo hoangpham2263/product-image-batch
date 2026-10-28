@@ -19,8 +19,8 @@ CÁC BƯỚC
          codex login
      Trình duyệt mở ra, đăng nhập tài khoản có quyền dùng Codex.
      Kiểm tra lại bằng:  codex login status   (phải hiện "Logged in ...").
-  5. Bấm đúp setup.cmd (Mac: setup.command): script tự cài phần còn thiếu (Node.js, Codex, đăng nhập
-     ChatGPT, cầu nối trình duyệt; Mac thêm Homebrew và PowerShell 7) rồi kiểm tra lại.
+  5. Mở app (start-app.cmd / Mac: start-app.command). Thiếu Codex thì bấm Cài Codex: app tự cài
+     Node.js, Codex, đăng nhập ChatGPT và cầu nối trình duyệt (Mac tự cài Homebrew, PowerShell 7 ở lần mở đầu).
   6. Mở start-app.cmd, dán link sản phẩm và bấm Bắt đầu. Ảnh mẫu local không bắt buộc.
 
 SHORTCUT

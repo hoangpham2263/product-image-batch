@@ -12,7 +12,7 @@ $engine = Get-Command codex -ErrorAction SilentlyContinue
 $checks.Add([pscustomobject]@{
     Ok = [bool]$engine
     Message = $(if ($engine) { 'Công cụ xử lý: đã cài đặt.' } else { 'Chưa cài công cụ xử lý.' })
-    Action = 'Bấm Cài Codex, hoặc chạy setup.cmd (Windows) / setup.command (Mac) để cài đủ.'
+    Action = 'Bấm Cài Codex để cài.'
 })
 $loggedIn = $false
 $apiKey = $false

@@ -145,9 +145,8 @@ $btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất fi
 $btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,147';Size='196,32'}
 $btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,184';Size='196,32'}
 $btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,221';Size='196,32'}
-$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,258';Size='196,32'}
-foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnClear)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnClear))
+foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
 function Update-ReviewButton {
     $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
@@ -181,7 +180,6 @@ $lblPer.Height=$numPer.Height;$lblThr.Height=$numThr.Height
 $lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked
 $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
-$btnClear.Add_Click({ $txtLog.Clear() })
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
     $updater = Join-Path $root 'src\update.ps1'
@@ -231,20 +229,16 @@ $setupTimer.Add_Tick({
     $setupTimer.Stop(); $script:setupProc.Dispose(); $script:setupProc = $null
     Update-CodexPath; $btnSetup.Enabled = $true; Set-SetupButton ''; $btnSetup.PerformClick()
 })
-function Start-SetupStep([string]$Command, [string]$Message) {
+function Start-SetupStep([string]$Program, [string[]]$Arguments, [string]$Message) {
     Append-Log $Message
     $btnSetup.Enabled = $false
-    $script:setupProc = Start-Process cmd.exe -ArgumentList @('/c', $Command) -PassThru
+    $script:setupProc = Start-Process $Program -ArgumentList $Arguments -PassThru
     $setupTimer.Start()
 }
 $btnSetup.Add_Click({
-    if ($script:setupAction -eq 'install') {
-        Update-CodexPath
-        if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Append-Log 'Chưa có Node.js. Chạy setup.cmd trong thư mục app để cài đủ Node.js và Codex.'; return }
-        Start-SetupStep 'npm install -g @openai/codex' 'Đang cài Codex trong cửa sổ mới; xong app tự kiểm tra lại.'
-        return
-    }
-    if ($script:setupAction -eq 'login') { Start-SetupStep 'codex login' 'Đăng nhập ChatGPT trong trình duyệt vừa mở; xong app tự kiểm tra lại.'; return }
+    # Installs whatever is missing (Node.js, Codex, sign-in, browser bridge) in its own window.
+    if ($script:setupAction -eq 'install') { Start-SetupStep 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-install.ps1') + '"')) 'Đang cài Node.js, Codex và đăng nhập ChatGPT trong cửa sổ mới; xong app tự kiểm tra lại.'; return }
+    if ($script:setupAction -eq 'login') { Start-SetupStep 'cmd.exe' @('/c', 'codex login') 'Đăng nhập ChatGPT trong trình duyệt vừa mở; xong app tự kiểm tra lại.'; return }
     $btnSetup.Enabled = $false; $form.Cursor = 'WaitCursor'
     $txtLog.Clear(); Append-Log 'Đang kiểm tra ChatGPT...'
     $outFile = Join-Path $workspace.Logs "image-batch-setup-$PID.log"
