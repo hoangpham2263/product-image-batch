@@ -108,7 +108,11 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   footer { text-align: center; }
   /* Download (signed out) */
-  .hero { justify-items: center; text-align: center; gap: 16px; padding: 32px 24px; width: 100%; max-width: 520px; justify-self: center; align-self: center; }
+  /* Download on the left, guide on the right; stacked on phones. */
+  .hero { grid-template-columns: 1fr 1.3fr; gap: 0; padding: 0; width: 100%; max-width: 760px; justify-self: center; align-self: center; }
+  .get { display: grid; justify-items: center; align-content: center; gap: 12px; padding: 32px 24px; text-align: center; }
+  .guide { display: grid; align-content: center; gap: 12px; padding: 32px 28px; border-left: 1px solid var(--border); }
+  @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .guide { border-left: 0; border-top: 1px solid var(--border); } }
   /* Signed out: the download card sits in the middle of the screen. */
   /* Equal rows above and below keep the card at the exact middle of the screen. */
   body.out .wrap { min-height: 100dvh; grid-template-rows: 1fr auto 1fr; }
@@ -116,7 +120,7 @@
   body.out footer { align-self: end; }
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
-  .steps { margin: 0; padding: 0; list-style-position: inside; font-size: 14px; display: grid; gap: 4px; }
+  .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
@@ -144,16 +148,23 @@
   </header>
 
   <section id="download" class="card hero">
-    <a class="btn primary" href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
-      Tải về
-    </a>
-    <span id="version" class="muted small"></span>
-    <ol class="steps">
-      <li>Giải nén file zip.</li>
-      <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
-    </ol>
-    <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
+    <div class="get">
+      <a class="btn primary" href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Tải về
+      </a>
+      <span id="version" class="muted small"></span>
+      <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
+    </div>
+    <div class="guide">
+      <h2>Hướng dẫn</h2>
+      <ol class="steps">
+        <li>Giải nén file zip.</li>
+        <li>Lần đầu chạy <b class="ext">setup.cmd</b>.</li>
+        <li>Mở app bằng <b class="ext">start-app.cmd</b>.</li>
+        <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
+      </ol>
+    </div>
   </section>
 
   <section id="home" class="blocks" hidden>
@@ -619,6 +630,9 @@ document.addEventListener("keydown", (event) => {
 });
 // Refresh the Drive state when returning from the Google consent tab.
 window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
+
+// The guide names the launchers for this visitor's system.
+if (/Mac/i.test(navigator.platform || navigator.userAgent)) for (const b of document.querySelectorAll(".ext")) b.textContent = b.textContent.replace(".cmd", ".command");
 
 fetch("https://api.github.com/repos/hoangpham2263/product-review-batch/releases/latest")
   .then((r) => r.json())
