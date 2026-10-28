@@ -123,7 +123,7 @@ function Select-ProductReferences([string]$Reference, [string]$Handle, [string]$
     if($script:Config.ManualReferences){
         $map=$script:Config.ManualReferences
         $entry=@($map.entries|Where-Object product_url -eq $script:Config.ActiveProductUrl)
-        if($entry.Count){
+        if($entry.Count -and $entry[0].file){
             $photo=$entry[0].file
             if(-not (Test-Path -LiteralPath $photo) -or (Get-BytesHash ([IO.File]::ReadAllBytes($photo))) -ine $entry[0].sha256){throw 'No suitable real scene reference: user-selected image is missing or changed. Attach it again.'}
             $role=if($Context.presentation -and $Context.presentation -ne 'worn'){'Scene'}else{'Subject'}

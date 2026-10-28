@@ -75,12 +75,14 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         if ($Matches[1]) { $event.Index = [int]$Matches[1] }
         $event.Kind = 'Failed'; $event.Stage = 'Chưa hoàn tất'
         $event.Text = "Sản phẩm $($event.Index) chưa hoàn tất. Link được giữ lại để thử lại."
-        if ($line -match '\[CAUSE:PRODUCT_TIMEOUT\]') {
+        if ($line -match '\[CAUSE:PRODUCT_INPUT\]') {
+            $event.Text = "Sản phẩm $($event.Index): ảnh sản phẩm gốc bị thiếu, thay đổi hoặc không đọc được. Hãy gắn lại ảnh sản phẩm."
+        } elseif ($line -match '\[CAUSE:PRODUCT_TIMEOUT\]') {
             $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh phản hồi quá chậm sau 3 lần thử. Link được giữ lại để chạy lại."
         } elseif ($line -match '\[CAUSE:PRODUCT_NETWORK\]') {
             $event.Text = "Sản phẩm $($event.Index): chưa kết nối được trang hoặc ảnh sau 3 lần thử. Kiểm tra mạng rồi chạy lại."
         } elseif ($line -match '\[CAUSE:PRODUCT_ACCESS\]') {
-            $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh yêu cầu đăng nhập hoặc đang chặn truy cập. Vui lòng dùng link công khai."
+            $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh đang chặn truy cập. Gắn ảnh sản phẩm gốc để dùng trực tiếp hoặc dùng link công khai."
         } elseif ($line -match '\[CAUSE:PRODUCT_NOT_FOUND\]') {
             $event.Text = "Sản phẩm $($event.Index): không tìm thấy trang hoặc ảnh sản phẩm. Vui lòng kiểm tra link."
         } elseif ($line -match '\[CAUSE:MISSING_DATA\]') {
@@ -90,7 +92,7 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         } elseif ($line -match '\[CAUSE:BRIDGE\]') {
             $event.Text = "Sản phẩm $($event.Index): chưa kết nối được tab ChatGPT/Flow. Mở Chrome có extension product-image-bridge, đăng nhập rồi chạy lại."
         } elseif ($line -match '\[CAUSE:STORE_LOCKED\]') {
-            $event.Text = "Sản phẩm $($event.Index): cửa hàng đang bật mật khẩu. Tắt mật khẩu cửa hàng hoặc dùng link công khai rồi thử lại."
+            $event.Text = "Sản phẩm $($event.Index): cửa hàng đang bật mật khẩu. Gắn ảnh sản phẩm gốc để chạy mà không cần mở khoá web."
         } elseif ($line -match '\[CAUSE:AUTH\]') {
             $event.Text = 'Không xác thực được tài khoản. Bấm Kiểm tra ChatGPT để xem hướng dẫn đăng nhập.'
         } elseif ($line -match '\[CAUSE:QUOTA\]') {

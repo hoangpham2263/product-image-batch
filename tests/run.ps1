@@ -1,5 +1,5 @@
 ﻿# All checks run in fresh PowerShell processes (Windows PowerShell 5.1 on Windows, pwsh on macOS); no paid AI calls.
-param([string[]]$Name = @('workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-feedback', 'manual-references', 'review-writing', 'review-pipeline', 'browser-backend', 'drive-storage'))
+param([string[]]$Name = @('workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-feedback', 'manual-references', 'review-writing', 'review-pipeline', 'browser-backend', 'drive-storage'))
 $ErrorActionPreference = 'Stop'
 $onWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
 # WinForms suites test the Windows desktop window; macOS uses the web app (web/).

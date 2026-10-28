@@ -73,7 +73,21 @@ function Get-Reference([string]$Url, [string]$ItemId) {
 
 function Read-ProductInput($Item, [string]$ItemId) {
     Write-Host '  [PRODUCT] Loading reference...' -ForegroundColor Cyan
-    $reference = Get-Reference $Item.Url $ItemId
+    $manual=@($script:Config.ManualReferences.entries|Where-Object product_url -eq $Item.Url)
+    if($manual.Count -and $manual[0].product_file){
+        $source=$manual[0].product_file
+        if(-not (Test-Path -LiteralPath $source -PathType Leaf)){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thiếu. Hãy gắn lại ảnh.'}
+        $bytes=[IO.File]::ReadAllBytes($source)
+        if((Get-BytesHash $bytes) -ine $manual[0].product_sha256){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thay đổi. Hãy gắn lại ảnh.'}
+        $size=Get-ImageSize $bytes
+        if(-not $size -or $size.Width -lt 32 -or $size.Height -lt 32){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm không đọc được hoặc quá nhỏ.'}
+        $reference=Join-Path $script:Batch.Refs ($ItemId+'-manual-product'+[IO.Path]::GetExtension($source))
+        [IO.File]::WriteAllBytes($reference,$bytes)
+        Write-Host '  [PRODUCT-MANUAL] Using attached product image; no product URL request.' -ForegroundColor Cyan
+    }else{
+        if(([Uri]$Item.Url).Host -eq 'local.invalid'){throw '[CAUSE:PRODUCT_INPUT] Sản phẩm không có link cần được gắn ảnh sản phẩm gốc.'}
+        $reference = Get-Reference $Item.Url $ItemId
+    }
     [pscustomobject]@{
         Reference = $reference
         Context = Resolve-ProductContext $Item.Handle $reference $ItemId

@@ -21,7 +21,11 @@ function Update-ProductQueueRow($Editor,$Row) {
     $Row.BoundUrl=$url;$Row.ImagePath='';Set-FeedbackPreview $Row.Preview ''
     $entry=@((Read-ManualReferenceMap $Editor.MapPath).entries|Where-Object product_url -eq $url)
     $Row.Status.ForeColor=$script:Ui.Muted
-    if($entry.Count -and (Test-Path -LiteralPath $entry[0].file)){
+    if($Row.ProductPreview){
+        Set-FeedbackPreview $Row.ProductPreview ''
+        if($entry.Count -and $entry[0].product_file){Set-FeedbackPreview $Row.ProductPreview $entry[0].product_file}
+    }
+    if($entry.Count -and $entry[0].file -and (Test-Path -LiteralPath $entry[0].file)){
         try{Set-FeedbackPreview $Row.Preview $entry[0].file;$Row.ImagePath=$entry[0].file;$Row.Status.Text='● Đã có ảnh';$Row.Status.ForeColor=$script:Ui.Ok}catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
     }else{$Row.Status.Text=if($url){'● Chưa có ảnh'}else{'Chưa có link'};if($url){$Row.Status.ForeColor=$script:Ui.Warn}}
     if($Editor.OnChanged){& $Editor.OnChanged}
@@ -74,9 +78,59 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $enter={if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}}
     $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row $files[0]}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
     $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop)
-    $clear.Add_Click({$map=Read-ManualReferenceMap $Editor.MapPath;$map.entries=@($map.entries|Where-Object product_url -ne $row.Url.Text.Trim());New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null;Write-FeedbackJson $Editor.MapPath $map;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure())
+    $clear.Add_Click({
+        $map=Read-ManualReferenceMap $Editor.MapPath
+        foreach($entry in @($map.entries|Where-Object product_url -eq $row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('file');$entry.PSObject.Properties.Remove('sha256')}
+        $map.entries=@($map.entries|Where-Object{$_.file -or $_.product_file})
+        New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
+        Write-FeedbackJson $Editor.MapPath $map;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row
+    }.GetNewClosure())
     $box.Text=$Url;Update-ProductQueueRow $Editor $row
     return $row
+}
+
+function Add-ProductImageControls($Editor,$Row) {
+    $Row.Card.Size=[Drawing.Size]::new(1040,570)
+    $Row.Url.Width=1000;$Row.Status.Width=1000
+    $Row.Preview.Size=[Drawing.Size]::new(680,310)
+    $label=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc (không cần mở web)';Location='720,82';Size='300,26'}
+    $preview=New-Object Windows.Forms.PictureBox -Property @{Name='ProductImagePreview';Location='720,112';Size='300,310';SizeMode='Zoom';BorderStyle='FixedSingle';AllowDrop=$true;TabStop=$true}
+    $Row|Add-Member NoteProperty ProductPreview $preview
+    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh sản phẩm';Location='720,436';Size='180,32'}
+    $clear=New-Object Windows.Forms.Button -Property @{Text='Bỏ ảnh';Location='910,436';Size='110,32'}
+    $attach={param($path)
+        if(-not $Row.Url.Text.Trim()){$Row.Url.Text='https://local.invalid/products/manual-'+[Guid]::NewGuid().ToString('N')}
+        [void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path Product)
+        $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
+    }.GetNewClosure()
+    $choose.Add_Click({
+        $picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg'}
+        try{if($picker.ShowDialog() -eq 'OK'){& $attach $picker.FileName}}catch{$Row.Status.Text=$_.Exception.Message}finally{$picker.Dispose()}
+    }.GetNewClosure())
+    $preview.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
+    $preview.Add_DragDrop({try{& $attach ($_.Data.GetData([Windows.Forms.DataFormats]::FileDrop)[0])}catch{$Row.Status.Text=$_.Exception.Message}}.GetNewClosure())
+    $pasteProduct={
+            try{
+                if([Windows.Forms.Clipboard]::ContainsImage()){
+                    $image=[Windows.Forms.Clipboard]::GetImage();$path=Join-Path $Editor.Root 'clipboard-product.png'
+                    try{$image.Save($path,[Drawing.Imaging.ImageFormat]::Png);& $attach $path}finally{$image.Dispose();Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue}
+                }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){& $attach ([Windows.Forms.Clipboard]::GetFileDropList()[0])}
+            }catch{$Row.Status.Text=$_.Exception.Message}
+    }.GetNewClosure()
+    $preview.Add_KeyDown({if($_.Control -and $_.KeyCode -eq 'V'){$_.SuppressKeyPress=$true;& $pasteProduct}}.GetNewClosure())
+    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteProductImage';Text='Dán ảnh sản phẩm';Location='720,474';Size='180,32'}
+    $paste.Add_Click($pasteProduct)
+    $Row.Status.Width=680
+    $clear.Add_Click({
+        $map=Read-ManualReferenceMap $Editor.MapPath
+        foreach($entry in @($map.entries|Where-Object product_url -eq $Row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('product_file');$entry.PSObject.Properties.Remove('product_sha256')}
+        $map.entries=@($map.entries|Where-Object{$_.file -or $_.product_file})
+        Write-FeedbackJson $Editor.MapPath $map;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
+    }.GetNewClosure())
+    $Row.Card.Controls.AddRange(@($label,$preview,$choose,$clear,$paste))
+    $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh bối cảnh';Location='560,82';Size='140,26'}
+    $Row.Card.Controls.Add($sceneLabel)
+    $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
 }
 
 function Remove-ProductQueueRow($Editor,$Row) {
@@ -119,11 +173,12 @@ function Save-ProductQueueDraft($Editor,$State,$Target=$null) {
     if(-not [Uri]::TryCreate($url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw 'Link sản phẩm không hợp lệ.'}
     foreach($item in $Editor.Rows){if($item -ne $Target -and $item.Url.Text.Trim() -eq $url){throw 'Link này đã có trong danh sách.'}}
     $entry=@((Read-ManualReferenceMap $State.Editor.MapPath).entries|Where-Object product_url -eq $url)
-    if($entry.Count){[void](Save-ManualReference $Editor.Root $url $entry[0].file)}
-    else{
-        $map=Read-ManualReferenceMap $Editor.MapPath;$map.entries=@($map.entries|Where-Object product_url -ne $url)
-        New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
-        Write-FeedbackJson $Editor.MapPath $map
+    $map=Read-ManualReferenceMap $Editor.MapPath;$map.entries=@($map.entries|Where-Object product_url -ne $url)
+    New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
+    Write-FeedbackJson $Editor.MapPath $map
+    if($entry.Count){
+        if($entry[0].file){[void](Save-ManualReference $Editor.Root $url $entry[0].file)}
+        if($entry[0].product_file){[void](Save-ManualReference $Editor.Root $url $entry[0].product_file Product)}
     }
     if(-not $Target){$Target=Add-ProductQueueRow $Editor $url}else{$Target.Url.Text=$url}
     $Editor.SourceGroup=$State.Editor.SourceGroup
@@ -141,9 +196,10 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $draftEditor=[pscustomobject]@{Root=$temp;MapPath=$mapPath;OnChanged=$null;LibraryRoot=$Editor.LibraryRoot;SourceGroup=$Editor.SourceGroup}
     $url=if($Target){$Target.Url.Text}else{''}
     $row=New-ProductQueueEditControls $draftEditor $url
-    $dialog=New-Object Windows.Forms.Form -Property @{Text='Link sản phẩm & ảnh tham khảo';ClientSize='760,570';MinimumSize='700,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
+    Add-ProductImageControls $draftEditor $row
+    $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh sản phẩm & ảnh bối cảnh';ClientSize='1040,570';MinimumSize='1040,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $row.Card.Dock='Fill'
-    $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm';Location='20,16';AutoSize=$true}
+    $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)';Location='20,16';AutoSize=$true}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh local:';Location='20,82';Size='110,26'}
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='SourcePhotoGroup';Location='132,78';Size='216,28';DropDownStyle='DropDownList'}
     foreach($group in @(Get-SourcePhotoGroups $Editor.LibraryRoot)){[void]$groups.Items.Add($group)}
@@ -152,12 +208,12 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $groups.Add_SelectedIndexChanged({$draftEditor.SourceGroup=[string]$groups.SelectedItem}.GetNewClosure())
     $openFolder=New-Object Windows.Forms.Button -Property @{Name='OpenSourcePhotoFolder';Text='Mở thư mục';Location='360,78';Size='140,28'}
     $openFolder.Add_Click({try{$folder=Get-SourcePhotoDirectory $draftEditor.LibraryRoot $draftEditor.SourceGroup;Start-Process explorer.exe -ArgumentList ('"'+$folder+'"')}catch{$row.Status.Text=$_.Exception.Message}}.GetNewClosure())
-    $save=New-Object Windows.Forms.Button -Property @{Name='SaveProduct';Text='Lưu sản phẩm';Location='480,526';Size='144,32';Anchor='Bottom,Right'}
-    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='636,526';Size='104,32';Anchor='Bottom,Right';DialogResult='Cancel'}
+    $save=New-Object Windows.Forms.Button -Property @{Name='SaveProduct';Text='Lưu sản phẩm';Location='760,526';Size='144,32';Anchor='Bottom,Right'}
+    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='916,526';Size='104,32';Anchor='Bottom,Right';DialogResult='Cancel'}
     $row.Card.Controls.AddRange(@($label,$hint,$groups,$openFolder,$save,$cancel));$dialog.Controls.Add($row.Card);$dialog.CancelButton=$cancel
     $state=[pscustomobject]@{Row=$row;Editor=$draftEditor;TempFolder=$temp};$dialog.Tag=$state
     $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
-    $dialog.Add_Disposed({Set-FeedbackPreview $row.Preview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
+    $dialog.Add_Disposed({Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
     return $dialog
 }
 
@@ -193,7 +249,7 @@ function Save-ProductQueueEditor($Editor,[string]$QueuePath,[switch]$RequireRead
     $map.preferred_source_group=$Editor.SourceGroup
     if($RequireReady -and -not $map.allow_library_fallback){
         foreach($url in $urls){$entry=@($map.entries|Where-Object product_url -eq $url)
-            if(-not $entry.Count -or -not (Test-Path -LiteralPath $entry[0].file)){throw "Chưa có ảnh đi kèm: $url"}
+            if(-not $entry.Count -or -not $entry[0].file -or -not (Test-Path -LiteralPath $entry[0].file)){throw "Chưa có ảnh bối cảnh: $url"}
             if((Get-BytesHash ([IO.File]::ReadAllBytes($entry[0].file))) -ine $entry[0].sha256){throw "Ảnh đã thay đổi; hãy gắn lại cho link: $url"}
         }
     }

@@ -16,6 +16,7 @@
     $content = @'
 CÁCH DÙNG
 1. Bấm Thêm sản phẩm: dán link và ảnh trong popup rồi Lưu.
+   Web chưa public: chọn/dán/kéo thả ảnh sản phẩm gốc vào ô bên phải, ảnh bối cảnh vào ô bên trái. App dùng ảnh gốc trực tiếp, không truy cập link. Chọn ảnh sản phẩm trước nếu chưa có link; app tự tạo mã local. Bấm ô sản phẩm rồi Ctrl+V để dán ảnh vào đúng ô.
    Danh sách chính hiển thị một dòng nhỏ cho mỗi sản phẩm. Bấm dòng để preview/sửa; Hủy không đổi dữ liệu. Có thể Ctrl+V ảnh, chọn file hoặc kéo ảnh vào popup.
    Thêm nhiều link mở popup nhập hàng loạt, mỗi link một dòng. Bấm từng dòng để gắn ảnh; thumbnail hiện trên đúng sản phẩm.
    Chọn Kho ảnh local trong popup: Áo cho áo, Nội thất cho nội thất; Chọn ảnh mở đúng nhóm, Mở thư mục để xem kho. Các nhóm cũ vẫn giữ để dùng sau.

@@ -35,6 +35,8 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 
 ### Thư viện ảnh mẫu
 
+Web chưa public hoặc không tải được sản phẩm: gắn **Ảnh sản phẩm gốc** và **Ảnh bối cảnh để ghép vào** trong popup. Ảnh sản phẩm được dùng trực tiếp, không truy cập link. Bản web cho phép để trống link khi đã gắn ảnh sản phẩm; bản Windows tự tạo mã local khi chọn ảnh sản phẩm trước khi nhập link. Dán ảnh vào ô đã chọn, kéo thả hoặc chọn file PNG/JPEG. Hai ảnh được lưu snapshot/hash riêng; đổi link không mang ảnh cũ sang và Hủy không thay ảnh đã lưu.
+
 Bấm Thêm sản phẩm để mở popup, dán link rồi Ctrl+V ảnh, chọn file hoặc kéo ảnh vào khung preview. Bấm Lưu sản phẩm: danh sách chính chỉ hiện một dòng nhỏ với link, thumbnail và trạng thái. Bấm dòng hoặc Xem / sửa để mở lại đúng sản phẩm. Hủy không đổi dữ liệu. Thêm nhiều link mở ô nhập nhiều dòng; mỗi link được tạo thành một mục để gắn ảnh sau. Đổi URL không mang ảnh cũ sang; link trùng và ảnh thiếu được kiểm tra trước khi chạy AI. Ảnh được sao chép vào `workspace/reference-inputs/`, kiểm tra SHA256 và lưu trong `refs/` của kết quả.
 
 Mặc định không tự lấy data cho link chưa gắn ảnh. Có thể bật **Cho phép dùng kho data cho các link chưa gắn ảnh**; ảnh bạn đã chỉ định mà bị loại vẫn dừng và báo lý do, không tự thay ảnh khác. Dùng CLI với `-ReferenceMapFile <references.json>`. Đây là cách kiểm soát nguồn ảnh và giảm lặp, không phải cam kết chất lượng ghép.

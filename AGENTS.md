@@ -5,7 +5,7 @@
 ## 1. Workflow hiện tại
 
 1. Nhận URL và ảnh tham khảo gắn riêng cho từng sản phẩm; kiểm tra link trùng, ảnh thiếu và file/hash trước khi gọi AI.
-2. Tải ảnh sản phẩm từ URL và nhận diện sản phẩm từ ảnh thực tế. Ảnh gắn theo URL được dùng trực tiếp; chỉ tự tìm trong kho và kiểm tra FIT khi người dùng bật fallback.
+2. Nếu người dùng gắn ảnh sản phẩm gốc, kiểm tra file/hash rồi dùng trực tiếp, không truy cập web kể cả link chưa public; nếu không có ảnh gốc thì tải từ URL. Nhận diện từ ảnh thực tế. Ảnh bối cảnh là đầu vào riêng, không nhầm với ảnh sản phẩm. Chỉ tự tìm bối cảnh trong kho và kiểm tra FIT khi bật fallback.
 3. Lưu snapshot đầu vào và nguồn vào kết quả của lượt đang chạy. Đọc các bài học còn bật, khớp URL hoặc danh mục từ mục Bài học đã lưu bên dưới; áp dụng yêu cầu sửa hiện tại sau cùng.
 4. Tạo một ảnh hoàn chỉnh, kiểm tra PNG đọc được rồi xuất nguyên file AI tạo. Không chấm chất lượng bằng AI sau tạo, không tự sửa hoặc lặp tạo để cải thiện thẩm mỹ.
 5. Viết review mẫu từ nguồn tham khảo đúng danh mục, xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
@@ -41,6 +41,7 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 
 - Danh sách bên trái, nút thao tác bên phải, Bắt đầu/Dừng bên dưới. Thêm/sửa trong popup; lưu xong mỗi sản phẩm một dòng nhỏ có thumbnail/trạng thái, bấm để xem lại đúng link/ảnh. Hạn chế chữ đậm, hỗ trợ danh sách lớn.
 - Dán clipboard, chọn file hoặc kéo thả ảnh cho từng URL. Đổi URL không mang ảnh cũ sang. Hủy popup không thay dữ liệu. Lưu snapshot/hash; không dùng ảnh của URL khác hoặc âm thầm thay ảnh chỉ định bằng ảnh trong kho.
+- Hai đầu vào riêng: ảnh sản phẩm gốc quyết định thiết kế; ảnh bối cảnh quyết định người/phòng cần chỉnh. Web chưa public vẫn dùng ảnh gốc trực tiếp; có đủ ảnh thì không cần link thật. Khi thiếu/hỏng ảnh đã chỉ định phải báo lỗi, không âm thầm tải web hoặc đổi ảnh khác.
 - Kho dùng tên tiếng Việt có dấu theo nhóm hàng chung như `Áo`, `Nội thất`; không chia theo website, không gọi kho áo là kho cả quần áo. Giữ nhóm khác để dùng về sau. `source_group` là nhóm thư mục; `category` là mã danh mục chi tiết để chọn ảnh và áp dụng bài học.
 - Chuyển kho phải cập nhật đường dẫn, giữ nguồn, hash và lịch sử sử dụng. Kiểm tra inventory thực tế trong catalog, không coi số đếm trong tài liệu là luôn cập nhật.
 - Khi bật fallback, chọn đúng danh mục, góc ghép, độ nét và diện tích thay thế tương đương; phòng bàn nhỏ hoặc bàn tiệc quá dài không mặc nhiên hợp sản phẩm khác. Không kéo dài sản phẩm để lấp đồ cũ. Tránh CGI, collage, ảnh cận hoặc bị che vùng ghép.

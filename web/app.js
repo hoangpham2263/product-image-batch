@@ -4,14 +4,15 @@ const state = { urls: [], running: false, total: 0, done: 0, current: 0, stages:
 const OPTIONS_KEY = "pib-options";
 
 const CAUSES = {
+  PRODUCT_INPUT: "ảnh sản phẩm gốc bị thiếu, thay đổi hoặc không đọc được. Gắn lại ảnh sản phẩm trong mục Xem/sửa.",
   PRODUCT_TIMEOUT: "trang hoặc ảnh phản hồi quá chậm sau 3 lần thử. Link được giữ lại để chạy lại.",
   PRODUCT_NETWORK: "chưa kết nối được trang hoặc ảnh sau 3 lần thử. Kiểm tra mạng rồi chạy lại.",
-  PRODUCT_ACCESS: "trang hoặc ảnh yêu cầu đăng nhập hoặc đang chặn truy cập. Vui lòng dùng link công khai.",
+  PRODUCT_ACCESS: "trang hoặc ảnh đang chặn truy cập. Gắn ảnh sản phẩm gốc để dùng trực tiếp hoặc dùng link công khai.",
   PRODUCT_NOT_FOUND: "không tìm thấy trang hoặc ảnh sản phẩm. Vui lòng kiểm tra link.",
   MISSING_DATA: "thiếu ảnh mẫu cho loại sản phẩm này. Đã ghi vào missing-data trong kết quả.",
   PRODUCT_DOWNLOAD: "chưa tải được trang hoặc ảnh. Link được giữ lại để thử lại.",
   BRIDGE: "chưa kết nối được tab ChatGPT/Flow. Mở Chrome có extension product-image-bridge, đăng nhập rồi chạy lại.",
-  STORE_LOCKED: "cửa hàng đang bật mật khẩu. Mở khoá cửa hàng rồi chạy lại.",
+  STORE_LOCKED: "cửa hàng đang bật mật khẩu. Gắn ảnh sản phẩm gốc để chạy mà không cần mở khoá web.",
   AUTH: "chưa đăng nhập ChatGPT/Codex. Bấm Kiểm tra ChatGPT.",
   QUOTA: "đã hết hạn mức. Thử lại sau giờ đặt lại.",
   NETWORK: "mất kết nối Internet hoặc AI. Kiểm tra mạng rồi chạy lại.",
@@ -100,11 +101,11 @@ function renderQueue() {
     row.className = "row";
     const thumb = item.reference ? Object.assign(document.createElement("img"), { src: `/api/reference?url=${encodeURIComponent(item.url)}&v=${item.reference.sha256.slice(0, 8)}`, alt: "" })
       : Object.assign(document.createElement("span"), { className: "noimg", textContent: "+" });
-    const url = Object.assign(document.createElement("span"), { className: "row-url", textContent: item.url });
+    const url = Object.assign(document.createElement("span"), { className: "row-url", textContent: item.url.startsWith('https://local.invalid/') ? 'Sản phẩm từ ảnh · ' + item.url.split('/').pop().slice(-8) : item.url });
     const stage = state.stages[i + 1];
     const tag = document.createElement("span");
     tag.className = "tag " + (stage ? (stage === "Đã xong" ? "ok" : stage === "Chưa hoàn tất" ? "warn" : "run") : item.reference ? "ok" : state.fallback ? "" : "warn");
-    tag.textContent = stage || (item.reference ? "Có ảnh" : state.fallback ? "Dùng kho" : "Chưa có ảnh");
+    tag.textContent = stage || (item.reference ? (item.productReference ? "Đủ 2 ảnh" : "Có bối cảnh") : state.fallback ? "Dùng kho" : "Thiếu bối cảnh");
     row.append(thumb, url, tag);
     row.onclick = () => openItem(item.url);
     row.disabled = state.running;
@@ -179,6 +180,11 @@ async function loadResults() {
 function openItem(url) {
   state.editing = url || null;
   state.pendingImage = null;
+  state.pendingProduct = null;
+  state.removeScene = false;
+  state.removeProduct = false;
+  state.imageRole = 'product';
+  $("fileInput").value = ''; $("productInput").value = '';
   const item = state.urls.find((u) => u.url === url);
   $("itemTitle").textContent = url ? "Sửa sản phẩm" : "Thêm sản phẩm";
   $("itemUrl").value = url || "";
@@ -186,6 +192,8 @@ function openItem(url) {
   $("deleteItem").hidden = !url;
   showImage(item?.reference ? `/api/reference?url=${encodeURIComponent(url)}&v=${item.reference.sha256.slice(0, 8)}` : null);
   $("removeRef").hidden = !item?.reference;
+  showProduct(item?.productReference ? `/api/reference?role=product&url=${encodeURIComponent(url)}&v=${item.productReference.sha256.slice(0, 8)}` : null);
+  $("removeProduct").hidden = !item?.productReference;
   $("itemDlg").showModal();
   if (!url) $("itemUrl").focus();
 }
@@ -196,9 +204,21 @@ function showImage(src) {
   if (src) $("dropImg").src = src;
 }
 
-function takeImage(file) {
+function showProduct(src) {
+  $("productImg").hidden = !src;
+  $("productText").hidden = !!src;
+  if (src) $("productImg").src = src;
+}
+
+function takeImage(file, role = 'scene') {
   if (!file || !["image/png", "image/jpeg"].includes(file.type)) { $("itemError").hidden = false; $("itemError").textContent = "Chọn ảnh PNG hoặc JPEG."; return; }
-  state.pendingImage = file;
+  if (role === 'product') {
+    state.pendingProduct = file; state.removeProduct = false;
+    showProduct(URL.createObjectURL(file)); $("removeProduct").hidden = false;
+    $("itemError").hidden = true;
+    return;
+  }
+  state.pendingImage = file; state.removeScene = false;
   $("itemError").hidden = true;
   showImage(URL.createObjectURL(file));
   $("removeRef").hidden = false;
@@ -211,8 +231,9 @@ async function saveQueue(urls) {
 
 $("itemForm").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const url = $("itemUrl").value.trim();
+  const url = $("itemUrl").value.trim() || (state.pendingProduct ? `https://local.invalid/products/manual-${crypto.randomUUID()}` : '');
   try {
+    if (!url) throw new Error('Nhập link hoặc gắn ảnh sản phẩm gốc.');
     const urls = state.urls.map((u) => u.url);
     if (state.editing && state.editing !== url) urls.splice(urls.indexOf(state.editing), 1, url);
     else if (!state.editing) { if (urls.includes(url)) throw new Error("Link này đã có trong danh sách."); urls.push(url); }
@@ -220,26 +241,51 @@ $("itemForm").addEventListener("submit", async (event) => {
     if (state.pendingImage) {
       apply(await api(`/api/reference?url=${encodeURIComponent(url)}`, { method: "POST", headers: { "content-type": state.pendingImage.type }, body: state.pendingImage }));
     }
+    if (state.pendingProduct) {
+      apply(await api(`/api/reference?role=product&url=${encodeURIComponent(url)}`, { method: "POST", headers: { "content-type": state.pendingProduct.type }, body: state.pendingProduct }));
+    }
+    if (state.removeScene) apply(await api(`/api/reference?url=${encodeURIComponent(url)}`, { method: 'DELETE' }));
+    if (state.removeProduct) apply(await api(`/api/reference?role=product&url=${encodeURIComponent(url)}`, { method: 'DELETE' }));
     $("itemDlg").close();
   } catch (e) { $("itemError").hidden = false; $("itemError").textContent = e.message; }
 });
 $("deleteItem").onclick = async () => { await saveQueue(state.urls.map((u) => u.url).filter((u) => u !== state.editing)); $("itemDlg").close(); };
 $("removeRef").onclick = async () => {
   state.pendingImage = null;
-  if (state.editing) apply(await api(`/api/reference?url=${encodeURIComponent(state.editing)}`, { method: "DELETE" }));
+  state.removeScene = true;
   showImage(null);
   $("removeRef").hidden = true;
 };
+$("removeProduct").onclick = () => {
+  state.pendingProduct = null; state.removeProduct = true;
+  showProduct(null); $("removeProduct").hidden = true;
+};
+$("itemUrl").addEventListener('input', () => {
+  state.pendingImage = null; state.pendingProduct = null;
+  state.removeScene = false; state.removeProduct = false;
+  showImage(null); showProduct(null);
+  $("removeRef").hidden = true; $("removeProduct").hidden = true;
+});
 document.querySelectorAll("[data-close]").forEach((b) => (b.onclick = () => b.closest("dialog").close()));
 $("drop").onclick = () => $("fileInput").click();
 $("drop").onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } };
 $("fileInput").onchange = () => takeImage($("fileInput").files[0]);
+$("productInput").onchange = () => takeImage($("productInput").files[0], 'product');
+for (const [id, role] of [['productDrop', 'product'], ['drop', 'scene']]) {
+  $(id).addEventListener('focus', () => { state.imageRole = role; });
+  $(id).addEventListener('mousedown', () => { state.imageRole = role; });
+}
+$("productDrop").onclick = () => $("productInput").click();
+$("productDrop").onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $("productInput").click(); } };
+$("productDrop").ondragover = (e) => { e.preventDefault(); $("productDrop").classList.add('over'); };
+$("productDrop").ondragleave = () => $("productDrop").classList.remove('over');
+$("productDrop").ondrop = (e) => { e.preventDefault(); $("productDrop").classList.remove('over'); takeImage(e.dataTransfer.files[0], 'product'); };
 $("drop").ondragover = (e) => { e.preventDefault(); $("drop").classList.add("over"); };
 $("drop").ondragleave = () => $("drop").classList.remove("over");
 $("drop").ondrop = (e) => { e.preventDefault(); $("drop").classList.remove("over"); takeImage(e.dataTransfer.files[0]); };
 $("itemDlg").addEventListener("paste", (e) => {
   const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith("image/"));
-  if (file) { e.preventDefault(); takeImage(file); }
+  if (file) { e.preventDefault(); takeImage(file, state.imageRole); }
 });
 
 $("addBtn").onclick = () => openItem(null);

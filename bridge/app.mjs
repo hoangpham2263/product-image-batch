@@ -51,8 +51,9 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
     return {
       platform,
       urls: urls.map((url) => {
-        const entry = map.entries.find((e) => e.product_url === url && existsSync(e.file));
-        return { url, reference: entry ? { sha256: entry.sha256 } : null };
+        const entry = map.entries.find((e) => e.product_url === url && e.file && existsSync(e.file));
+        const product = map.entries.find((e) => e.product_url === url && e.product_file && existsSync(e.product_file));
+        return { url, reference: entry ? { sha256: entry.sha256 } : null, productReference: product ? { sha256: product.product_sha256 } : null };
       }),
       fallback: !!map.allow_library_fallback, sourceGroup: map.preferred_source_group, groups,
       running: !!run.process, exitCode: run.exitCode, startedAt: run.startedAt,
@@ -74,8 +75,14 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
     const urls = await readQueue();
     if (!urls.length) throw Object.assign(new Error("Chưa có link sản phẩm."), { status: 400 });
     const map = await readMap();
+    for (const url of urls) {
+      const entry = map.entries.find((e) => e.product_url === url);
+      if ((new URL(url).hostname === 'local.invalid' && !entry?.product_file) || (entry?.product_file && !existsSync(entry.product_file))) {
+        throw Object.assign(new Error('Gắn lại ảnh sản phẩm gốc cho sản phẩm không có link hoặc có ảnh bị thiếu.'), { status: 400 });
+      }
+    }
     if (!map.allow_library_fallback) {
-      const missing = urls.filter((url) => !map.entries.some((e) => e.product_url === url && existsSync(e.file)));
+      const missing = urls.filter((url) => !map.entries.some((e) => e.product_url === url && e.file && existsSync(e.file)));
       if (missing.length) throw Object.assign(new Error(`Chưa gắn ảnh cho ${missing.length} link. Gắn ảnh hoặc bật dùng kho ảnh.`), { status: 400 });
     }
     const per = Math.min(6, Math.max(1, Number(options.photosPerImage) || 2));
@@ -159,15 +166,21 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
 
       if (path === "/api/reference") {
         const target = url.searchParams.get("url") || "";
+        const role = url.searchParams.get("role") || "scene";
+        if (!["scene", "product"].includes(role)) return send(res, 400, { error: "Loại ảnh không hợp lệ." });
+        const fileKey = role === "product" ? "product_file" : "file";
+        const hashKey = role === "product" ? "product_sha256" : "sha256";
         if (!validUrl(target)) return send(res, 400, { error: "Link không hợp lệ." });
         const map = await readMap();
         if (req.method === "GET") {
           const entry = map.entries.find((e) => e.product_url === target);
-          if (!entry || !existsSync(entry.file)) return send(res, 404, { error: "Chưa có ảnh." });
-          return send(res, 200, await readFile(entry.file), MIME[extname(entry.file)] || "image/png");
+          if (!entry?.[fileKey] || !existsSync(entry[fileKey])) return send(res, 404, { error: "Chưa có ảnh." });
+          return send(res, 200, await readFile(entry[fileKey]), MIME[extname(entry[fileKey])] || "image/png");
         }
         if (req.method === "DELETE") {
-          map.entries = map.entries.filter((e) => e.product_url !== target);
+          const entry = map.entries.find((e) => e.product_url === target);
+          if (entry) { delete entry[fileKey]; delete entry[hashKey]; }
+          map.entries = map.entries.filter((e) => e.file || e.product_file);
           await writeMap(map);
           return send(res, 200, await state());
         }
@@ -179,8 +192,10 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
           await mkdir(paths.refs, { recursive: true });
           const file = join(paths.refs, randomUUID().replace(/-/g, "") + ext);
           await writeFile(file, bytes);
+          const entry = map.entries.find((e) => e.product_url === target) || { product_url: target };
+          entry[fileKey] = file; entry[hashKey] = createHash("sha256").update(bytes).digest("hex"); entry.origin = "user_reference";
           map.entries = map.entries.filter((e) => e.product_url !== target);
-          map.entries.push({ product_url: target, file, sha256: createHash("sha256").update(bytes).digest("hex"), origin: "user_reference" });
+          map.entries.push(entry);
           await writeMap(map);
           return send(res, 200, await state());
         }

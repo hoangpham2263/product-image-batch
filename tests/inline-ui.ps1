@@ -31,6 +31,9 @@ try{
         $draft.Row.Url.Text='https://example.test/products/cancelled'
         Assert (-not $draft.Row.Preview.Image) 'Changed URL retained the old reference.'
         Set-ProductQueueReference $draft.Editor $draft.Row $room
+        [void](Save-ManualReference $draft.Editor.Root $draft.Row.Url.Text $room Product)
+        $draft.Row.BoundUrl=$null;Update-ProductQueueRow $draft.Editor $draft.Row
+        Assert ($draft.Row.ProductPreview.Image) 'Product preview did not load independently.'
     }finally{$popup.Dispose()}
     Assert ($queueEditor.Rows[0].Url.Text -eq $url -and [IO.File]::ReadAllText($queueEditor.MapPath) -eq $before) 'Cancelling a popup changed the actual URL or map.'
     $popup=New-ProductQueueDialog $queueEditor
@@ -41,9 +44,12 @@ try{
         Assert $blocked 'Popup accepted a duplicate URL.'
         $draft.Row.Url.Text='https://example.test/products/new'
         Set-ProductQueueReference $draft.Editor $draft.Row $room
+        [void](Save-ManualReference $draft.Editor.Root $draft.Row.Url.Text $room Product)
         Save-ProductQueueDraft $queueEditor $draft
     }finally{$popup.Dispose()}
     Assert ($queueEditor.Rows.Count -eq 3 -and (Test-Path -LiteralPath $queueEditor.Rows[2].ImagePath)) 'Saving a new popup did not preserve its snapshot after cleanup.'
+    $pair=@((Read-ManualReferenceMap $queueEditor.MapPath).entries|Where-Object product_url -eq 'https://example.test/products/new')[0]
+    Assert ((Test-Path $pair.product_file) -and (Test-Path $pair.file) -and $pair.product_file -ne $pair.file) 'Saving a popup lost one of the two input snapshots.'
     Assert ($queueEditor.SourceGroup -eq 'Nội thất' -and (Read-ManualReferenceMap $queueEditor.MapPath).preferred_source_group -eq 'Nội thất') 'Saved group preference was lost.'
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[0]
     try{

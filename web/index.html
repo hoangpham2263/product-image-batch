@@ -63,12 +63,24 @@
 <dialog id="itemDlg" class="dlg">
   <form class="dlg-box" id="itemForm">
     <div class="dlg-head"><strong id="itemTitle">Thêm sản phẩm</strong><button class="icon" type="button" data-close aria-label="Đóng">✕</button></div>
-    <input id="itemUrl" type="url" placeholder="Link sản phẩm (https://...)" required />
+    <input id="itemUrl" type="url" placeholder="Link sản phẩm (có thể chưa public)" />
+    <p class="muted small">Có ảnh sản phẩm gốc thì không cần mở web, có thể để trống link. Bấm ô cần dán rồi Cmd/Ctrl+V.</p>
+    <div class="two image-inputs">
+    <section><label>Ảnh sản phẩm gốc · thiết kế cần giữ</label>
+    <div id="productDrop" class="drop" tabindex="0">
+      <img id="productImg" alt="Ảnh sản phẩm gốc" hidden />
+      <span id="productText">Dán, kéo thả hoặc <u>chọn ảnh sản phẩm</u><br><small>Không chọn: lấy từ link</small></span>
+      <input id="productInput" type="file" accept="image/png,image/jpeg" hidden />
+    </div>
+    <button id="removeProduct" type="button" class="link danger" hidden>Bỏ ảnh sản phẩm</button>
+    </section>
+    <section><label>Ảnh bối cảnh để ghép vào · người/phòng</label>
     <div id="drop" class="drop" tabindex="0">
       <img id="dropImg" alt="" hidden />
-      <span id="dropText">Dán (Cmd/Ctrl+V), kéo thả hoặc <u>chọn ảnh</u> tham khảo</span>
+      <span id="dropText">Dán, kéo thả hoặc <u>chọn ảnh bối cảnh</u></span>
       <input id="fileInput" type="file" accept="image/png,image/jpeg" hidden />
     </div>
+    </section></div>
     <p id="itemError" class="small danger" hidden></p>
     <div class="actions">
       <button id="removeRef" type="button" class="link danger" hidden>Bỏ ảnh</button>
@@ -111,7 +123,7 @@
   <form class="dlg-box" method="dialog">
     <div class="dlg-head"><strong>Hướng dẫn</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
     <ol class="help">
-      <li>Bấm <b>+ Thêm</b>, dán link sản phẩm và gắn một ảnh tham khảo (người/bối cảnh).</li>
+      <li>Bấm + Thêm, nhập link và ảnh bối cảnh. Web chưa public: gắn thêm ảnh sản phẩm gốc để bỏ qua tải từ link; có thể để trống link khi đã gắn ảnh sản phẩm.</li>
       <li><b>Tuỳ chọn</b>: chọn nơi tạo ảnh, số ảnh mẫu, số luồng, hoặc cho phép dùng kho ảnh.</li>
       <li>Bấm <b>Bắt đầu</b>. Ảnh và CSV nằm trong <b>Kết quả gần nhất</b>.</li>
       <li>Link lỗi được giữ lại để chạy lại.</li>

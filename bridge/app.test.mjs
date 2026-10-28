@@ -24,6 +24,29 @@ async function start() {
 }
 const json = (base, path, init) => fetch(base + path, init).then(async (r) => ({ status: r.status, body: await r.json() }));
 
+test("product and scene uploads remain independent for an unpublished listing", async () => {
+  const { root, server, base } = await start();
+  try {
+    const url = 'https://private.test/products/unpublished';
+    await json(base, '/api/queue', { method: 'PUT', body: JSON.stringify({ urls: [url] }) });
+    const endpoint = `/api/reference?url=${encodeURIComponent(url)}`;
+    const upload = (role, bytes) => json(base, endpoint + `&role=${role}`, { method: 'POST', headers: { 'content-type': 'image/png' }, body: bytes });
+    let r = await upload('product', Buffer.alloc(200, 1));
+    assert.equal(r.status, 200);
+    assert.ok(r.body.urls[0].productReference);
+    assert.equal(r.body.urls[0].reference, null);
+    r = await upload('scene', Buffer.alloc(200, 2));
+    assert.ok(r.body.urls[0].productReference && r.body.urls[0].reference);
+    const map = JSON.parse(await readFile(join(root, 'workspace', 'reference-inputs', 'references.json'), 'utf8'));
+    assert.notEqual(map.entries[0].file, map.entries[0].product_file);
+    r = await json(base, endpoint, { method: 'DELETE' });
+    assert.ok(r.body.urls[0].productReference);
+    assert.equal(r.body.urls[0].reference, null);
+    const response = await fetch(base + endpoint + '&role=product');
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.alloc(200, 1));
+  } finally { server.close(); }
+});
+
 test("queue and per-URL reference images are stored in the workflow formats", async () => {
   const { root, server, base } = await start();
   const url = "https://shop.test/products/tee";
