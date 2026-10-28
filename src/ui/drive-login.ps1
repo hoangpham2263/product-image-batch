@@ -1,6 +1,6 @@
 ﻿function Show-DriveLogin([Windows.Forms.Form]$Owner, [string]$WorkspaceRoot) {
     $dialog = New-Object Windows.Forms.Form -Property @{
-        Text = 'Google Drive'; ClientSize = '400,170'; StartPosition = 'CenterParent'
+        Text = 'Mật khẩu app'; ClientSize = '400,170'; StartPosition = 'CenterParent'
         FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false
         Font = (New-Object Drawing.Font('Segoe UI', 10))
     }
@@ -11,11 +11,11 @@
     $ok = New-Object Windows.Forms.Button -Property @{ Location = '260,120'; Size = '120,36' }
     Set-FlatButton $ok -Primary
     if ($connected) {
-        $info.Text = 'Đã đăng nhập. Ảnh tạo xong sẽ tự tải lên Drive.'
+        $info.Text = 'Đã đăng nhập trên máy này. Ảnh tạo xong tự tải lên Drive.'
         $pass.Visible = $false; $ok.Text = 'Đăng xuất'
         $ok.Add_Click({ Disconnect-DriveAccount $WorkspaceRoot; $dialog.Close() })
     } else {
-        $info.Text = 'Nhập mật khẩu quản lý một lần trên máy này để tải ảnh lên Drive.'
+        $info.Text = 'Nhập mật khẩu app một lần trên máy này để tải ảnh lên Drive và dùng kho Drive.'
         $ok.Text = 'Đăng nhập'; $dialog.AcceptButton = $ok
         $ok.Add_Click({
             try { Connect-DriveAccount $WorkspaceRoot $pass.Text; $dialog.Close() }

@@ -622,10 +622,10 @@ function showReviewPreview(item, decide) {
   refresh();
 }
 
-// ----- Kiểm tra ChatGPT (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
+// ----- Kiểm tra cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
 async function showSetupDialog() {
-  const view = openWindow("Kiểm tra ChatGPT", 520, 372);
-  const titles = ["Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Google Drive"];
+  const view = openWindow("Kiểm tra cấu hình", 520, 372);
+  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
   const rows = titles.map((title, i) => {
     const y = 16 + i * 58;
     const icon = at(label("○"), 20, y, 26, 24);
@@ -651,7 +651,7 @@ async function showSetupDialog() {
         const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
         row.icon.textContent = mark; row.icon.style.color = color;
         row.detail.textContent = step.Detail || "";
-        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : "Đăng nhập"; row.fix.hidden = false; row.fix.onclick = () => fix(step.Action, row); }
+        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.onclick = () => fix(step.Action, row); }
       });
     } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
     finally { again.disabled = false; }
@@ -715,7 +715,7 @@ function showUpdateDialog() {
 
 // ----- Google Drive (Show-DriveLogin) -----
 function showDriveDialog() {
-  const view = openWindow("Google Drive", 400, 170);
+  const view = openWindow("Mật khẩu app", 400, 170);
   const info = at(label(""), 20, 18, 360, 40);
   info.style.whiteSpace = "normal";
   const pass = at(el("input", "text", { type: "password" }), 20, 62, 360, 25);
@@ -724,11 +724,11 @@ function showDriveDialog() {
   const ok = at(button("", true), 260, 120, 120, 36);
   view.body.append(info, pass, err, ok);
   if (state.drive) {
-    info.textContent = "Đã đăng nhập. Ảnh tạo xong sẽ tự tải lên Drive.";
+    info.textContent = "Đã đăng nhập trên máy này. Ảnh tạo xong tự tải lên Drive.";
     pass.hidden = true; ok.textContent = "Đăng xuất";
     ok.onclick = async () => { await api("driveLogout"); view.close(); };
   } else {
-    info.textContent = "Nhập mật khẩu quản lý một lần trên máy này để tải ảnh lên Drive.";
+    info.textContent = "Nhập mật khẩu app một lần trên máy này để tải ảnh lên Drive và dùng kho Drive.";
     ok.textContent = "Đăng nhập";
     const login = async () => { try { await api("driveLogin", { password: pass.value }); view.close(); } catch (e) { err.textContent = e.message; } };
     ok.onclick = login;
@@ -780,10 +780,10 @@ function receive(event) {
 }
 async function startBatch() {
   if (run.active) return;
-  if (!state.drive) return appendLog("Đăng nhập Google Drive trước khi chạy để CSV có link ảnh công khai.");
+  if (!state.drive) return appendLog("Nhập mật khẩu app trước khi chạy (Kiểm tra cấu hình).");
   try { await saveQueue(true); } catch (e) { return appendLog(e.message); }
   if (!countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
-  if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.');
+  if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra cấu hình" để xem hướng dẫn.');
   ui.txtLog.value = "";
   Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "" });
   for (const r of state.rows) r.stage = null;
@@ -837,6 +837,16 @@ setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) 
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
+  // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
+  ui.btnLogs.onclick = async () => {
+    ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
+    try {
+      const r = await api("sendLogs");
+      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}`); }
+      else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được; file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
+    } catch (e) { ui.btnLogs.textContent = "Gửi log"; appendLog(e.message); }
+    setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);
+  };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
   ui.btnSetup.onclick = showSetupDialog;

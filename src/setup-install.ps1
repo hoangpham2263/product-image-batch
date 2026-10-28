@@ -1,5 +1,5 @@
-﻿# Install on Windows, run from the Cài button in the app's Kiểm tra ChatGPT window: Node.js, Codex CLI, ChatGPT sign-in and the
-# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
+﻿# Install on Windows, run from the Cài button in the app's Kiểm tra cấu hình window: Node.js, Codex CLI, ChatGPT sign-in and the
+# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra cấu hình.
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path $PSScriptRoot -Parent

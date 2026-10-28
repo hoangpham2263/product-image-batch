@@ -145,6 +145,37 @@ async function groupFolder(env, name) {
 }
 const sourceFile = (origin, f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), md5: f.md5Checksum, createdAt: f.createdTime, url: sourceUrl(origin, f) });
 
+// ---------- Support logs ----------
+// "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
+const LOGS_FOLDER = "Logs";
+const logsRoot = async (env) => folder(env, LOGS_FOLDER, await folder(env, FOLDER_NAME));
+async function handleLogs(req, env, url, id) {
+  const root = await logsRoot(env);
+  if (!id && req.method === "GET") {
+    const files = await listChildren(env, root);
+    return json({ logs: files.map((f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), createdAt: f.createdTime })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) }, 200, { "cache-control": "no-store" });
+  }
+  if (!id && req.method === "POST") {
+    const bytes = await req.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 50 * 1024 * 1024) return json({ error: "File log rỗng hoặc quá 50MB." }, 400);
+    const name = cleanFileName(url.searchParams.get("name")) || `log-${Date.now()}.zip`;
+    const fileId = await uploadFile(env, name.endsWith(".zip") ? name : `${name}.zip`, "application/zip", bytes, root);
+    return json({ id: fileId, name }, 201);
+  }
+  if (!id || !/^[\w-]+$/.test(id)) return json({ error: "Not found" }, 404);
+  const meta = await (await drive(env, `/drive/v3/files/${id}?fields=parents,name`)).json();
+  if (!(meta.parents || []).includes(root)) return json({ error: "Không tìm thấy log." }, 404);
+  if (req.method === "DELETE") {
+    await drive(env, `/drive/v3/files/${id}`, { method: "DELETE" });
+    return json({ ok: true });
+  }
+  if (req.method === "GET") {
+    const r = await drive(env, `/drive/v3/files/${id}?alt=media`);
+    return new Response(r.body, { headers: { "content-type": "application/zip", "content-disposition": `attachment; filename="${String(meta.name).replace(/"/g, "")}"`, "cache-control": "no-store" } });
+  }
+  return json({ error: "Not found" }, 404);
+}
+
 async function handleSources(req, env, url, parts) {
   const [rawGroup, fileId] = parts;
   if (!rawGroup) {
@@ -290,6 +321,9 @@ async function handle(req, env, ctx) {
     await putItem(env, item);
     return json({ ...item, url: publicUrl(url.origin, item) }, 201);
   }
+
+  const logs = path.match(/^\/api\/logs(?:\/([^/]+))?$/);
+  if (logs) return handleLogs(req, env, url, logs[1]);
 
   const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
   if (sources) return handleSources(req, env, url, [sources[1], sources[2]]);

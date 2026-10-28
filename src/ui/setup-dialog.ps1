@@ -1,9 +1,9 @@
-﻿# Kiểm tra ChatGPT: every step the app needs, in order (installed, signed in, usable, Drive). A step that is
+﻿# Kiểm tra cấu hình: every step the app needs, in order (app password, installed, signed in, usable). A step that is
 # not done has its own button that runs the fix; the window returns that step's action, or '' when closed.
 function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$LogDir) {
     $ui = $script:Ui
-    $dialog = New-Object Windows.Forms.Form -Property @{ Text = 'Kiểm tra ChatGPT'; ClientSize = '520,372'; StartPosition = 'CenterParent'; FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false; ShowInTaskbar = $false; Font = (New-Object Drawing.Font('Segoe UI', 10)) }
-    $titles = @('Node.js', 'Codex', 'Đăng nhập ChatGPT', 'Hạn mức sử dụng', 'Google Drive')
+    $dialog = New-Object Windows.Forms.Form -Property @{ Text = 'Kiểm tra cấu hình'; ClientSize = '520,372'; StartPosition = 'CenterParent'; FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false; ShowInTaskbar = $false; Font = (New-Object Drawing.Font('Segoe UI', 10)) }
+    $titles = @('Mật khẩu app', 'Node.js', 'Codex', 'Đăng nhập ChatGPT', 'Hạn mức sử dụng')
     $rows = @()
     for ($i = 0; $i -lt $titles.Count; $i++) {
         $y = 16 + $i * 58
@@ -38,7 +38,7 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
                     default { $row.Icon.Text = '○'; $row.Icon.ForeColor = $ui.Muted }
                 }
                 $row.Detail.Text = [string]$steps[$i].Detail
-                if ($steps[$i].Action) { $row.Fix.Tag = $steps[$i].Action; $row.Fix.Text = $(if ($steps[$i].Action -eq 'install') { 'Cài' } else { 'Đăng nhập' }); $row.Fix.Visible = $true }
+                if ($steps[$i].Action) { $row.Fix.Tag = $steps[$i].Action; $row.Fix.Text = $(if ($steps[$i].Action -eq 'install') { 'Cài' } elseif ($steps[$i].Action -eq 'drive' -and $steps[$i].State -eq 'ok') { 'Đổi' } else { 'Đăng nhập' }); $row.Fix.Visible = $true }
             }
         } catch { $rows[0].Detail.Text = 'Chưa kiểm tra được. Bấm Kiểm tra lại.' }
         finally { $dialog.Cursor = 'Default'; $again.Enabled = $true }

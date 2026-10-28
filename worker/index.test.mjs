@@ -146,3 +146,17 @@ test("source groups are Drive folders: create, upload, list, rename duplicates, 
   assert.equal((await call(group, { method: "DELETE", headers: admin })).status, 200);
   assert.deepEqual((await (await call("/api/sources", { headers: admin })).json()).groups, []);
 });
+
+test("support logs: upload a zip, list it, download it, delete it", async () => {
+  const { call } = setup();
+  const admin = { "x-admin-key": "secret" };
+  assert.equal((await call("/api/logs")).status, 401);
+  const zip = new Uint8Array([80, 75, 3, 4, 1, 2]);
+  const created = await (await call("/api/logs?name=2026-10-28_v1.0.9_mac.zip", { method: "POST", headers: admin, body: zip })).json();
+  const listed = await (await call("/api/logs", { headers: admin })).json();
+  assert.deepEqual(listed.logs.map((l) => l.name), ["2026-10-28_v1.0.9_mac.zip"]);
+  const file = await call(`/api/logs/${created.id}`, { headers: admin });
+  assert.equal(file.headers.get("content-type"), "application/zip");
+  assert.equal((await call(`/api/logs/${created.id}`, { method: "DELETE", headers: admin })).status, 200);
+  assert.deepEqual((await (await call("/api/logs", { headers: admin })).json()).logs, []);
+});

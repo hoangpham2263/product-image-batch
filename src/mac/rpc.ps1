@@ -16,6 +16,7 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
 . (Join-Path $srcDir 'ui/progress.ps1')
+. (Join-Path $srcDir 'application/support-logs.ps1')
 $mapPath = Join-Path $workspace.Root 'reference-inputs/references.json'
 $libraryRoot = Join-Path $root 'data/source-photos'
 
@@ -110,6 +111,12 @@ function Invoke-Rpc([string]$Cmd, $A) {
             Write-FeedbackJson $mapPath $map
             [IO.File]::WriteAllLines($workspace.Queue, [string[]]$urls, [Text.UTF8Encoding]::new($true))
             return $urls.Count
+        }
+        'sendLogs' {
+            $zip = New-SupportLogBundle $root
+            $drive = Get-DriveConfig $workspace.Root
+            try { if (-not $drive) { throw 'no app password' }; $name = Send-SupportLog $drive $zip; Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue; return [pscustomobject]@{ sent = $true; name = $name } }
+            catch { return [pscustomobject]@{ sent = $false; path = $zip } }
         }
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         'parseLinks' {

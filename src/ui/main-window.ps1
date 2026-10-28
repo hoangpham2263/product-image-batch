@@ -211,6 +211,27 @@ $btnSetup.Add_Click({
     }
 })
 # The list saves itself on every change; Bắt đầu checks that every link is ready.
+# Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
+$script:logsProc = $null
+$logsOut = Join-Path $workspace.Logs "send-logs-$PID.out"; $logsErr = Join-Path $workspace.Logs "send-logs-$PID.err"
+$logsTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
+$logsReset = New-Object Windows.Forms.Timer -Property @{ Interval = 2500 }
+$logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi log'; $btnLogs.Enabled = -not $script:proc })
+$logsTimer.Add_Tick({
+    if (-not $script:logsProc.HasExited) { return }
+    $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
+    $result = try { (Get-Content -LiteralPath $logsOut -Raw -ErrorAction Stop).Trim() } catch { '' }
+    if ($result -match '^sent\|(.+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])" }
+    elseif ($result -match '^saved\|(.+)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được; file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
+    else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
+    $logsReset.Start()
+})
+$btnLogs.Add_Click({
+    $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
+    $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
+    [void]$script:logsProc.Handle
+    $logsTimer.Start()
+})
 $queueEditor.OnChanged={ Update-Status; if (-not $script:loadingUrls) { try { Save-Urls } catch { Write-Verbose $_ } } }
 
 $logFile = Join-Path $workspace.Logs "image-batch-gui-$PID.log"
@@ -287,10 +308,10 @@ $animTimer.Add_Tick({
 })
 function Start-GuiBatch {
     if ($script:proc) { return }
-    if(-not (Get-DriveConfig $workspace.Root)){Append-Log 'Đăng nhập Google Drive trước khi chạy để CSV có link ảnh công khai.';return}
+    if(-not (Get-DriveConfig $workspace.Root)){Append-Log 'Nhập mật khẩu app trước khi chạy (Kiểm tra cấu hình).';return}
     try{Save-Urls -RequireReady}catch{Append-Log $_.Exception.Message;return}
     if (-not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
-    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.') | Out-Null; return }
+    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra cấu hình" để xem hướng dẫn.') | Out-Null; return }
     $txtLog.Clear()
     Remove-Item $logFile, $errFile -Force -ErrorAction SilentlyContinue
     $script:pos = @{ out = 0L; err = 0L }

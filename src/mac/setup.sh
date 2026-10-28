@@ -1,6 +1,6 @@
 #!/bin/bash
 # One-time install on macOS, run by start-app.command when Node.js or PowerShell is missing: Homebrew, Node.js, PowerShell 7, Codex CLI, ChatGPT sign-in and the
-# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
+# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra cấu hình.
 cd "$(dirname "$0")/../.." || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.dotnet/tools:$PATH"
 step() { printf '\n== %s\n' "$1"; }

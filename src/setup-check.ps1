@@ -12,7 +12,7 @@ $engine = Get-Command codex -ErrorAction SilentlyContinue
 $checks.Add([pscustomobject]@{
     Ok = [bool]$engine
     Message = $(if ($engine) { 'Công cụ xử lý: đã cài đặt.' } else { 'Chưa cài công cụ xử lý.' })
-    Action = 'Bấm Kiểm tra ChatGPT rồi bấm Cài.'
+    Action = 'Bấm Kiểm tra cấu hình rồi bấm Cài.'
 })
 $loggedIn = $false
 $apiKey = $false
@@ -50,12 +50,13 @@ if ($loggedIn) {
     }
 }
 $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
-# The app's check window shows these in order; each step only matters once the one before it is done.
+# The app's Kiểm tra cấu hình window shows these in order (app password first); each step only matters once the one before it is done.
 # State: ok, fail, warn (works but unconfirmed) or wait (blocked by an earlier step). Action names the fix button.
 $node = Get-Command node -ErrorAction SilentlyContinue
 $driveReady = Test-Path -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/drive.json')
 $quotaText = (@($quotaMessages) -join ' ').Trim()
 $steps = @(
+    [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $(if ($driveReady) { 'ok' } else { 'fail' }); Detail = $(if ($driveReady) { 'Đã đăng nhập; ảnh tạo xong tự tải lên Drive.' } else { 'Chưa nhập; cần để tải ảnh lên Drive và dùng kho Drive.' }); Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
     [pscustomobject]@{ Id = 'codex'; Title = 'Codex'; State = $(if ($engine) { 'ok' } else { 'fail' }); Detail = $(if ($engine) { 'Đã cài.' } else { 'Chưa cài công cụ tạo ảnh.' }); Action = $(if ($engine) { '' } else { 'install' }) }
     [pscustomobject]@{ Id = 'login'; Title = 'Đăng nhập ChatGPT'; State = $(if (-not $engine) { 'wait' } elseif ($loggedIn) { 'ok' } else { 'fail' })
@@ -63,7 +64,6 @@ $steps = @(
         Action = $(if ($engine -and -not $loggedIn) { 'login' } else { '' }) }
     [pscustomobject]@{ Id = 'quota'; Title = 'Hạn mức sử dụng'; State = $(if (-not $loggedIn) { 'wait' } elseif ($apiKey -or $quotaAvailable) { 'ok' } else { 'warn' })
         Detail = $(if (-not $loggedIn) { 'Đăng nhập trước.' } else { $quotaText }); Action = '' }
-    [pscustomobject]@{ Id = 'drive'; Title = 'Google Drive'; State = $(if ($driveReady) { 'ok' } else { 'fail' }); Detail = $(if ($driveReady) { 'Đã kết nối; ảnh tạo xong tự tải lên.' } else { 'Chưa đăng nhập; cần để có link ảnh trong file Loox.' }); Action = $(if ($driveReady) { '' } else { 'drive' }) }
 )
 $report = [pscustomobject]@{
     Ready = $ready

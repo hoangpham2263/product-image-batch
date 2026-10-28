@@ -19,7 +19,7 @@ CÁC BƯỚC
          codex login
      Trình duyệt mở ra, đăng nhập tài khoản có quyền dùng Codex.
      Kiểm tra lại bằng:  codex login status   (phải hiện "Logged in ...").
-  5. Mở app (start-app.cmd / Mac: start-app.command). Bấm Kiểm tra ChatGPT, bước nào thiếu thì bấm Cài/Đăng nhập: app tự cài
+  5. Mở app (start-app.cmd / Mac: start-app.command). Bấm Kiểm tra cấu hình, bước nào thiếu thì bấm Cài/Đăng nhập: app tự cài
      Node.js, Codex, đăng nhập ChatGPT và cầu nối trình duyệt (Mac tự cài Homebrew, PowerShell 7 ở lần mở đầu).
   6. Mở start-app.cmd, dán link sản phẩm và bấm Bắt đầu. Ảnh mẫu local không bắt buộc.
 
@@ -42,7 +42,7 @@ BẢO MẬT
   các máy, và không đưa chúng vào thư mục tool nếu chia sẻ hoặc đưa lên repo.
 
 QUYỀN TRUY CẬP VÀ HẠN MỨC
-  "Kiểm tra ChatGPT" kiểm tra cài đặt, đăng nhập và đọc hạn mức Codex còn lại,
+  "Kiểm tra cấu hình" kiểm tra cài đặt, đăng nhập và đọc hạn mức Codex còn lại,
   kèm giờ đặt lại (GMT+7). Không tạo lượt AI; không xác nhận riêng quyền/hạn mức tạo ảnh.
   Nếu chưa lấy được số liệu, app báo rõ để thử lại. Tài khoản API chưa hỗ trợ xem số dư.
   Giao thức đọc hạn mức: https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt
