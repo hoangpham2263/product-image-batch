@@ -93,10 +93,10 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   footer { text-align: center; }
   /* Download (signed out) */
-  .hero { justify-items: start; gap: 14px; padding: 24px; }
+  .hero { justify-items: center; text-align: center; gap: 16px; padding: 32px 24px; }
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
-  .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 4px; }
+  .steps { margin: 0; padding: 0; list-style-position: inside; font-size: 14px; display: grid; gap: 4px; }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
@@ -124,12 +124,10 @@
   </header>
 
   <section id="download" class="card hero">
-    <p class="muted">App Windows tạo ảnh review sản phẩm hàng loạt, duyệt từng ảnh rồi xuất file Loox.</p>
     <a class="btn primary" href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
       Tải về
     </a>
-    <span id="version" class="muted small"></span>
     <ol class="steps">
       <li>Giải nén file zip.</li>
       <li>Chạy <b>start-app.cmd</b>.</li>
@@ -521,11 +519,6 @@ document.addEventListener("keydown", (event) => {
 });
 // Refresh the Drive state when returning from the Google consent tab.
 window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
-
-fetch("https://api.github.com/repos/hoangpham2263/product-review-batch/releases/latest")
-  .then((r) => r.json())
-  .then((r) => { if (r.tag_name) $("version").textContent = `${r.tag_name} · ${new Date(r.published_at).toLocaleDateString("vi-VN")}`; })
-  .catch(() => {});
 
 if (store.get()) load().catch(() => { store.set(""); showAdmin(); });
 else showAdmin();
