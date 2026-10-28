@@ -41,7 +41,8 @@ try {
     $sourceHashes = @(Get-ChildItem (Join-Path $tempRoot 'data/source-photos') -Recurse -File | Get-FileHash)
     @'
 function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
-    $saved = @(Import-Csv -LiteralPath $script:Batch.Csv)
+    $resultsJson = Join-Path $script:Batch.Dir 'results.json'
+    $saved = if (Test-Path -LiteralPath $resultsJson) { @(Get-Content -LiteralPath $resultsJson -Raw -Encoding UTF8 | ConvertFrom-Json) } else { @() }
     if (@($saved | Where-Object { $_.rating -or $_.author -or $_.email -or $_.created_at }).Count) {
         throw 'Metadata was assigned before AI work ended.'
     }
@@ -92,8 +93,8 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
         $batchFailed = $true
     }
     Assert $batchFailed 'Partial batches must report failure to the GUI.'
-    $csv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter loox_import.csv -Recurse | Select-Object -First 1
-    $rows = @(Import-Csv $csv.FullName)
+    $csv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter results.json -Recurse | Select-Object -First 1
+    $rows = @(Import-BatchRows $csv.FullName)
     if ($rows.Count -ne 2) { Get-ChildItem $csv.DirectoryName -Recurse -Filter '*-error.txt' | ForEach-Object { Get-Content $_.FullName | Write-Host } }
     Assert ($rows.Count -eq 2) 'Expected two successful reviews.'
     Assert (-not @(Get-ChildItem $csv.DirectoryName -Recurse -Filter '*.html')) 'Batch must not contain HTML galleries.'
@@ -132,8 +133,8 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     'allow success' | Set-Content (Join-Path $tempRoot 'data/source-photos/allow-review-success.flag')
     & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2 -LocalOnly
     Assert (-not ([IO.File]::ReadAllText($queue).Trim())) 'Successful retry must empty the queue.'
-    $retryCsv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter loox_import.csv -Recurse | Where-Object FullName -ne $csv.FullName
-    $retryRows = @(Import-Csv $retryCsv.FullName)
+    $retryCsv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter results.json -Recurse | Where-Object FullName -ne $csv.FullName
+    $retryRows = @(Import-BatchRows $retryCsv.FullName)
     Assert ($retryRows.Count -eq 1 -and $retryRows[0].product_handle -eq 'fail' -and $retryRows[0].author) 'Retry must export only the previously failed product with final metadata.'
     & (Join-Path $tempRoot 'src/run-images.ps1') -List $queue -LocalOnly
     Assert (@(Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Directory).Count -eq 2) 'Empty queue must not create an extra batch.'

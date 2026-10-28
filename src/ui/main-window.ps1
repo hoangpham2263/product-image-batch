@@ -148,6 +148,12 @@ $btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Locat
 $btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,295';Size='196,32'}
 foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
 $cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
+# Finished images waiting for review: the button shows how many and turns green; nothing pops up.
+function Update-ReviewButton {
+    $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
+    if ($pending -gt 0) { $btnReview.Text = "Duyệt & xuất file ($pending)"; Set-FlatButton $btnReview -Primary }
+    else { $btnReview.Text = 'Duyệt & xuất file'; Set-FlatButton $btnReview }
+}
 function Update-DriveButton { $btnDrive.Text = if (Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json')) { 'Google Drive ✓' } else { 'Google Drive' } }
 Update-DriveButton
 
@@ -177,7 +183,7 @@ $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnClear.Add_Click({ $txtLog.Clear() })
-$btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder } })
+$btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 $btnFeedback.Add_Click({
     if ($script:proc) { return }
     $selection = Show-ImageFeedbackDialog $form $root $workspace.Output
@@ -263,16 +269,13 @@ $timer.Add_Tick({
         elseif ($null -ne $exitCode -and $exitCode -eq 0 -and -not $script:hadFailure) {
             $lblStatus.Text = '✔ Hoàn tất'; $lblStatus.ForeColor = $ui.Ok
             if ($script:activeFeedbackFile) { Append-Log 'Đã có ảnh làm lại. Bấm Kiểm tra ảnh / Làm lại để đối chiếu; chỉ đánh dấu đã đúng sau khi bạn xem ảnh.' }
-            else { Append-Log 'Xong. Duyệt từng ảnh rồi bấm Xuất file cuối.' }
+            else { Append-Log 'Xong. Bấm Duyệt & xuất file để duyệt từng ảnh; file Loox chỉ tạo khi duyệt xong.' }
         }
         else {
             $lblStatus.Text = '! Cần thử lại'; $lblStatus.ForeColor = $ui.Warn
             Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.'
         }
-        # Every finished image is checked before the final file, even when some links failed.
-        if (-not $script:runStopped -and $script:resultFolder -and (Test-Path -LiteralPath (Join-Path $script:resultFolder 'results.json'))) {
-            Show-BatchReviewDialog $form $workspace.Output $script:resultFolder
-        }
+        Update-ReviewButton
     }
 })
 
@@ -299,7 +302,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
     $script:runTotal = if ($FeedbackFile -or $ApprovedImage) { 1 } else { Count-Urls }; $script:runDone = 0; $script:currentIndex = 0
     $script:itemStages = @{}; $script:jobRows = @(); $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
 
-    $script:runStarted = Get-Date; $script:resultFolder = ''
+    $script:runStarted = Get-Date; $script:resultFolder = ''; Update-ReviewButton
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0
     $runArgs = @(New-RunArguments -ScriptPath (Join-Path $srcDir 'run-images.ps1') `
         -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value) -FeedbackFile $FeedbackFile -ApprovedImage $ApprovedImage)

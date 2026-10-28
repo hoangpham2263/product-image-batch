@@ -48,7 +48,7 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
         $completed = New-Object System.Collections.Generic.List[string]
         $results = New-Object System.Collections.Generic.List[object]
         $brands = [Collections.ArrayList]::Synchronized((New-Object Collections.ArrayList))
-        Save-Csv $results.ToArray() $script:Batch.Csv
+        Save-BatchResults $results.ToArray() $script:Batch.Dir
         $threads = [Math]::Min($ThrottleLimit, $urls.Count)
         Write-Host "Starting: $($urls.Count) URLs" -ForegroundColor Cyan
         $rows = @(); $rowOf = @{}
@@ -99,7 +99,8 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
                 } catch {
                     $inner = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
                 $errorLog = Join-Path $script:Batch.Logs ('{0:D3}-{1}-error.txt' -f $job.Index, $job.Item.Handle)
-                @($_ | Out-String; $_.ScriptStackTrace; $job.PS.Streams.Error | Format-List * -Force | Out-String) |
+                # The unwrapped message first: PowerShell 7 wraps Out-String error text mid-sentence.
+                @($inner; $_ | Out-String; $_.ScriptStackTrace; $job.PS.Streams.Error | Format-List * -Force | Out-String) |
                     Set-Content -LiteralPath $errorLog -Encoding UTF8
                 $causeTag = if ($inner -match '\[CAUSE:(DRIVE_CONFIG|DRIVE_AUTH|DRIVE_UPLOAD|BRIDGE|AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|PROCESS_ACTIVE|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA|OUTPUT_MISSING|OUTPUT_INVALID|TOOL_ERROR)\]') { $Matches[0] + ' ' } else { '' }
                 # Warning formatting wraps long records, losing reset details in the UI's
@@ -119,7 +120,7 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
         Write-MissingDataSummary $script:Batch
         Complete-BatchExport $results (Join-Path $ProjectRoot 'data/names.txt')
         Write-Host "`nDone: $($results.Count)/$($urls.Count) exported in $([int]((Get-Date) - $started).TotalSeconds)s" -ForegroundColor Green
-        Write-Host "CSV: $($script:Batch.Csv)"
+        Write-Host "Results: $($script:Batch.Dir)"
         Write-Host "Pending: $List" -ForegroundColor DarkGray
         if ($results.Count -lt $urls.Count) {
             throw "Batch incomplete: $($urls.Count - $results.Count) URL(s) failed and remain queued. See $($script:Batch.Logs)"

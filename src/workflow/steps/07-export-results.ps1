@@ -2,7 +2,6 @@
 function Save-ProductCheckpoint($Results, $Result, $Completed, $Item, [string]$List, [bool]$UrlDone = $true) {
     Assert-PublicPhotoDelivery $Result
     $Results.Add($Result)
-    Save-Csv $Results.ToArray() $script:Batch.Csv
     Save-BatchResults $Results.ToArray() $script:Batch.Dir
     if (-not $UrlDone) { return }
     $Completed.Add($Item.Url)
@@ -16,6 +15,5 @@ function Complete-BatchExport($Results, [string]$NamesPath) {
     foreach($row in $Results){Assert-PublicPhotoDelivery $row}
     Write-Host ([Environment]::NewLine + '[METADATA] Assigning random review fields locally...') -ForegroundColor Cyan
     Complete-ReviewMetadata $Results.ToArray() $NamesPath
-    Save-Csv $Results.ToArray() $script:Batch.Csv
     Save-BatchResults $Results.ToArray() $script:Batch.Dir
 }

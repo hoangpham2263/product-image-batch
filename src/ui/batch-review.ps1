@@ -74,7 +74,7 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
     $hint=New-Object Windows.Forms.Label -Property @{Text='Mỗi dòng một đánh giá. Bấm ảnh để xem lớn; Giữ/Bỏ chỉ áp dụng cho dòng đó.';Location='12,46';Size='900,22';ForeColor=$script:Ui.Muted}
     $flow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='ReviewList';Location='12,72';Size='900,580';AutoScroll=$true;FlowDirection='TopDown';WrapContents=$false;Anchor='Top,Bottom,Left,Right'}
     $status=New-Object Windows.Forms.Label -Property @{Name='ReviewSummary';Location='12,668';Size='560,36';TextAlign='MiddleLeft';Anchor='Bottom,Left'}
-    $export=New-Object Windows.Forms.Button -Property @{Name='ExportReviews';Text='Xuất file cuối';Location='732,664';Size='180,40';Anchor='Bottom,Right'}
+    $export=New-Object Windows.Forms.Button -Property @{Name='ExportReviews';Text='Xuất file Loox';Location='732,664';Size='180,40';Anchor='Bottom,Right'}
     Set-FlatButton $export -Primary
     $dialog.Controls.AddRange(@($batches,$hint,$flow,$status,$export))
     $view=[pscustomobject]@{Form=$dialog;BatchDir='';Items=@();Refresh=$null;List=$flow}
@@ -103,7 +103,7 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
     }.GetNewClosure())
     if(Test-Path -LiteralPath $OutputRoot){
         foreach($dir in @(Get-ChildItem -LiteralPath $OutputRoot -Directory|Where-Object{Test-Path -LiteralPath (Join-Path $_.FullName 'results.json')}|Sort-Object Name -Descending|Select-Object -First 30)){
-            $label=$dir.Name+$(if(Test-Path -LiteralPath (Join-Path $dir.FullName 'loox_import_final.csv')){'  • đã xuất'}else{''})
+            $label=$dir.Name+$(if(Test-Path -LiteralPath (Join-Path $dir.FullName 'loox_import.csv')){'  • đã xuất'}else{''})
             $index=$batches.Items.Add([pscustomobject]@{Label=$label;Path=$dir.FullName})
             if($BatchDir -and $dir.FullName -eq (Get-Item -LiteralPath $BatchDir -ErrorAction SilentlyContinue).FullName){$batches.SelectedIndex=$index}
         }

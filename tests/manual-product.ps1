@@ -45,9 +45,9 @@ try{
     $index=0
     foreach($job in $jobs){
         $index++;$script:Config.ActiveScene=$job.Scene
-        $input=Read-ProductInput $job ('multi-'+$index)
-        $picked=@(Select-ProductReferences $input.Reference $job.Handle ('multi-'+$index) $input.Context)
-        $pair=New-ProductImageRequest $input.Reference ('multi-'+$index) $input.Context $picked ([Collections.ArrayList]::new())
+        $loaded=Read-ProductInput $job ('multi-'+$index)
+        $picked=@(Select-ProductReferences $loaded.Reference $job.Handle ('multi-'+$index) $loaded.Context)
+        $pair=New-ProductImageRequest $loaded.Reference ('multi-'+$index) $loaded.Context $picked ([Collections.ArrayList]::new())
         Assert ($pair.Images.Count -eq 2 -and (Get-BytesHash ([IO.File]::ReadAllBytes($pair.Images[0]))) -eq $job.Scene.sha256 -and (Get-BytesHash ([IO.File]::ReadAllBytes($pair.Images[1]))) -eq $map.entries[0].product_sha256) 'A job mixed review photos or replaced the actual product.'
     }
     $saved=$script:Config.ManualReferences.entries[0].product_file

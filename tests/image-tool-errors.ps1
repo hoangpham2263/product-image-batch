@@ -50,7 +50,7 @@ function Invoke-CodexProcess($PromptText,$CommandArgs,$Trace){
         Assert ($saved.images.Count -eq 2 -and $saved.images[1].role -eq 'product') 'Input snapshots lost their roles.'
         if($case -eq 'valid'){
             Assert (-not $errorMessage -and -not ([IO.File]::ReadAllText($queue).Trim()) -and $trace.Count -eq 0) 'Valid delivery failed or logs were cleaned before PNG validation.'
-            Assert (@(Import-Csv (Join-Path $batch.FullName 'loox_import.csv')).Count -eq 1) 'Valid image was not exported.'
+            Assert (@(Import-BatchRows $batch.FullName).Count -eq 1) 'Valid image was not exported.'
         }else{
             Assert ($errorMessage -like 'Batch incomplete*' -and ([IO.File]::ReadAllText($queue).Trim()) -eq $url -and $trace.Count -eq 1) 'Failure lost the queue or tool log.'
             $diagnostic=Get-Content -LiteralPath (Get-ChildItem -LiteralPath $batch.FullName -Recurse -Filter '*-error.txt'|Select-Object -First 1).FullName -Raw -Encoding UTF8

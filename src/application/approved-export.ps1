@@ -58,12 +58,11 @@ function Export-ApprovedProduct([string]$ProjectRoot, [string]$ImagePath, [strin
     Save-DeliveryCache $item $itemId $row
     $row=Complete-DriveDelivery $row
     Assert-PublicPhotoDelivery $row
-    Save-Csv @($row) $script:Batch.Csv
     Save-BatchResults @($row) $script:Batch.Dir
     Write-Lines $script:Batch.CompletedUrls @($item.Url)
     if($row.delivery_key){Remove-CompletedDeliveryCache $item.Url $row.delivery_key}
     Write-Host "  [OK] [ITEM 1] $($request.Output)"
     Write-Host ("Done: 1/1 exported in {0}s" -f [int]((Get-Date)-$started).TotalSeconds)
-    Write-Host "CSV: $($script:Batch.Csv)"
+    Write-Host "Results: $($script:Batch.Dir)"
     return $script:Batch.Dir
 }

@@ -18,13 +18,16 @@ try{
     Assert ($items.Count -eq 3 -and -not $items[0].Decision) "Every result must be listed, undecided. Rows=$($rows.Count) Items=$($items.Count) Decision=$($items[0].Decision)"
     Set-BatchReviewDecision $temp '001-tee' ok
     Set-BatchReviewDecision $temp '002-tee' bad
+    Assert (-not (Test-Path (Join-Path $temp 'loox_import.csv'))) 'No Loox file may exist before the review is done.'
     $failed=$false;try{Export-ReviewedCsv $temp|Out-Null}catch{$failed=$_.Exception.Message -match 'chưa duyệt'}
     Assert $failed 'The final file must wait until every image is checked.'
     Set-BatchReviewDecision $temp '003-tee' ok
     Set-BatchReviewDecision $temp '003-tee' ''
     Assert (-not @(Get-BatchReview $temp)[2].Decision) 'Clicking a decision again must clear it.'
     Set-BatchReviewDecision $temp '003-tee' ok
-    $csv=@(Import-Csv (Export-ReviewedCsv $temp))
+    $exported=Export-ReviewedCsv $temp
+    Assert ((Split-Path $exported -Leaf) -eq 'loox_import.csv' -and -not (Test-Path (Join-Path $temp 'loox_import_final.csv'))) 'The reviewed export is the one Loox file.'
+    $csv=@(Import-Csv $exported)
     Assert ($csv.Count -eq 2 -and ($csv.body -join ',') -eq 'b1,b3' -and @($csv|Where-Object product_handle -eq 'tee').Count -eq 2) 'Rejecting one review removed other reviews of the same product.'
     if($PSVersionTable.PSEdition -eq 'Desktop' -or $IsWindows){
         Add-Type -AssemblyName System.Windows.Forms

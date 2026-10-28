@@ -1,4 +1,5 @@
-﻿# Human check of every result before the final CSV: decisions live in <batch>/review.json.
+﻿# Runs keep their rows in <batch>/results.json; the Loox CSV is written only after every image
+# is reviewed (decisions in <batch>/review.json).
 function Save-BatchResults($Rows, [string]$BatchDir) {
     if (-not $BatchDir) { return }
     $json = ConvertTo-Json -InputObject @($Rows) -Depth 5
@@ -40,7 +41,13 @@ function Export-ReviewedCsv([string]$BatchDir) {
     if ($left.Count) { throw "Còn $($left.Count) ảnh chưa duyệt." }
     $ok = @($items | Where-Object Decision -eq 'ok')
     if (-not $ok.Count) { throw 'Chưa có ảnh nào Đạt.' }
-    $path = Join-Path $BatchDir 'loox_import_final.csv'
+    $path = Join-Path $BatchDir 'loox_import.csv'
     Save-Csv @($ok.Row) $path
     return $path
+}
+
+# Images still waiting for a decision in one run folder (0 when nothing to review).
+function Get-PendingReviewCount([string]$BatchDir) {
+    if (-not $BatchDir -or -not (Test-Path -LiteralPath (Join-Path $BatchDir 'results.json'))) { return 0 }
+    return @(Get-BatchReview $BatchDir | Where-Object { -not $_.Decision }).Count
 }

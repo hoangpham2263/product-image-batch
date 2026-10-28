@@ -40,7 +40,7 @@ try{
     $again=Complete-DriveDelivery (Invoke-ProductItem $item '003-table' ([Collections.ArrayList]::new()))
     Save-ProductCheckpoint $results $again $done $item $list $true
     Assert (@(Get-ChildItem $script:Config.DeliveryRoot -Filter '*.json').Count -eq 0 -and -not (Get-Content $list)) 'Finished URL did not clear its delivery cache and queue.'
-    $csv=@(Import-Csv $script:Batch.Csv)
+    $csv=@(Import-BatchRows $script:Batch.Dir)
     Assert (@($csv|Where-Object photo_url -notmatch '^https://').Count -eq 0) 'Local path leaked into the handover CSV.'
     $script:Config.Drive=$null
     $blocked=$false;try{Complete-DriveDelivery $row|Out-Null}catch{$blocked=$_.Exception.Message -match 'DRIVE_CONFIG'}
@@ -80,11 +80,11 @@ function Invoke-ProductItem($Item,[string]$ItemId,$Brands){
     $modules=@($script:WorkflowModuleFiles)+@($fixture)
     $failed=$false;try{Invoke-BatchWorkflow $integration $list (Join-Path $integration 'out') 2 $modules}catch{$failed=$_.Exception.Message -match 'Batch incomplete'}
     Assert ($failed -and (Get-Content $list) -eq $url) 'Partial upload consumed its multi-scene URL.'
-    Assert (@(Import-Csv $script:Batch.Csv).Count -eq 1) 'Failed upload was included in the CSV.'
+    Assert (@(Import-BatchRows $script:Batch.Dir).Count -eq 1) 'Failed upload was included in the CSV.'
     $script:FailSecond=$false
     Invoke-BatchWorkflow $integration $list (Join-Path $integration 'out') 2 $modules
     Assert ($script:UploadCalls -eq 3) 'Retry uploaded an already delivered scene again.'
-    $exported=@(Import-Csv $script:Batch.Csv)
+    $exported=@(Import-BatchRows $script:Batch.Dir)
     Assert ($exported.Count -eq 2 -and @($exported|Where-Object photo_url -notmatch '^https://').Count -eq 0) 'Retried batch did not deliver two public image links.'
     foreach($file in @(Get-ChildItem $script:Config.DeliveryRoot -Filter '*.generated')){Assert (@(Get-Content $file.FullName).Count -eq 1) 'Retry regenerated a previously completed image.'}
     Write-Host 'PASS: failed uploads block CSV/queue, recovery skips AI, multi-scene successes retain public links, and missing Drive cannot fall back.'

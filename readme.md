@@ -35,8 +35,8 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 | 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao (55% 5 sao / 45% 4 sao), email @int và ngày; không gọi Codex cho phần này. |
 
 Kho `data/names.txt` có 4.000 tên hiển thị với tên riêng không trùng, giữ 965 tên riêng từ kho cũ và các tên đã bổ sung. Nguồn mở rộng: Names Corpus 1.3 của Mark Kantrowitz, bổ sung bởi Bill Ross, phân phối qua NLTK. Chỉ lưu danh sách tên trong `data/names.txt`; gộp tên riêng không trùng từ kho cũ và nguồn bổ sung, không nhân mỗi tên với chữ cái họ A–Z. Tên hiển thị theo dạng tên riêng + chữ cái đầu của họ, ví dụ Josh K.; mỗi tên riêng chỉ xuất hiện một dòng. Đây là dữ liệu mẫu, không phải danh tính khách hàng.
-| 9. Xuất kết quả | Lưu ảnh và CSV nháp; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
-| 10. Duyệt & xuất file | Mỗi đánh giá một dòng, chọn Giữ/Bỏ riêng từng dòng. Bấm thumbnail để xem ảnh lớn và ảnh gốc đối chiếu. Duyệt hết mới xuất `loox_import_final.csv`, chỉ gồm đánh giá được giữ; bỏ một đánh giá không loại các đánh giá khác cùng sản phẩm. |
+| 9. Lưu kết quả | Lưu ảnh và `results.json` (chưa tạo file Loox); URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
+| 10. Duyệt & xuất file | Mỗi đánh giá một dòng, chọn Giữ/Bỏ riêng từng dòng. Bấm thumbnail để xem ảnh lớn và ảnh gốc đối chiếu. Chạy xong app không tự mở cửa sổ; nút Duyệt & xuất file chuyển xanh kèm số ảnh chờ duyệt. Duyệt hết mới tạo `loox_import.csv`, chỉ gồm đánh giá được giữ; bỏ một đánh giá không loại các đánh giá khác cùng sản phẩm. |
 
 ### Thư viện ảnh mẫu
 
@@ -78,7 +78,8 @@ workspace/output/<thời-gian>/
   refs/<mã-SP>/           bản sao ảnh đầu vào + manifest.json (vai trò, nguồn, SHA256)
   logs/                   log AI, lỗi từng sản phẩm, run.log, rejected/ (ảnh bị loại)
     <mã-SP>-review-sources.json  các review tham khảo thực tế đã chọn
-  loox_import.csv         product_handle, rating, author, email, body, created_at, photo_url, verified_purchase
+  results.json            kết quả chờ duyệt (review.json: Giữ/Bỏ từng dòng)
+  loox_import.csv         chỉ có sau khi duyệt xong: product_handle, rating, author, email, body, created_at, photo_url, verified_purchase
   urls.input.txt          danh sách URL đầu vào
   urls.completed.txt      URL đã xong
   missing-data.csv        (nếu có) sản phẩm thiếu ảnh mẫu

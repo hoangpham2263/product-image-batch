@@ -22,3 +22,14 @@ function New-TestPng([string]$Path, [int]$Width = 2, [int]$Height = 2, [byte[]]$
     [byte[]]$png = [byte[]]@(137, 80, 78, 71, 13, 10, 26, 10) + (& $chunk 'IHDR' $ihdr) + (& $chunk 'IDAT' $zlib) + (& $chunk 'IEND' ([byte[]]@()))
     [IO.File]::WriteAllBytes($Path, $png)
 }
+
+# Rows a run saved for review, in the same shape the Loox CSV will have.
+function Import-BatchRows([string]$Path) {
+    if (Test-Path -LiteralPath $Path -PathType Leaf) { $Path = Split-Path $Path -Parent }
+    $results = Join-Path $Path 'results.json'
+    if (-not (Test-Path -LiteralPath $results)) { return @() }
+    if (-not (Get-Command Save-Csv -ErrorAction SilentlyContinue)) { . (Join-Path (Split-Path $PSScriptRoot -Parent) 'src/infrastructure/csv.ps1') }
+    $csv = Join-Path $Path ('rows-' + [Guid]::NewGuid().ToString('N') + '.csv')
+    try { Save-Csv @(Get-Content -LiteralPath $results -Raw -Encoding UTF8 | ConvertFrom-Json) $csv; @(Import-Csv -LiteralPath $csv) }
+    finally { Remove-Item -LiteralPath $csv -Force -ErrorAction SilentlyContinue }
+}

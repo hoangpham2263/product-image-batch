@@ -83,7 +83,7 @@ try {
     $retryQueue=Join-Path $feedback.Folder 'retry-urls.txt';[IO.File]::WriteAllText($retryQueue,$manifest.product_url)
     Invoke-BatchWorkflow $temp $retryQueue (Join-Path $temp 'worker-revisions') 1 (@($script:WorkflowModuleFiles)+@($mockModule))
     Assert ((Get-Content -LiteralPath $mainQueue -Raw) -eq 'https://example.test/p/untouched') 'A revision modified the normal product queue.'
-    $exported=@(Import-Csv -LiteralPath $script:Batch.Csv)
+    $exported=@(Import-BatchRows $script:Batch.Dir)
     Assert ($exported.Count -eq 1 -and (Test-Path -LiteralPath $exported[0].photo_url)) 'Background correction did not export its new result.'
     # A human can hand over a visibly accepted image independently of an AI verdict.
     $acceptedSource=$exported[0].photo_url
@@ -91,7 +91,7 @@ try {
     function Test-ProductScene {throw 'Human-approved export must not ask AI to override the user verdict.'}
     function Invoke-ImageGeneration {throw 'Human-approved export must not regenerate the accepted image.'}
     $delivered=Export-ApprovedProduct $temp $acceptedSource (Join-Path $temp 'approved-deliveries')
-    $deliveryRows=@(Import-Csv -LiteralPath (Join-Path $delivered 'loox_import.csv'))
+    $deliveryRows=@(Import-BatchRows $delivered)
     $proof=Get-Content -LiteralPath (Join-Path $delivered 'user-approval.json') -Raw -Encoding UTF8|ConvertFrom-Json
     Assert ($deliveryRows.Count -eq 1 -and $deliveryRows[0].verified_purchase -eq 'false') 'Approved export did not provide a CSV or invented a verified purchase.'
     Assert ($proof.completion_method -eq 'explicit_user_approval' -and -not $proof.ai_image_qa_passed) 'Human approval was misrepresented as an AI QA pass.'
@@ -99,7 +99,7 @@ try {
     Assert ((Get-Content -LiteralPath (Join-Path $delivered 'urls.completed.txt') -Raw).Trim() -eq $manifest.product_url) 'Approved handover did not checkpoint completion.'
     function New-Review {throw 'fixture text service unavailable'}
     $textFailureDelivery=Export-ApprovedProduct $temp $acceptedSource (Join-Path $temp 'approved-deliveries')
-    $textFailureRows=@(Import-Csv -LiteralPath (Join-Path $textFailureDelivery 'loox_import.csv'))
+    $textFailureRows=@(Import-BatchRows $textFailureDelivery)
     Assert ($textFailureRows.Count -eq 1 -and -not $textFailureRows[0].body -and (Test-Path -LiteralPath $textFailureRows[0].photo_url)) 'Optional text failure prevented delivery of the approved image.'
     # Build the actual WinForms dialog without showing it or invoking paid AI calls.
     $view=New-ImageFeedbackDialog $temp (Join-Path $temp 'worker-revisions')
@@ -137,7 +137,7 @@ try {
         function New-Review {throw 'Approved upload retry must reuse saved text.'}
         function Publish-ImageToDrive {return 'https://api.test/img/approved.png'}
         $online=Export-ApprovedProduct $temp $acceptedSource (Join-Path $temp 'approved-online')
-        $onlineRows=@(Import-Csv (Join-Path $online 'loox_import.csv'))
+        $onlineRows=@(Import-BatchRows $online)
         Assert ($onlineRows.Count -eq 1 -and $onlineRows[0].body -eq 'Approved review retained for upload retry.' -and $onlineRows[0].photo_url -eq 'https://api.test/img/approved.png') 'Approved retry regenerated text or exported a local image path.'
         Assert (@(Get-ChildItem $script:Config.DeliveryRoot -Filter '*.json').Count -eq 0) 'Completed approval retained a pending upload.'
     }finally{$script:Config.Drive=$previousDrive;$script:Config.DriveRequired=$previousRequired;$script:Config.DeliveryRoot=$previousRoot}
