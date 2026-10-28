@@ -60,6 +60,9 @@ try{
         $editor.Fallback.Checked=$true
         Save-ProductQueueEditor $editor $queue -RequireReady
         Assert (@(Get-Content -LiteralPath $queue).Count -eq 4 -and (Read-ManualReferenceMap $mapPath).allow_library_fallback) 'Inline queue did not persist its URLs/settings.'
+        Assert ((Read-ManualReferenceMap $mapPath).source_library -eq 'drive') 'The library should default to Drive.'
+        $editor.Library.SelectedIndex=1;Save-ProductQueueEditor $editor $queue
+        Assert ((Read-ManualReferenceMap $mapPath).source_library -eq 'local') 'Choosing the local library was not saved.'
         $view.Show();$view.Refresh();$editor.Flow.ScrollControlIntoView($editor.Rows[3].Card)
         $editor.Rows[3].Card.Controls.Find('RemoveProduct',$true)[0].PerformClick()
         Assert ($editor.Rows.Count -eq 3 -and $editor.Rows[2].Number.Text -eq '#3') 'Removing an inline row changed the wrong pair or row numbering.'

@@ -1,9 +1,11 @@
 ﻿function Read-ManualReferenceMap([string]$Path) {
-    if(-not (Test-Path -LiteralPath $Path)){return [pscustomobject]@{schema_version=1;allow_library_fallback=$false;preferred_source_group='Áo';entries=@()}}
+    if(-not (Test-Path -LiteralPath $Path)){return [pscustomobject]@{schema_version=1;allow_library_fallback=$false;preferred_source_group='Áo';source_library='drive';entries=@()}}
     $map=Get-Content -LiteralPath $Path -Raw -Encoding UTF8|ConvertFrom-Json
     if($map.schema_version -ne 1){throw 'Invalid manual reference map.'}
     if(-not $map.PSObject.Properties['preferred_source_group']){$map|Add-Member NoteProperty preferred_source_group 'Áo'}
     $map.preferred_source_group=Resolve-SourcePhotoGroup $map.preferred_source_group
+    # drive: download the chosen group before a run; local: use only data/source-photos as it is.
+    if(-not $map.PSObject.Properties['source_library'] -or $map.source_library -notin @('drive','local')){$map|Add-Member NoteProperty source_library 'drive' -Force}
     $seen=@{}
     foreach($entry in @($map.entries)){
         # A link can carry several scene images; each one becomes its own generated image.

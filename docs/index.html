@@ -25,8 +25,6 @@
   .top-text { flex: 1; min-width: 0; }
   h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 500; }
   .brand img { display: block; border-radius: 10px; }
-  .back { padding: 6px 10px; border-radius: 999px; font-size: 13px; text-decoration: none; white-space: nowrap; }
-  .back:hover { background: var(--soft); }
   input, select, button { font: inherit; font-size: 14px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
   input, select { height: 36px; padding: 0 10px; min-width: 0; }
   input:focus, select:focus { outline: none; border-color: var(--primary); }
@@ -103,7 +101,6 @@
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .back span { display: none; }
     .dlg-menu { width: 100%; height: 100dvh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
     .dlg-menu .dlg-box { align-content: start; gap: 16px; }
     .dlg-menu .settings-list > * { height: 48px; font-size: 15px; }
@@ -113,7 +110,7 @@
 <body>
 <main class="wrap">
   <header class="top">
-    <a class="brand" href="https://hoangpham.is-a.dev" aria-label="HoangPham"><img src="brand/hp-icon.svg" alt="HoangPham" width="40" height="40" /></a>
+    <span class="brand"><img src="brand/hp-icon.svg" alt="" width="40" height="40" /></span>
     <div class="top-text"><h1>Product Review Batch</h1></div>
     <a id="dlIcon" class="icon btn" hidden href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip" title="Tải app" aria-label="Tải app">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -124,7 +121,6 @@
     <button id="settingsBtn" class="icon settings-btn" type="button" title="Cài đặt" aria-label="Cài đặt" hidden>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     </button>
-    <a class="back" href="https://hoangpham.is-a.dev/tools" aria-label="Portfolio">←<span> Portfolio</span></a>
   </header>
 
   <section id="download" class="card hero">
@@ -175,7 +171,7 @@
     <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
   </section>
 
-  <footer class="muted small">Làm bởi <a href="https://hoangpham.is-a.dev" target="_blank" rel="noopener">Phạm Quốc Hoàng</a> · Ảnh lưu trên Google Drive</footer>
+  <footer class="muted small">Làm bởi Phạm Quốc Hoàng · Ảnh lưu trên Google Drive</footer>
 </main>
 
 <dialog id="loginDlg" class="dlg">

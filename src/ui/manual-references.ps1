@@ -241,7 +241,7 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $mapPath=Join-Path $temp 'workspace/reference-inputs/references.json'
     New-Item -ItemType Directory -Path (Split-Path $mapPath -Parent) -Force|Out-Null
     Write-FeedbackJson $mapPath (Read-ManualReferenceMap $Editor.MapPath)
-    $draftEditor=[pscustomobject]@{Root=$temp;MapPath=$mapPath;OnChanged=$null;LibraryRoot=$Editor.LibraryRoot;SourceGroup=$Editor.SourceGroup}
+    $draftEditor=[pscustomobject]@{Root=$temp;MapPath=$mapPath;OnChanged=$null;LibraryRoot=$Editor.LibraryRoot;SourceGroup=$Editor.SourceGroup;Library=$Editor.Library}
     $url=if($Target){$Target.Url.Text}else{''}
     $row=New-ProductQueueEditControls $draftEditor $url
     Add-ProductImageControls $draftEditor $row
@@ -250,7 +250,8 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)';Location='20,16';AutoSize=$true}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh:';Location='20,82';Size='110,26'}
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='SourcePhotoGroup';Location='132,78';Size='216,28';DropDownStyle='DropDownList'}
-    foreach($group in @(Get-SourceGroupChoices $Editor.Root $Editor.LibraryRoot)){[void]$groups.Items.Add($group)}
+    $groupChoices=if($Editor.Library -and $Editor.Library.SelectedIndex -eq 1){Get-SourcePhotoGroups $Editor.LibraryRoot}else{Get-SourceGroupChoices $Editor.Root $Editor.LibraryRoot}
+    foreach($group in @($groupChoices)){[void]$groups.Items.Add($group)}
     $groups.SelectedItem=$Editor.SourceGroup;if($groups.SelectedIndex -lt 0){$groups.SelectedIndex=0}
     $draftEditor.SourceGroup=[string]$groups.SelectedItem
     $groups.Add_SelectedIndexChanged({$draftEditor.SourceGroup=[string]$groups.SelectedItem}.GetNewClosure())
@@ -295,6 +296,7 @@ function Save-ProductQueueEditor($Editor,[string]$QueuePath,[switch]$RequireRead
     foreach($url in $urls){$uri=$null;if(-not [Uri]::TryCreate($url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw "Link không hợp lệ: $url"}}
     $map=Read-ManualReferenceMap $Editor.MapPath;$map.allow_library_fallback=$Editor.Fallback.Checked
     $map.preferred_source_group=$Editor.SourceGroup
+    $map.source_library=if($Editor.Library.SelectedIndex -eq 1){'local'}else{'drive'}
     if($RequireReady -and -not $map.allow_library_fallback){
         foreach($url in $urls){$entry=@($map.entries|Where-Object product_url -eq $url)
             $scenes=@(if($entry.Count){Get-ManualScenes $entry[0]})
@@ -319,11 +321,16 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $bulk=New-Object Windows.Forms.Button -Property @{Text='Thêm nhiều link';Location='172,0';Size='150,34'}
     Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk
     $tip=New-Object Windows.Forms.Label -Property @{Text='Bấm dòng để xem / sửa.';Location='338,5';Size='300,24';ForeColor=$script:Ui.Muted;TextAlign='MiddleLeft'}
-    $fallback=New-Object Windows.Forms.CheckBox -Property @{Name='AllowLibraryFallback';Text='Tự tìm trong kho data cho dòng chưa có ảnh';Location='0,5';Size='650,26';ForeColor=$script:Ui.Muted}
-    $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');Fallback=$fallback;OnChanged=$null;LibraryRoot=(Join-Path $ProjectRoot 'data/source-photos');SourceGroup='Áo'}
+    $fallback=New-Object Windows.Forms.CheckBox -Property @{Name='AllowLibraryFallback';Text='Tự tìm trong kho ảnh cho dòng chưa có ảnh';Location='0,5';Size='330,26';ForeColor=$script:Ui.Muted}
+    $library=New-Object Windows.Forms.ComboBox -Property @{Name='SourceLibrary';Location='340,4';Size='170,28';DropDownStyle='DropDownList'}
+    [void]$library.Items.AddRange(@('Kho trên Drive','Kho trên máy'))
+    $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');Fallback=$fallback;OnChanged=$null;LibraryRoot=(Join-Path $ProjectRoot 'data/source-photos');SourceGroup='Áo';Library=$library}
     $editor.SourceGroup=(Read-ManualReferenceMap $editor.MapPath).preferred_source_group
     $fallback.Checked=[bool](Read-ManualReferenceMap $editor.MapPath).allow_library_fallback
-    $toolbar.Controls.AddRange(@($add,$bulk,$tip));$footer.Controls.Add($fallback);$panel.Controls.AddRange(@($flow,$footer,$toolbar))
+    $library.SelectedIndex=if((Read-ManualReferenceMap $editor.MapPath).source_library -eq 'local'){1}else{0}
+    $library.Enabled=$fallback.Checked
+    $fallback.Add_CheckedChanged({$library.Enabled=$fallback.Checked}.GetNewClosure())
+    $toolbar.Controls.AddRange(@($add,$bulk,$tip));$footer.Controls.AddRange(@($fallback,$library));$panel.Controls.AddRange(@($flow,$footer,$toolbar))
     $flow.Add_ClientSizeChanged({foreach($row in $editor.Rows){$row.Card.Width=[Math]::Max(700,$flow.ClientSize.Width-40)}}.GetNewClosure())
     $add.Add_Click({Show-ProductQueueDialog $editor}.GetNewClosure())
     $bulk.Add_Click({Show-ProductQueueBulkDialog $editor}.GetNewClosure())

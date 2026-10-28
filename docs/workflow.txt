@@ -2,7 +2,7 @@
 
 Entry points
   start-app.cmd -> src/gui.ps1 -> src/ui/main-window.ps1
-  run.cmd -> src/run-images.ps1 -> bootstrap.ps1 -> Invoke-BatchWorkflow
+  start-app.cmd -> src/gui.ps1 -> src/run-images.ps1 -> bootstrap.ps1 -> Invoke-BatchWorkflow
   Existing command-line parameters and shortcuts remain compatible.
 
 Batch preparation

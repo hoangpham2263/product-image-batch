@@ -34,7 +34,8 @@ $ProjectRoot = Split-Path $PSScriptRoot -Parent
 if (-not $LocalOnly -and $ReferenceMapFile -and (Test-Path -LiteralPath $ReferenceMapFile)) {
     $referenceMap = Read-ManualReferenceMap $ReferenceMapFile
     $sourceDrive = Get-DriveConfig (Join-Path $ProjectRoot 'workspace')
-    if ($referenceMap.allow_library_fallback -and $sourceDrive) {
+    if ($referenceMap.allow_library_fallback -and $referenceMap.source_library -eq 'local') { Write-Host '  [SOURCE] Dùng kho ảnh trên máy.' -ForegroundColor Cyan }
+    elseif ($referenceMap.allow_library_fallback -and $sourceDrive) {
         try {
             $sync = Sync-SourceGroup $sourceDrive $SourceDir $referenceMap.preferred_source_group
             Write-Host "  [SOURCE] $($sync.Group): $($sync.Total) ảnh, tải mới $($sync.Downloaded)." -ForegroundColor Cyan
