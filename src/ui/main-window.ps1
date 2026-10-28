@@ -244,7 +244,7 @@ $timer.Add_Tick({
         $timer.Stop(); $animTimer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
         $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numPer.Enabled = $true; $numThr.Enabled = $true
-        $btnFeedback.Enabled = $true
+        $btnFeedback.Enabled = $true; $btnDrive.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
         Load-Urls
@@ -303,7 +303,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
     }
     $btnRun.Enabled = $false; $btnStop.Enabled = $true
     $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numPer.Enabled = $false; $numThr.Enabled = $false
-    $btnFeedback.Enabled = $false
+    $btnFeedback.Enabled = $false; $btnDrive.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay
     $timer.Start(); $animTimer.Start()
