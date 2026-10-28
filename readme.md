@@ -1,8 +1,15 @@
 ﻿# Product Image Batch
 
-Ứng dụng Windows tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV.
+Ứng dụng tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV. Chạy trên Windows và macOS.
 
-Nhấp đúp **[start-app.cmd](start-app.cmd)** ở thư mục gốc để mở giao diện. Bấm **Hướng dẫn** trong app để xem cách dùng. Máy mới xem [setup.txt](setup.txt).
+| | Mở app | Chạy test |
+|---|---|---|
+| Windows | `start-app.cmd` (cửa sổ Windows) hoặc `start-web.cmd` (giao diện web) | `test.cmd` |
+| macOS | nhấp đúp `start-app.command` (giao diện web) | `./test.sh` |
+
+Giao diện web chạy tại `http://127.0.0.1:8765` (chỉ trên máy), dùng chung cho cả hai hệ điều hành: danh sách link bên trái, gắn ảnh tham khảo cho từng link trong hộp thoại (dán, kéo thả hoặc chọn file), Bắt đầu/Dừng, tiến độ và ảnh kết quả. Máy mới xem [setup.txt](setup.txt).
+
+**macOS cần:** Node.js, PowerShell 7 (`brew install --cask powershell` hoặc `dotnet tool install --global PowerShell`) và Codex CLI đã đăng nhập. Lần đầu `start-app.command` tự cài `bridge/`.
 
 Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xóa thông báo** chỉ dọn khung thông báo, giữ nguyên kết quả và file chẩn đoán.
 
@@ -120,7 +127,8 @@ Có `drive.json` thì mỗi ảnh được upload sau khi tạo và cột `photo
 |---|---|
 | src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
 | data/ | Dữ liệu base trên Git: `source-photos/` (+ catalog.json), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
-| extension/, bridge/ | Tạo ảnh qua tab ChatGPT / Google Flow |
+| web/, bridge/ | Giao diện web (macOS/Windows) và server local; cầu nối tới extension |
+| extension/ | Tạo ảnh qua tab ChatGPT / Google Flow |
 | worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |
 | tests/ | Kiểm thử offline, chạy bằng test.cmd |
 | workspace/ | Mọi file sinh ra, Git bỏ qua: `output/`, `urls.txt` (hàng đợi), `logs/` (log kiểm tra ChatGPT), `temp/`, `tests/` |

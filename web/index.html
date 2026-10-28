@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Product Image Batch</title>
+<link rel="icon" href="brand/favicon.ico" sizes="any" />
+<link rel="icon" href="brand/hp-favicon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <img class="brand" src="brand/hp-icon.svg" alt="" width="40" height="40" />
+    <div class="top-text"><h1>Product Image Batch</h1></div>
+    <button id="helpBtn" class="icon" type="button" title="Hướng dẫn" aria-label="Hướng dẫn">?</button>
+  </header>
+
+  <div class="layout">
+    <section class="card">
+      <div class="sec-head">
+        <h2 id="queueTitle">Sản phẩm</h2>
+        <span id="queueStatus" class="muted small"></span>
+      </div>
+      <div id="queue" class="queue"></div>
+      <p id="queueEmpty" class="empty">Chưa có link. Bấm Thêm để bắt đầu.</p>
+    </section>
+
+    <aside class="side">
+      <button id="addBtn" class="primary" type="button">+ Thêm</button>
+      <button id="optionsBtn" type="button">Tuỳ chọn</button>
+      <button id="setupBtn" type="button">Kiểm tra ChatGPT</button>
+      <button id="openBtn" type="button">Mở kết quả</button>
+    </aside>
+  </div>
+
+  <section class="card run">
+    <div class="run-row">
+      <button id="startBtn" class="primary" type="button">Bắt đầu</button>
+      <button id="stopBtn" type="button" disabled>Dừng</button>
+      <div class="run-text">
+        <div class="progress"><span id="bar"></span></div>
+        <span id="runStatus" class="muted small">Sẵn sàng</span>
+      </div>
+      <button id="clearBtn" class="link" type="button">Xoá thông báo</button>
+    </div>
+    <ul id="messages" class="messages"></ul>
+  </section>
+
+  <section class="card" id="results" hidden>
+    <div class="sec-head">
+      <h2>Kết quả gần nhất</h2>
+      <div class="actions">
+        <a id="csvLink" class="btn" hidden>Tải CSV</a>
+        <button id="openBatchBtn" type="button">Mở thư mục</button>
+      </div>
+    </div>
+    <p id="batchName" class="muted small"></p>
+    <div id="resultGrid" class="grid"></div>
+  </section>
+</main>
+
+<dialog id="itemDlg" class="dlg">
+  <form class="dlg-box" id="itemForm">
+    <div class="dlg-head"><strong id="itemTitle">Thêm sản phẩm</strong><button class="icon" type="button" data-close aria-label="Đóng">✕</button></div>
+    <input id="itemUrl" type="url" placeholder="Link sản phẩm (https://...)" required />
+    <div id="drop" class="drop" tabindex="0">
+      <img id="dropImg" alt="" hidden />
+      <span id="dropText">Dán (Cmd/Ctrl+V), kéo thả hoặc <u>chọn ảnh</u> tham khảo</span>
+      <input id="fileInput" type="file" accept="image/png,image/jpeg" hidden />
+    </div>
+    <p id="itemError" class="small danger" hidden></p>
+    <div class="actions">
+      <button id="removeRef" type="button" class="link danger" hidden>Bỏ ảnh</button>
+      <button id="deleteItem" type="button" hidden>Xoá link</button>
+      <button class="primary" type="submit">Lưu</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="optionsDlg" class="dlg">
+  <form class="dlg-box" method="dialog">
+    <div class="dlg-head"><strong>Tuỳ chọn</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
+    <label class="field">Tạo ảnh bằng
+      <select id="backend">
+        <option value="codex">Codex CLI</option>
+        <option value="chatgpt">ChatGPT web (extension)</option>
+        <option value="flow">Google Flow (extension)</option>
+      </select>
+    </label>
+    <div class="two">
+      <label class="field">Ảnh mẫu/SP <input id="perImage" type="number" min="1" max="6" value="2" /></label>
+      <label class="field">Luồng <input id="threads" type="number" min="1" max="4" value="1" /></label>
+    </div>
+    <label class="check"><input id="fallback" type="checkbox" /> Link chưa gắn ảnh thì dùng kho ảnh mẫu</label>
+    <label class="field">Kho ảnh ưu tiên <select id="sourceGroup"></select></label>
+    <p class="muted small">Khuyên dùng 1–2 luồng; nhiều luồng tốn RAM và hạn mức hơn.</p>
+    <div class="actions"><button class="primary" value="ok">Xong</button></div>
+  </form>
+</dialog>
+
+<dialog id="setupDlg" class="dlg">
+  <form class="dlg-box" method="dialog">
+    <div class="dlg-head"><strong>Kiểm tra ChatGPT</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
+    <ul id="setupList" class="checks"></ul>
+    <p id="setupSummary" class="muted small"></p>
+  </form>
+</dialog>
+
+<dialog id="helpDlg" class="dlg">
+  <form class="dlg-box" method="dialog">
+    <div class="dlg-head"><strong>Hướng dẫn</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
+    <ol class="help">
+      <li>Bấm <b>+ Thêm</b>, dán link sản phẩm và gắn một ảnh tham khảo (người/bối cảnh).</li>
+      <li><b>Tuỳ chọn</b>: chọn nơi tạo ảnh, số ảnh mẫu, số luồng, hoặc cho phép dùng kho ảnh.</li>
+      <li>Bấm <b>Bắt đầu</b>. Ảnh và CSV nằm trong <b>Kết quả gần nhất</b>.</li>
+      <li>Link lỗi được giữ lại để chạy lại.</li>
+    </ol>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
