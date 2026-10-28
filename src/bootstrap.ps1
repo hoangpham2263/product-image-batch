@@ -14,6 +14,7 @@ $script:WorkflowModuleFiles = @(
     'application/manual-references.ps1'
     'application/drive-delivery.ps1'
     'application/approved-export.ps1'
+    'application/batch-review.ps1'
     'infrastructure/image-output.ps1'
     'domain/product-context.ps1'
     'domain/writing-style.ps1'

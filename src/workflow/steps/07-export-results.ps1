@@ -16,4 +16,5 @@ function Complete-BatchExport($Results, [string]$NamesPath) {
     Write-Host ([Environment]::NewLine + '[METADATA] Assigning random review fields locally...') -ForegroundColor Cyan
     Complete-ReviewMetadata $Results.ToArray() $NamesPath
     Save-Csv $Results.ToArray() $script:Batch.Csv
+    Save-BatchResults $Results.ToArray() $script:Batch.Dir
 }

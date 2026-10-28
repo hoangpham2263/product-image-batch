@@ -16,8 +16,11 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/agent-lessons.ps1')
 . (Join-Path $srcDir 'application/image-feedback.ps1')
 . (Join-Path $srcDir 'application/manual-references.ps1')
+. (Join-Path $srcDir 'infrastructure/csv.ps1')
+. (Join-Path $srcDir 'application/batch-review.ps1')
 . (Join-Path $PSScriptRoot 'image-feedback.ps1')
 . (Join-Path $PSScriptRoot 'manual-references.ps1')
+. (Join-Path $PSScriptRoot 'batch-review.ps1')
 $urlFile = $workspace.Queue
 $script:proc = $null
 $script:resultFolder = ''
@@ -134,15 +137,16 @@ $queueEditor.Flow.BackColor=$ui.Surface;$queueEditor.Flow.BorderStyle='FixedSing
 $cardList.Controls.Add($queueEditor.Panel)
 
 $cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
-$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,36';Size='196,36'}
-$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,78';Size='196,36'}
-$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,120';Size='196,36'}
-$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,162';Size='196,36'}
-$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,204';Size='196,36'}
-$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,246';Size='196,36'}
-$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,288';Size='196,36'}
-foreach ($b in @($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
+$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,36';Size='196,32'}
+$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,73';Size='196,32'}
+$btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất file';Location='14,110';Size='196,32'}
+$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,147';Size='196,32'}
+$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,184';Size='196,32'}
+$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,221';Size='196,32'}
+$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,258';Size='196,32'}
+$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,295';Size='196,32'}
+foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
 function Update-DriveButton { $btnDrive.Text = if (Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json')) { 'Google Drive ✓' } else { 'Google Drive' } }
 Update-DriveButton
 
@@ -172,6 +176,7 @@ $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnClear.Add_Click({ $txtLog.Clear() })
+$btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder } })
 $btnFeedback.Add_Click({
     if ($script:proc) { return }
     $selection = Show-ImageFeedbackDialog $form $root $workspace.Output
@@ -244,7 +249,7 @@ $timer.Add_Tick({
         $timer.Stop(); $animTimer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
         $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numPer.Enabled = $true; $numThr.Enabled = $true
-        $btnFeedback.Enabled = $true; $btnDrive.Enabled = $true
+        $btnFeedback.Enabled = $true; $btnDrive.Enabled = $true; $btnReview.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
         Load-Urls
@@ -257,11 +262,11 @@ $timer.Add_Tick({
         elseif ($null -ne $exitCode -and $exitCode -eq 0 -and -not $script:hadFailure) {
             $lblStatus.Text = '✔ Hoàn tất'; $lblStatus.ForeColor = $ui.Ok
             if ($script:activeFeedbackFile) { Append-Log 'Đã có ảnh làm lại. Bấm Kiểm tra ảnh / Làm lại để đối chiếu; chỉ đánh dấu đã đúng sau khi bạn xem ảnh.' }
-            else { Append-Log 'Kết quả đã được lưu. Bấm Mở kết quả để xem ảnh và đánh giá.' }
+            else { Append-Log 'Xong. Duyệt từng ảnh rồi bấm Xuất file cuối.'; if ($script:resultFolder -and (Test-Path -LiteralPath (Join-Path $script:resultFolder 'results.json'))) { $form.BeginInvoke([Action]{ Show-BatchReviewDialog $form $workspace.Output $script:resultFolder }) | Out-Null } }
         }
         else {
             $lblStatus.Text = '! Cần thử lại'; $lblStatus.ForeColor = $ui.Warn
-            Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại.'
+            Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.'
         }
     }
 })
@@ -304,7 +309,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
     }
     $btnRun.Enabled = $false; $btnStop.Enabled = $true
     $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numPer.Enabled = $false; $numThr.Enabled = $false
-    $btnFeedback.Enabled = $false; $btnDrive.Enabled = $false
+    $btnFeedback.Enabled = $false; $btnDrive.Enabled = $false; $btnReview.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay
     $timer.Start(); $animTimer.Start()
