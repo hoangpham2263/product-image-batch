@@ -4,7 +4,7 @@
 
 ## Tải về
 
-**[Tải bản mới nhất](https://github.com/hoangpham2263/product-image-batch/releases/latest)** (mục Assets → Source code (zip)) → giải nén → mở `start-app.cmd`. Không cần git: mỗi lần mở, app tự tải bản phát hành (Release) mới nhất và giữ nguyên `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md`.
+**[Tải bản mới nhất](https://github.com/hoangpham2263/product-image-batch/releases/latest/download/product-image-batch.zip)** ([các phiên bản](https://github.com/hoangpham2263/product-image-batch/releases)) → giải nén → mở `start-app.cmd`. Không cần git: mỗi lần mở, app tự tải bản phát hành (Release) mới nhất và giữ nguyên `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md`.
 
 | | Mở app | Chạy test |
 |---|---|---|
