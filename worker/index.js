@@ -162,21 +162,13 @@ const sourceFile = (origin, f) => ({ id: f.id, name: f.name, size: Number(f.size
 // "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
 const LOGS_FOLDER = "Logs";
 const logsRoot = async (env) => folder(env, LOGS_FOLDER, await folder(env, FOLDER_NAME));
-async function handleLogs(req, env, url, id, role) {
+async function handleLogs(req, env, url, id) {
   const root = await logsRoot(env);
   if (!id && req.method === "GET") {
     const files = await listChildren(env, root);
     return json({ logs: files.map((f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), createdAt: f.createdTime })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) }, 200, { "cache-control": "no-store" });
   }
   if (!id && req.method === "POST") {
-    // The app password may send at most 10 logs a day from one address, so a stuck button cannot flood Drive.
-    if (role === "app") {
-      const day = new Date().toISOString().slice(0, 10);
-      const key = `logs:${req.headers.get("cf-connecting-ip") || "unknown"}:${day}`;
-      const sent = Number(await env.STORE.get(key)) || 0;
-      if (sent >= 10) return json({ error: "Đã gửi đủ 10 log hôm nay. Thử lại ngày mai." }, 429);
-      await env.STORE.put(key, String(sent + 1), { expirationTtl: 2 * 86400 });
-    }
     const bytes = await req.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > 50 * 1024 * 1024) return json({ error: "File log rỗng hoặc quá 50MB." }, 400);
     const name = cleanFileName(url.searchParams.get("name")) || `log-${Date.now()}.zip`;
@@ -347,7 +339,7 @@ async function handle(req, env, ctx) {
   }
 
   const logs = path.match(/^\/api\/logs(?:\/([^/]+))?$/);
-  if (logs) return handleLogs(req, env, url, logs[1], role);
+  if (logs) return handleLogs(req, env, url, logs[1]);
 
   const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
   if (sources) return handleSources(req, env, url, [sources[1], sources[2]]);

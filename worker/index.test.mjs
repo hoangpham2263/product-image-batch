@@ -175,10 +175,3 @@ test("the app password reaches only the app's calls; the admin password reaches 
   assert.equal((await call("/api/app-check", { headers: { "x-admin-key": "wrong" } })).status, 401);
 });
 
-test("the app password sends at most 10 logs a day from one address", async () => {
-  const { call } = setup();
-  const headers = { "x-admin-key": "app-pass", "cf-connecting-ip": "198.51.100.7" };
-  for (let n = 0; n < 10; n++) assert.equal((await call(`/api/logs?name=l${n}.zip`, { method: "POST", headers, body: "zip" })).status, 201);
-  assert.equal((await call("/api/logs?name=l10.zip", { method: "POST", headers, body: "zip" })).status, 429);
-  assert.equal((await call("/api/logs?name=admin.zip", { method: "POST", headers: { "x-admin-key": "secret", "cf-connecting-ip": "198.51.100.7" }, body: "zip" })).status, 201);
-});

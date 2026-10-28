@@ -228,8 +228,6 @@ $logsTimer.Add_Tick({
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
-    $wait = Get-SupportLogWait $root
-    if ($wait -gt 0) { Append-Log "Vừa gửi log; gửi lại được sau $([Math]::Ceiling($wait / 60)) phút."; return }
     $question = "Gửi log cho admin để kiểm tra lỗi?`r`n`r`nChỉ nên gửi khi app gặp lỗi. File không chứa mật khẩu, ảnh hay danh sách sản phẩm."
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'

@@ -9,8 +9,6 @@ $zip = New-SupportLogBundle $root
 $drive = Get-DriveConfig (Join-Path $root 'workspace')
 try {
     if (-not $drive) { throw 'no app password' }
-    $name = Send-SupportLog $drive $zip
-    Set-SupportLogSent $root
-    Write-Output ('sent|' + $name)
+    Write-Output ('sent|' + (Send-SupportLog $drive $zip))
     Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue
 } catch { Write-Output ('saved|' + $zip) }
