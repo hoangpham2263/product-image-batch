@@ -75,6 +75,8 @@ workspace/output/<thời-gian>/
   missing-data.csv        (nếu có) sản phẩm thiếu ảnh mẫu
 ```
 
+CSV Loox dùng header đúng template tải từ Loox, UTF-8 không BOM, ngày `YYYY-MM-DD`, boolean `TRUE`/`FALSE`. Khi import, chọn **Custom File** trong Loox. CSV từ trang quản lý Drive là danh sách ảnh, không thay thế file review này.
+
 Ảnh và review đầu ra là dữ liệu mẫu được tạo ra, không phải bằng chứng mua hàng hay trải nghiệm của khách thật.
 
 ## Báo thiếu ảnh mẫu

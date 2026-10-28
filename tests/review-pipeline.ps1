@@ -109,10 +109,10 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     foreach ($row in $rows) {
         Assert ($row.rating -in @('4', '5')) 'Invalid rating.'
         Assert ($row.author -and $row.email -match '^[a-z0-9.]+@int$') 'Missing author/@int email.'
-        Assert ($row.verified_purchase -ceq 'true') 'verified_purchase must be true.'
+        Assert ($row.verified_purchase -ceq 'TRUE') 'verified_purchase must use Loox uppercase boolean format.'
         Assert ($row.body -eq 'The navy pattern is subtle. It looks good with the shorts.') 'Review whitespace was not normalized.'
         Assert (Test-Path -LiteralPath $row.photo_url) 'Missing final single-scene image.'
-        $date = [DateTime]::ParseExact($row.created_at, "yyyy-MM-dd HH:mm:ss 'UTC'", [Globalization.CultureInfo]::InvariantCulture)
+        $date = [DateTime]::ParseExact($row.created_at, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture)
         Assert ($date.Year -eq [DateTime]::UtcNow.Year -and $date -le [DateTime]::UtcNow) 'Timestamp outside current year.'
     }
     Assert ((Get-Content $queue -Raw).Trim() -eq 'https://example.test/products/fail') 'Incorrect queue checkpoint.'
@@ -151,7 +151,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     Assert (@($rows | Where-Object { $_.author -notin @('Example Name', '测试') }).Count -eq 0) 'Custom name pool ignored.'
     Assert (@($rows | Where-Object { $_.email -notmatch '^[a-z0-9.]+@int$' }).Count -eq 0) 'Invalid fallback email.'
     Save-Csv @() (Join-Path $tempRoot 'empty.csv')
-    Assert ((Get-Content (Join-Path $tempRoot 'empty.csv')) -eq ('"' + ($expected -replace ',', '","') + '"')) 'Empty CSV header incorrect.'
+    Assert ((Get-Content (Join-Path $tempRoot 'empty.csv')) -ceq $expected) 'Empty CSV header incorrect.'
     Write-Host 'PASS: parallel image/review pipeline, local final metadata, CSV, failed queue, name pools.' -ForegroundColor Green
 } finally {
     $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)

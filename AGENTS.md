@@ -58,6 +58,7 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 - Phân biệt thời gian một lượt AI với tổng thời gian sản phẩm; giữ timeout, tiến độ, số lượt thử và lý do lỗi. Không tắt tiến trình không thuộc lượt workflow.
 - Báo riêng code đã sửa, kiểm tra offline, ảnh đã tạo thật và ảnh đã xem đối chiếu. Không dùng mock để khẳng định chất lượng ảnh đã đạt. Ghi bài học không có nghĩa lỗi đã được sửa và kiểm chứng.
 - Chỉ nói đã cập nhật Git sau commit/push thành công. Kiểm tra diff, giữ thay đổi đang có và không đưa output tạm vào repository.
+- CSV Loox: giữ đúng 8 tên cột theo template tải trực tiếp của Loox, header không có dấu nháy hoặc BOM; xuất UTF-8, ngày `YYYY-MM-DD` và boolean viết hoa. Khi Loox báo lỗi cột, kiểm tra đúng file người dùng đã upload trước khi quy lỗi cho việc chọn nhầm file. Khác biệt định dạng chỉ là giả thuyết cho đến khi import thực tế được xác nhận.
 
 ## 7. Cách ghi bài học
 
