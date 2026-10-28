@@ -8,11 +8,13 @@ import { createReadStream, existsSync } from "node:fs";
 import { join, dirname, extname, resolve, sep } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
-const PORT = Number(process.env.PRB_PORT || 47831);
+// Each install gets its own port (from its folder), so two copies on one Mac never share data.
+const BASE_PORT = Number(process.env.PRB_PORT || 47000 + (parseInt(createHash("sha1").update(resolve(here, "..", "..")).digest("hex").slice(0, 6), 16) % 1000));
+let PORT = BASE_PORT;
 const workspace = join(root, "workspace");
 const logs = join(workspace, "logs");
 const uploads = join(workspace, "temp", "mac-uploads");
@@ -117,6 +119,7 @@ const send = (res, status, data) => { res.writeHead(status, { "content-type": "a
 async function handle(req, res) {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
+  if (path === "/api/root") return send(res, 200, { root });
   if (path === "/api/rpc" && req.method === "POST") {
     const { cmd, args } = JSON.parse((await body(req)).toString("utf8"));
     try { return send(res, 200, { result: await rpc(cmd, args) }); }
@@ -196,7 +199,18 @@ function listen(attempt = 0) {
   server.once("error", (e) => {
     // Already running (or the old server is still closing after an update).
     if (e.code === "EADDRINUSE" && process.env.PRB_WAIT_PORT && attempt < 50) return setTimeout(() => listen(attempt + 1), 200);
-    if (e.code === "EADDRINUSE") { if (!process.argv.includes("--no-open")) openWindow(); process.exit(0); }
+    if (e.code === "EADDRINUSE") {
+      // Already running for this folder: just show its window. Another program on the port: try the next one.
+      return fetch(`http://127.0.0.1:${PORT}/api/root`).then((r) => r.json()).then((body) => {
+        if (body.root !== root) throw new Error("other");
+        if (!process.argv.includes("--no-open")) openWindow();
+        process.exit(0);
+      }).catch(() => {
+        if (PORT - BASE_PORT >= 20) throw e;
+        PORT++;
+        listen(attempt);
+      });
+    }
     throw e;
   });
   server.listen(PORT, "127.0.0.1", () => { if (!process.argv.includes("--no-open")) openWindow(); });
