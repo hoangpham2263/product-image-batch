@@ -135,7 +135,9 @@ function Select-ProductReferences([string]$Reference, [string]$Handle, [string]$
         }
         if(-not $map.allow_library_fallback){throw 'No suitable real scene reference: attach an image for this product URL or explicitly enable library fallback.'}
     }
-    $photosPerImage = $script:Config.PhotosPerImage
+    # One review photo supplies both the people and surroundings for each output.
+    # The actual product image is a separate input, never counted as a review photo.
+    $photosPerImage = 1
     $picked = @()
     # The first source supplies the person; additional sources supply scene context.
     for ($p = 1; $p -le $photosPerImage; $p++) {

@@ -11,11 +11,6 @@ function New-ProductImageRequest([string]$Reference, [string]$ItemId, $Context, 
     } else {
         'Image 1 also supplies the real setting. Preserve its compatible visible surroundings; do not invent a different location.'
     }
-    $styleInstruction = ''
-    if (-not $isObject -and $script:Config.StyleExample -and (Test-Path -LiteralPath $script:Config.StyleExample)) {
-        $images += $script:Config.StyleExample
-        $styleInstruction = "Image $($images.Count) is a photography style example only: candid framing, ordinary camera quality and natural light. Its golf activity, person, clothes, props and branding are NOT context instructions for this product."
-    }
     # A real logo is never reused: only where the product shows one, it becomes a fictional brand.
     $avoid = @($Brands.ToArray()) -join ', '
     $brandInstruction = @"
@@ -38,25 +33,27 @@ End your reply with a line: BRAND: <chosen name>, or BRAND: none when the produc
 The BRAND: line is reply metadata only; never render it or any prompt instructions inside the photograph.
 "@
     $promptText = @"
-Create exactly ONE complete photorealistic lifestyle photograph from these references.
-This must be one continuous camera frame with one main person and one coherent setting.
+EDIT THE EXISTING REVIEW PHOTOGRAPH in image 1 to create exactly ONE complete photorealistic lifestyle photograph.
+This must be one continuous camera frame with one coherent setting, preserving the review photo's presentation.
 Do not make a collage, contact sheet, split screen, panels, side-by-side images, borders, or multiple views of the person.
 Target product: $($context.product).
-Image 1 supplies the main person's identity, face and build. Keep that person recognizable.
-Adapt the pose, hands, accessories and supporting clothing to a credible activity for this product, rather than freezing an unsuitable source pose.
-Required use context: $($context.setting)
+Image 1 is the REVIEW reference, supplying the existing presentation, people (if any) and surroundings. It does not define the target product's design.
+If people are visible, keep their identity, face and build recognizable. If no person is visible (for example, a folded shirt on a table), preserve that product presentation and visible surroundings; do not require or invent a model, and do not ask for another review photo.
+Keep the existing number of people, faces, bodies, poses, hands, held objects, supporting clothing, camera framing and background. Limit edits to the target garment and its local fabric lighting/occlusion; do not restage the scene.
+Product use context (compatibility guidance only, never permission to replace the review setting): $($context.setting)
 Reject these context mismatches: $($context.reject)
 $sceneInstruction
-Image $productIndex is the PRODUCT reference. Put this actual item on the main person.
+Image $productIndex is the PRODUCT reference. It is separate from the review photo and exclusively controls the target item's design. Put this actual item on the existing person, or replace the reviewed item in its existing presentation when no person is shown.
+REPLACE THE EXISTING GARMENT, DO NOT ADD A PRODUCT PROP: when the review photo shows the target garment being worn, replace that garment in place with the product from image $productIndex. If several foreground subjects wear the same target garment type, replace it on EVERY such subject, not only one person. Leave unrelated background people and other garment types alone.
+The product reference may be flat, folded, isolated or a cutout; that is design evidence only. It must still be worn naturally by the existing wearers in image 1. Do not leave the old garment unchanged and place a separate copy beside the people.
+Never paste a product cutout, inset, floating shirt or extra physical garment onto a car, cart, seat, table, floor, wall or any other scene surface. Do not duplicate the product as a prop. Preserve existing hands and held items in front of the new garment with correct occlusion.
 Product-specific details: $($context.details)
 Match the item's actual type, main colors, construction, proportions and design. Do not reinterpret an apron as a shirt.
-$styleInstruction
-Integrate the person into the chosen setting with consistent perspective, scale, daylight, shadows, and color temperature.
-The background may change to match the scene reference; do not retain incompatible fragments of the first background.
+Match the replacement garment to the existing person's perspective, scale, daylight, shadows and color temperature. Preserve the review photo's existing surroundings; do not invent a different location.
 Use a natural portrait composition, preferably showing the person and some surroundings, like a casual phone photo.
 Keep real skin texture, believable anatomy, fabric folds, and contact shadows. Avoid a glossy catalog or studio-ad look.
 Scene guidance: $($script:Config.WritingStyle.scene_rules -join ' ')
-The target item should look worn naturally, never pasted on, recolored over the whole body, or unnaturally bright.
+When worn, the target item should look worn naturally; otherwise keep its existing folded, laid-flat or placed presentation. Never paste it on, recolor the whole body, or make it unnaturally bright.
 $brandInstruction
 Match embroidery or print to the fabric perspective, wrinkles, and lighting.
 Save a new PNG at this exact path: $output
@@ -140,6 +137,21 @@ function Invoke-ImageGeneration($Request, [string]$ItemId, [int]$Attempt, [strin
             $reply='BRAND: none'
         } else { throw }
     }
-    if (-not (Test-Path -LiteralPath $Request.Output)) { throw "Output image not found. See $($script:Batch.Logs)" }
+    try{Assert-GeneratedImage $Request.Output}
+    catch{
+        $validationError=$_.Exception.Message
+        $trace=Join-Path $script:Batch.Logs "$logName.console.log"
+        $toolFailure=Get-CodexToolFailure $trace
+        if($toolFailure){throw "$($toolFailure.Detail); Details: $trace"}
+        if(-not (Test-Path -LiteralPath $Request.Output)){
+            $replyInfo=([string]$reply -replace '(?im)^BRAND:.*$','').Trim() -replace '[\r\n]+',' '
+            if($replyInfo){
+                if($replyInfo.Length -gt 600){$replyInfo=$replyInfo.Substring(0,600)+'…'}
+                throw "Output image not found; AI đã trả lời nhưng chưa tạo PNG, chưa có bằng chứng lỗi công cụ. [CAUSE:OUTPUT_MISSING] AI_REPLY: $replyInfo; Details: $trace"
+            }
+            throw "Output image not found; nguyên nhân chưa rõ, không có bằng chứng lỗi công cụ. [CAUSE:OUTPUT_MISSING] Details: $trace"
+        }
+        throw "$validationError Nguyên nhân chưa rõ, không có bằng chứng lỗi công cụ. [CAUSE:OUTPUT_INVALID] Details: $trace"
+    }
     return $reply
 }

@@ -68,10 +68,10 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
         return "The navy pattern is subtle.`nIt looks good with the shorts."
     }
     $fitPattern = $ResultFile -replace '-image.txt$', '-p*-fit-*.txt'
-    if (@(Get-ChildItem -Path $fitPattern).Count -ne 2) { throw 'All references must be selected before generating the final image.' }
-    if ($Images.Count -ne 4 -or $Images[0] -eq $Images[1]) { throw 'Expected distinct subject and scene, product reference, and style example.' }
-    if ($Images[2] -notlike '*-product.png' -or $Images[3] -notlike '*-style.png') { throw 'Product/style reference order is incorrect.' }
-    if ($PromptText -notmatch 'one continuous camera frame' -or $PromptText -notmatch 'Image 3 is the PRODUCT reference' -or $PromptText -notmatch 'Image 4 is a photography style example only') { throw 'Missing single-scene reference roles.' }
+    if (@(Get-ChildItem -Path $fitPattern).Count -ne 1) { throw 'Exactly one review reference must be selected.' }
+    if ($Images.Count -ne 2 -or $Images[0] -eq $Images[1]) { throw 'Expected one review image and one separate product image.' }
+    if ($Images[1] -notlike '*-product.png') { throw 'Separate product reference order is incorrect.' }
+    if ($PromptText -notmatch 'one continuous camera frame' -or $PromptText -notmatch 'Image 1 is the REVIEW reference' -or $PromptText -notmatch 'Image 2 is the PRODUCT reference') { throw 'Missing review/product reference roles.' }
     if ($PromptText -notmatch 'If it has one, replace it at the same position' -or $PromptText -notmatch 'If it has no logo or brand mark, add none' -or $PromptText -notmatch 'Choose a name that fits this product and this scene') { throw 'Logo must be replaced only when the product has one.' }
     if ($PromptText -notmatch 'Remove all template or customization text' -or $PromptText -notmatch 'put your brand on it' -or $PromptText -notmatch 'never retain it as product artwork' -or $PromptText -notmatch 'Do not add slogans, taglines' -or $PromptText -notmatch 'reply metadata only') { throw 'Generated branding must be a finished mark without template text or instructions.' }
     if ($PromptText -notmatch 'A photo watermark is not a product logo' -or $PromptText -notmatch 'Do not replace them with fictional branding' -or $PromptText -notmatch 'wall logo' -or $PromptText -notmatch 'return BRAND: none') { throw 'Generation must remove photo watermarks instead of inventing a replacement logo.' }
@@ -102,7 +102,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     Assert ($bundles.Count -eq 3) 'Successful and failed products must retain their actual selected inputs.'
     foreach ($bundle in $bundles) {
         $manifest = Get-Content $bundle.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
-        Assert ($manifest.images.Count -eq 4) 'Incomplete archived input set.'
+        Assert ($manifest.images.Count -eq 2 -and $manifest.images[1].role -eq 'product') 'Expected separate review and product snapshots.'
     }
     $expected = 'product_handle,rating,author,email,body,created_at,photo_url,verified_purchase'
     Assert (($rows[0].PSObject.Properties.Name -join ',') -eq $expected) 'Incorrect import columns.'

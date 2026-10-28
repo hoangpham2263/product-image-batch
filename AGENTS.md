@@ -13,6 +13,8 @@
 
 Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, tối đa 3 lượt gửi với cùng đầu vào. Phải xác nhận tiến trình cũ đã dừng, tìm ảnh đã lưu trước khi gửi lại; có ảnh thì xuất, không tạo trùng. Lỗi đăng nhập, hết hạn mức hoặc đầu vào sai không tự thử lại. Không chạy lại ảnh hay test khi người dùng đã yêu cầu bỏ qua.
 
+CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console/tool log đến khi PNG được xác minh; thiếu/hỏng PNG phải đọc lỗi công cụ, ưu tiên payload có cấu trúc. `usage_limit_reached` báo `QUOTA`, giữ HTTP status, thông báo và reset do dịch vụ trả về, không retry. Không có bằng chứng lỗi thì báo thiếu/hỏng output, nguyên nhân chưa rõ. Quota không đọc được là chưa xác định; hạn mức Codex hiển thị không chứng minh công cụ tạo ảnh còn lượt.
+
 ## 2. Đúng sản phẩm và từng chi tiết
 
 - Ảnh sản phẩm quyết định thiết kế, cấu tạo, vật liệu, màu, vân và các thành phần bán kèm. Đọc ảnh đầu vào hiện tại, không chỉ suy luận từ tên hoặc handle.
@@ -41,8 +43,11 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 
 - Danh sách bên trái, nút thao tác bên phải, Bắt đầu/Dừng bên dưới. Thêm/sửa trong popup; lưu xong mỗi sản phẩm một dòng nhỏ có thumbnail/trạng thái, bấm để xem lại đúng link/ảnh. Hạn chế chữ đậm, hỗ trợ danh sách lớn.
 - Khi chạy, giữ nguyên nhãn các nút và chỉ đổi trạng thái enabled/disabled; hiệu ứng chạy chỉ xuất hiện ở dòng trạng thái bên phải. Nút Dừng vẫn dùng được để hủy lượt đang chạy.
+- Màn duyệt kết quả hiển thị mỗi đánh giá một dòng, kể cả cùng sản phẩm. Giữ/Bỏ chỉ tác động dòng đó; bấm thumbnail xem ảnh lớn và ảnh gốc đối chiếu. CSV cuối chỉ gồm các đánh giá được giữ. Không gộp mảng kết quả thành một mục khi đọc JSON trên Windows PowerShell.
 - Dán clipboard, chọn file hoặc kéo thả ảnh cho từng URL. Đổi URL không mang ảnh cũ sang. Hủy popup không thay dữ liệu. Lưu snapshot/hash; không dùng ảnh của URL khác hoặc âm thầm thay ảnh chỉ định bằng ảnh trong kho.
 - Hai đầu vào riêng: ảnh sản phẩm gốc quyết định thiết kế; ảnh bối cảnh quyết định người/phòng cần chỉnh. Web chưa public vẫn dùng ảnh gốc trực tiếp; có đủ ảnh thì không cần link thật. Khi thiếu/hỏng ảnh đã chỉ định phải báo lỗi, không âm thầm tải web hoặc đổi ảnh khác.
+- “Một ảnh = một sản phẩm” nói về ảnh review: mỗi ảnh review tạo một kết quả riêng, dùng cùng ảnh sản phẩm gốc của URL đó. Không gộp hai ảnh review trong một lượt, không bỏ ô ảnh sản phẩm gốc hoặc coi ảnh review là ảnh gốc. Mỗi lượt mới dùng một ảnh review và một ảnh sản phẩm gốc; không thêm ảnh phong cách thứ ba.
+- Ảnh review cung cấp cách trình bày, người và bối cảnh đang có. Nếu ảnh review chỉ có áo gấp/đặt trên bàn, giữ cách trình bày đó, không yêu cầu thêm ảnh người hoặc tự bịa người mẫu. Áo gốc chụp phẳng/gấp vẫn thuộc luồng quần áo, không phân loại thành đồ nội thất hoặc ép ảnh review phải có bàn.
 - Ảnh người dùng gắn được dùng trực tiếp, không chặn vì kích thước tối thiểu hay chấm chất lượng/độ phù hợp. Không thêm lại thông báo “Reference image is too small” hoặc bước xét ảnh trước khi tạo. Giữ đúng cặp ảnh đã chọn và hash đầu vào.
 - Kho dùng tên tiếng Việt có dấu theo nhóm hàng chung như `Áo`, `Nội thất`; không chia theo website, không gọi kho áo là kho cả quần áo. Giữ nhóm khác để dùng về sau. `source_group` là nhóm thư mục; `category` là mã danh mục chi tiết để chọn ảnh và áp dụng bài học.
 - Chuyển kho phải cập nhật đường dẫn, giữ nguồn, hash và lịch sử sử dụng. Kiểm tra inventory thực tế trong catalog, không coi số đếm trong tài liệu là luôn cập nhật.
@@ -148,5 +153,13 @@ Bài học được đúc kết thành nguyên tắc ngắn để áp dụng l�
 - Giữ đúng số lượng, hướng và điểm nối của chân/thanh giằng theo ảnh sản phẩm; không tự thêm nhánh gỗ, thanh chéo hoặc đầu gỗ cụt.
 - Thanh giằng phải nối hợp lý giữa các chân; không được chìa ra thành khúc gỗ không có chức năng hoặc giao xuyên nhau.
 - Không sao chép phần chân/giằng của đồ cũ trong ảnh bối cảnh; không tự đoán cấu tạo bị che.
+
+### Thay áo đang mặc, không đặt thêm áo vào cảnh
+<!-- app-lesson: {"id":"polo-replace-worn-garment-no-extra-prop-20261028","scope":"category","product_url":"","category":"polo-shirts","created_at":"2026-10-28T08:28:26Z"} -->
+Áp dụng: danh mục `polo-shirts`.
+
+- Thay áo đang mặc bằng áo sản phẩm gốc; nếu nhóm người chính cùng mặc polo thì thay trên từng người, giữ người, tư thế, vật đang cầm và bối cảnh.
+- Không giữ áo cũ rồi đặt thêm áo sản phẩm lên xe, ghế hoặc nền; không dán ảnh cắt rời, ô ảnh phụ hay thêm áo làm đạo cụ.
+- Ảnh áo gốc chụp phẳng/gấp chỉ cung cấp thiết kế; cách mặc hoặc đặt áo phải theo ảnh review hiện tại.
 
 <!-- app-lessons:end -->

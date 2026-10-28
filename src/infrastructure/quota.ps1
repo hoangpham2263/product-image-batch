@@ -25,13 +25,13 @@ function Get-QuotaMessages($Data) {
                     $resetText = "Đặt lại $($local.ToString('HH:mm dd/MM')) (GMT+7)."
                 } catch {}
             }
-            "Hạn mức $label ($duration): còn $remaining%. $resetText"
+            "Hạn mức $label ($duration): còn $remaining%. $resetText Phạm vi do CLI cung cấp; chưa xác minh lượt tạo ảnh còn lại."
         }
     }
 }
 
 function Get-ChatGptQuota([string]$CliPath) {
-    $unavailable = [pscustomobject]@{ Available = $false; Messages = @('Hạn mức Codex: chưa lấy được dữ liệu. Vui lòng thử kiểm tra lại.') }
+    $unavailable = [pscustomobject]@{ Available = $false; Messages = @('Hạn mức Codex: chưa xác định, chưa lấy được dữ liệu. Không đồng nghĩa hết hạn mức. Vui lòng thử kiểm tra lại.') }
     if (-not $CliPath -or -not (Get-Command node -ErrorAction SilentlyContinue)) { return $unavailable }
     try {
         $helper = Join-Path $PSScriptRoot 'read-quota.cjs'

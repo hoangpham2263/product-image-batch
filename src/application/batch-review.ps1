@@ -1,4 +1,4 @@
-# Human check of every result before the final CSV: decisions live in <batch>/review.json.
+﻿# Human check of every result before the final CSV: decisions live in <batch>/review.json.
 function Save-BatchResults($Rows, [string]$BatchDir) {
     if (-not $BatchDir) { return }
     $json = ConvertTo-Json -InputObject @($Rows) -Depth 5
@@ -8,13 +8,15 @@ function Save-BatchResults($Rows, [string]$BatchDir) {
 function Get-BatchReview([string]$BatchDir) {
     $resultsPath = Join-Path $BatchDir 'results.json'
     if (-not (Test-Path -LiteralPath $resultsPath)) { return @() }
-    $rows = @(Get-Content -LiteralPath $resultsPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+    # Windows PowerShell returns a JSON array as one pipeline object. Assign it
+    # directly before iterating so several reviews are never collapsed into one row.
+    $rows = Get-Content -LiteralPath $resultsPath -Raw -Encoding UTF8 | ConvertFrom-Json
     $decisions = @{}
     $reviewPath = Join-Path $BatchDir 'review.json'
     if (Test-Path -LiteralPath $reviewPath) {
         (Get-Content -LiteralPath $reviewPath -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $decisions[$_.Name] = $_.Value }
     }
-    foreach ($row in $rows) {
+    foreach ($row in @($rows)) {
         $id = [IO.Path]::GetFileNameWithoutExtension([string]$row.photo_path)
         $product = ''
         try { $product = (Get-FeedbackTarget ([string]$row.photo_path)).ProductPath } catch { Write-Verbose $_ }

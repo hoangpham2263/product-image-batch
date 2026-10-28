@@ -117,8 +117,8 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $box=New-Object Windows.Forms.TextBox -Property @{Name='ProductUrl';Location='20,42';Size='720,28';Anchor='Top,Left,Right'}
     $status=New-Object Windows.Forms.Label -Property @{Name='ReferenceStatus';Location='20,482';Size='720,30';Anchor='Bottom,Left,Right';AutoEllipsis=$true}
     $picture=New-Object Windows.Forms.PictureBox -Property @{Name='ReferencePreview';Location='20,112';Size='720,310';SizeMode='Zoom';BackColor=[Drawing.Color]::FromArgb(241,244,240);Anchor='Top,Bottom,Left,Right';AllowDrop=$true;TabStop=$true;BorderStyle='FixedSingle'}
-    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh · Ctrl+V';Location='20,436';Size='164,32';Anchor='Bottom,Left'}
-    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh…';Location='196,436';Size='120,32';Anchor='Bottom,Left'}
+    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh review · Ctrl+V';Location='20,436';Size='180,32';Anchor='Bottom,Left'}
+    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh review…';Location='212,436';Size='156,32';Anchor='Bottom,Left'}
     # Every attached scene image is shown as a thumbnail; clicking one previews it above.
     $picture.Height=230
     $thumbs=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='SceneThumbs';Location='20,348';Size='720,80';Anchor='Bottom,Left,Right';AutoScroll=$true;WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
@@ -142,10 +142,10 @@ function Add-ProductImageControls($Editor,$Row) {
     $Row.Card.Size=[Drawing.Size]::new(1040,570)
     $Row.Url.Width=1000;$Row.Status.Width=1000
     $Row.Preview.Size=[Drawing.Size]::new(680,230);$Row.Thumbs.Width=680
-    $label=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc (không cần mở web)';Location='720,82';Size='300,26'}
+    $label=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc (quyết định thiết kế)';Location='720,82';Size='300,26'}
     $preview=New-Object Windows.Forms.PictureBox -Property @{Name='ProductImagePreview';Location='720,112';Size='300,310';SizeMode='Zoom';BorderStyle='FixedSingle';AllowDrop=$true;TabStop=$true}
     $Row|Add-Member NoteProperty ProductPreview $preview
-    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh sản phẩm';Location='720,436';Size='180,32'}
+    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh sản phẩm';Location='720,436';Size='146,32'}
     $attach={param($path)
         if(-not $Row.Url.Text.Trim()){$Row.Url.Text='https://local.invalid/products/manual-'+[Guid]::NewGuid().ToString('N')}
         [void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path Product)
@@ -166,7 +166,7 @@ function Add-ProductImageControls($Editor,$Row) {
             }catch{$Row.Status.Text=$_.Exception.Message}
     }.GetNewClosure()
     $preview.Add_KeyDown({if($_.Control -and $_.KeyCode -eq 'V'){$_.SuppressKeyPress=$true;& $pasteProduct}}.GetNewClosure())
-    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteProductImage';Text='Dán ảnh sản phẩm';Location='720,474';Size='180,32'}
+    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteProductImage';Text='Dán ảnh sản phẩm';Location='874,436';Size='146,32'}
     $paste.Add_Click($pasteProduct)
     $Row.Status.Width=680
     Add-RemoveOverlay $preview {
@@ -176,7 +176,7 @@ function Add-ProductImageControls($Editor,$Row) {
         Write-FeedbackJson $Editor.MapPath $map;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
     }.GetNewClosure()
     $Row.Card.Controls.AddRange(@($label,$preview,$choose,$paste))
-    $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh bối cảnh';Location='560,82';Size='140,26'}
+    $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh review';Location='560,82';Size='140,26'}
     $Row.Card.Controls.Add($sceneLabel)
     $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
 }
@@ -245,7 +245,7 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $url=if($Target){$Target.Url.Text}else{''}
     $row=New-ProductQueueEditControls $draftEditor $url
     Add-ProductImageControls $draftEditor $row
-    $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh sản phẩm & ảnh bối cảnh';ClientSize='1040,570';MinimumSize='1040,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
+    $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh review & ảnh sản phẩm gốc';ClientSize='1040,570';MinimumSize='1040,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $row.Card.Dock='Fill'
     $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)';Location='20,16';AutoSize=$true}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh local:';Location='20,82';Size='110,26'}

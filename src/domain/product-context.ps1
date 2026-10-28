@@ -34,6 +34,7 @@ category_key: if the product belongs to one of the sample library categories [$l
 use that exact key; otherwise a stable broad category in lowercase kebab-case, e.g. headphones;
 product: short accurate product name;
 presentation: one of worn, held, placed, vehicle (how it should appear, not its industry);
+For apparel, use worn even when the product reference is laid flat, folded, on a hanger or isolated. This field describes the product's use, not the catalog photograph's staging. The separate REVIEW photo controls whether the edit actually shows existing wearers or an existing flat-lay; never require a table or forbid wearers merely because of the product source photo.
 setting: an ordinary real use setting, relevant objects and a plausible activity;
 For placed furniture describe only the compatible room/use visible in the source, without proposing meals, tableware, books, plants, people or decorations to add. Absence is intentional: do not fill empty space to stage a lifestyle scene. Identify included components only when supported by the actual product, not surrounding staged accessories.
 details: visible geometry, colors, materials and markings to preserve, no guessed specifications;
@@ -49,7 +50,9 @@ If the image does not show an identifiable product, return {"error":"product not
         if ($result.$field -isnot [string] -or -not $result.$field.Trim() -or $result.$field.Length -gt 1500) { throw "Invalid product classification field: $field" }
     }
     $profile = @($script:Config.ProductContexts | Where-Object { $_.id -eq $result.existing_profile -and $_.id -ne 'generic' } | Select-Object -First 1)
-    if ($result.presentation -eq 'worn' -and $profile.Count) {
+    # existing_profile is an actual apparel type, not the source photo's staging.
+    # A polo photographed on a table must never select the furniture-edit pipeline.
+    if ($profile.Count) {
         $context = $profile[0] | ConvertTo-Json -Depth 8 | ConvertFrom-Json
         $context.product = $result.product
         $context.details = $result.details

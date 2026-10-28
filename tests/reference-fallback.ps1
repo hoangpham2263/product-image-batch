@@ -9,6 +9,7 @@ $script:Batch = @{ Images = $TestWorkspaceRoot; Logs = $TestWorkspaceRoot }
 $context = [pscustomobject]@{ product = 'apron'; presentation = 'worn'; setting = 'cafe'; source_categories = @('aprons'); details = 'black apron'; branding = 'preserve logo'; reject = 'golf' }
 $script:MissingSubject = $false
 function Select-Photo($Reference, $Handle, $ItemId, $Exclude, $Role, $Context, $SubjectPhoto) {
+    if($Role -eq 'Scene'){throw 'Must not select a second review photo.'}
     if ($Role -eq 'Subject' -and -not $script:MissingSubject) { return 'checked-person-and-real-cafe.png' }
     throw 'No suitable source photo found after 2 checks.'
 }

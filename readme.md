@@ -1,4 +1,4 @@
-﻿# Product Review Batch
+# Product Review Batch
 
 Ứng dụng tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV. Chạy trên Windows và macOS.
 
@@ -36,9 +36,11 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 
 Kho `data/names.txt` có 4.000 tên hiển thị với tên riêng không trùng, giữ 965 tên riêng từ kho cũ và các tên đã bổ sung. Nguồn mở rộng: Names Corpus 1.3 của Mark Kantrowitz, bổ sung bởi Bill Ross, phân phối qua NLTK. Chỉ lưu danh sách tên trong `data/names.txt`; gộp tên riêng không trùng từ kho cũ và nguồn bổ sung, không nhân mỗi tên với chữ cái họ A–Z. Tên hiển thị theo dạng tên riêng + chữ cái đầu của họ, ví dụ Josh K.; mỗi tên riêng chỉ xuất hiện một dòng. Đây là dữ liệu mẫu, không phải danh tính khách hàng.
 | 9. Xuất kết quả | Lưu ảnh và CSV nháp; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
-| 10. Duyệt & xuất file | Xem ảnh sản phẩm gốc cạnh ảnh kết quả, đánh Đạt/Chưa đạt từng ảnh. Duyệt hết mới xuất `loox_import_final.csv`, chỉ gồm ảnh Đạt. |
+| 10. Duyệt & xuất file | Mỗi đánh giá một dòng, chọn Giữ/Bỏ riêng từng dòng. Bấm thumbnail để xem ảnh lớn và ảnh gốc đối chiếu. Duyệt hết mới xuất `loox_import_final.csv`, chỉ gồm đánh giá được giữ; bỏ một đánh giá không loại các đánh giá khác cùng sản phẩm. |
 
 ### Thư viện ảnh mẫu
+
+Ảnh sản phẩm gốc và ảnh review là hai đầu vào riêng. Mỗi ảnh review được xử lý thành một kết quả độc lập với ảnh gốc của cùng sản phẩm. Mỗi lượt tạo mới nhận đúng một ảnh review và một ảnh sản phẩm gốc, không gộp hai ảnh review hay thêm ảnh phong cách thứ ba. Popup có ô **Ảnh review** bên trái và **Ảnh sản phẩm gốc** bên phải. Ảnh review áo gấp/đặt trên bàn được giữ cách trình bày đó, không bắt buộc có người mẫu.
 
 Web chưa public hoặc không tải được sản phẩm: gắn **Ảnh sản phẩm gốc** và **Ảnh bối cảnh để ghép vào** trong popup. Ảnh sản phẩm được dùng trực tiếp, không truy cập link. Bản web cho phép để trống link khi đã gắn ảnh sản phẩm; bản Windows tự tạo mã local khi chọn ảnh sản phẩm trước khi nhập link. Dán ảnh vào ô đã chọn, kéo thả hoặc chọn file PNG/JPEG. Hai ảnh được lưu snapshot/hash riêng; đổi link không mang ảnh cũ sang và Hủy không thay ảnh đã lưu.
 
@@ -54,7 +56,7 @@ Kho chung nằm trong `data/source-photos/<nhóm-hàng>/`, không chia theo webs
 
 Mỗi ảnh có bản ghi trong catalog.json (nhóm lưu trữ `source_group`, danh mục sản phẩm `category`, nguồn, SHA256 và đường dẫn cũ). Nhóm thư mục chỉ giúp chọn file; danh mục chi tiết cho từng loại sản phẩm vẫn khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
 
-Số ảnh mẫu/SP là mức tối đa. Nếu chỉ có một ảnh đạt với người và bối cảnh phù hợp, app dùng bối cảnh thật đó; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
+Mỗi lượt dùng đúng một ảnh review cùng một ảnh sản phẩm gốc. Khi bật tìm trong kho, app dừng sau ảnh review đầu tiên đạt; không có ảnh đạt thì xem mục Báo thiếu ảnh mẫu. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
 
 Với đồ đặt trong không gian như bàn ăn, AI chỉnh sửa trực tiếp ảnh phòng tham khảo để thay sản phẩm, giữ góc máy, ánh sáng và đồ vật không liên quan. App xuất nguyên file PNG do AI tạo để bạn xem và yêu cầu sửa nếu cần.
 

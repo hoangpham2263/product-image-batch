@@ -158,7 +158,7 @@ Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
 $lblPer=New-Object Windows.Forms.Label -Property @{Text='Ảnh từ kho/SP:';Location='720,19';Size='110,24';Anchor='Top,Right';ForeColor=$muted}
-$numPer=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=6;Value=1;Location='832,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
+$numPer=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=1;Value=1;Location='832,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
 $numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=1;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr))
@@ -282,7 +282,7 @@ $animTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 350 }
 $animTimer.Add_Tick({
     if (-not $script:proc) { return }
     $script:animFrame = ($script:animFrame + 1) % 3
-    $dots = @('●○○', '○●○', '○○●')[$script:animFrame]
+    $dots = @('.', '..', '...')[$script:animFrame]
     if (-not $script:runStopped) { $lblStatus.Text = "Đang chạy $dots" }
 })
 function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '') {

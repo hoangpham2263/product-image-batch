@@ -98,6 +98,16 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
             $event.Text = 'Chưa đăng nhập ChatGPT, bấm Kiểm tra ChatGPT.'
         } elseif ($line -match '\[CAUSE:QUOTA\]') {
             $event.Text = 'Hết hạn mức, chờ được cấp lại.'
+            if($line -match 'HTTP\s+(\d{3})'){$event.Text+=" HTTP $($Matches[1])."}
+            if($line -match 'Message:\s*([^;]+)'){$event.Text+=" $($Matches[1].Trim())"}
+            if($line -match 'Reset:\s*([^;]+)'){$event.Text+=" Đặt lại: $($Matches[1].Trim())."}
+        } elseif ($line -match '\[CAUSE:OUTPUT_MISSING\]') {
+            $event.Text = 'Chưa nhận được ảnh PNG; nguyên nhân chưa rõ. Đã giữ log và link để kiểm tra.'
+            if($line -match 'AI_REPLY:\s*(.+?); Details:'){$event.Text='AI chưa tạo ảnh. Phản hồi AI: '+$Matches[1]}
+        } elseif ($line -match '\[CAUSE:OUTPUT_INVALID\]') {
+            $event.Text = 'File PNG bị lỗi; nguyên nhân chưa rõ. Đã giữ log và link để kiểm tra.'
+        } elseif ($line -match '\[CAUSE:TOOL_ERROR\]') {
+            $event.Text = 'Công cụ tạo ảnh báo lỗi. Đã giữ nguyên lỗi gốc trong log, link được giữ để chạy lại.'
         } elseif ($line -match '\[CAUSE:AI_TIMEOUT\]') {
             $event.Text = 'AI quá thời gian chờ, link được giữ để chạy lại.'
         } elseif ($line -match '\[CAUSE:PROCESS_ACTIVE\]') {

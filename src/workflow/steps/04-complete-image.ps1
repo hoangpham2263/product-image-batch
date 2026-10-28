@@ -19,6 +19,9 @@ function Complete-ProductImage($Request, $Context, [string]$ItemId) {
             continue
         }
         Assert-GeneratedImage $output
+        # Only verified PNG delivery permits deleting this attempt's console trace.
+        $logName=if($attempt -eq 1){"$ItemId-image.txt"}else{"$ItemId-image-retry-$attempt.txt"}
+        Remove-Item -LiteralPath (Join-Path $script:Batch.Logs "$logName.console.log") -Force -ErrorAction SilentlyContinue
         $status=[ordered]@{status='awaiting_user_review';ai_image_qa_performed=$false;generation_attempt=$attempt;output=$output}
         [IO.File]::WriteAllText((Join-Path $script:Batch.Logs "$ItemId-review-status.json"),($status|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
         Write-Host '  [AWAITING-REVIEW] Image ready for user review.' -ForegroundColor Cyan

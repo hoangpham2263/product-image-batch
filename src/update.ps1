@@ -1,4 +1,4 @@
-# Runs before the app opens: bring the app files up to the latest GitHub Release (vX.Y.Z).
+﻿# Runs before the app opens: bring the app files up to the latest GitHub Release (vX.Y.Z).
 # Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
 param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun)
 $ErrorActionPreference = 'Stop'

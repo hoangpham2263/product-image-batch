@@ -101,8 +101,10 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
                 $errorLog = Join-Path $script:Batch.Logs ('{0:D3}-{1}-error.txt' -f $job.Index, $job.Item.Handle)
                 @($_ | Out-String; $_.ScriptStackTrace; $job.PS.Streams.Error | Format-List * -Force | Out-String) |
                     Set-Content -LiteralPath $errorLog -Encoding UTF8
-                $causeTag = if ($inner -match '\[CAUSE:(DRIVE_CONFIG|DRIVE_AUTH|DRIVE_UPLOAD|BRIDGE|AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|PROCESS_ACTIVE|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA)\]') { $Matches[0] + ' ' } else { '' }
-                Write-Warning "[ITEM $($job.Index)] Failed; ${causeTag}URL and source kept for retry. $inner"
+                $causeTag = if ($inner -match '\[CAUSE:(DRIVE_CONFIG|DRIVE_AUTH|DRIVE_UPLOAD|BRIDGE|AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|PROCESS_ACTIVE|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA|OUTPUT_MISSING|OUTPUT_INVALID|TOOL_ERROR)\]') { $Matches[0] + ' ' } else { '' }
+                # Warning formatting wraps long records, losing reset details in the UI's
+                # line reader. Emit the same WARNING prefix as one unwrapped log line.
+                Write-Host "WARNING: [ITEM $($job.Index)] Failed; ${causeTag}URL and source kept for retry. $inner" -ForegroundColor Yellow
                     continue
                 } finally { $job.PS.Dispose() }
 

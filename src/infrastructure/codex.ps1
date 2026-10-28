@@ -63,7 +63,7 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
                     if ($line -match '(?i)^(?:ERROR:\s*)?(?:Reconnecting\b|stream disconnected\b|connection reset\b|failed to connect\b|error sending request\b)') {
                         if (-not $notified) { Write-Host '  [AI-CONNECTION] Connection interrupted; waiting for recovery...' -ForegroundColor Yellow; $notified = $true }
                         if ($reconnectAt -lt 0) { $reconnectAt = $watch.Elapsed.TotalSeconds }
-                    } elseif ($reconnectAt -ge 0 -and $line -match '^(assistant|thinking|tool\s|exec\s)') {
+                    } elseif ($reconnectAt -ge 0 -and ($line -match '^(assistant|thinking|tool\s|exec\s)' -or $line -match '^\s*\{\s*"type"\s*:\s*"(?:item\.|turn\.)')) {
                         $reconnectAt = -1; $notified = $false
                         Write-Host '  [AI-RESUMED] Response stream resumed.' -ForegroundColor Cyan
                     }
@@ -94,6 +94,72 @@ function Invoke-CodexProcess([string]$PromptText, [string[]]$CommandArgs, [strin
     return [pscustomobject]@{ ExitCode = $exitCode; Cause = $cause; StopConfirmed = $stopConfirmed }
 }
 
+# Inspect tool results, never prompts, tool arguments or assistant claims, for error evidence.
+function Get-CodexToolFailure([string]$Trace) {
+    if(-not (Test-Path -LiteralPath $Trace -PathType Leaf)){return}
+    $raw=Get-Content -LiteralPath $Trace -Raw -Encoding UTF8
+    $payloads=[Collections.Generic.List[string]]::new()
+    function Add-ToolEvidence($Value,[int]$Depth=0){
+        if($null -eq $Value -or $Depth -gt 12){return}
+        if($Value -is [string]){
+            try{$decoded=ConvertFrom-Json -InputObject $Value -ErrorAction Stop}catch{$decoded=$null}
+            if($decoded -and $decoded -isnot [string]){Add-ToolEvidence $decoded ($Depth+1)}
+            $payloads.Add($Value)
+        }elseif($Value -is [array]){foreach($part in $Value){Add-ToolEvidence $part ($Depth+1)}}
+        else{
+            # Keep sibling HTTP status and error fields together; recurse through text wrappers.
+            $payloads.Add(($Value|ConvertTo-Json -Depth 20 -Compress))
+            foreach($key in @('error','result','content','text','output','structuredContent')){
+                if($Value.PSObject.Properties[$key]){Add-ToolEvidence $Value.$key ($Depth+1)}
+            }
+        }
+    }
+    $hasEvents=$false
+    foreach($line in @($raw -split '\r?\n')){
+        try{$event=ConvertFrom-Json -InputObject $line -ErrorAction Stop}catch{continue}
+        if($event.type -match '^(item\.|turn\.|thread\.)'){$hasEvents=$true}
+        if($event.item.type -in @('mcp_tool_call','tool_call')){
+            if($event.item.error -is [string]){Add-ToolEvidence ([pscustomobject]@{error=[pscustomobject]@{message=$event.item.error}})}
+            elseif($event.item.error){Add-ToolEvidence ([pscustomobject]@{error=$event.item.error})}
+            Add-ToolEvidence $event.item.result
+            if($event.item.result.isError -or $event.item.status -eq 'failed'){
+                $toolText=@($event.item.result.content | Where-Object type -eq 'text' | ForEach-Object text) -join ' '
+                if($toolText){Add-ToolEvidence ([pscustomobject]@{error=[pscustomobject]@{message=$toolText}})}
+            }
+        }elseif($event.type -in @('error','turn.failed')){Add-ToolEvidence ([pscustomobject]@{error=$event})}
+        elseif($event.error){Add-ToolEvidence $event}
+    }
+    # Compatibility with older human-readable traces: only explicit tool error payloads.
+    # JSONL traces must never fall back to matching quoted prompts/source/assistant messages.
+    if(-not $hasEvents -and $raw -match '(?im)^\s*(?:HTTP\s+[45]\d\d\b|"(?:type|code)"\s*:\s*"(?:usage_limit_reached|insufficient_quota)"|(?:Error|ERROR):)'){
+        $payloads.Add($raw)
+    }
+    $found=@()
+    foreach($payload in $payloads){
+        $kind='';$message='';$status='';$reset=''
+        if($payload -match '"(?:type|code)"\s*:\s*"(?<kind>usage_limit_reached|insufficient_quota|quota_exceeded)"'){$kind=$Matches.kind;$cause='QUOTA'}
+        elseif($payload -match '(?im)^(?:Error|ERROR):[^\r\n]*\b(usage_limit_reached|insufficient_quota)\b'){$kind=$Matches[1];$cause='QUOTA'}
+        elseif($payload -match '"(?:type|code)"\s*:\s*"(?<kind>invalid_api_key|authentication_error|unauthorized)"'){$kind=$Matches.kind;$cause='AUTH'}
+        elseif($payload -match '(?i)HTTP\s*(?<status>[45]\d\d)\b'){$kind='tool_http_error';$cause='TOOL_ERROR';$status=$Matches.status}
+        elseif($payload -match '"error"\s*:\s*\{[^{}]*"message"\s*:'){$kind='tool_error';$cause='TOOL_ERROR'}
+        else{continue}
+        if($payload -match '"message"\s*:\s*("(?:\\.|[^"\\])*")'){
+            try{$message=ConvertFrom-Json -InputObject $Matches[1] -ErrorAction Stop}catch{}
+        }
+        if($payload -match '(?i)(?:HTTP\s*|"(?:status|status_code|statusCode|http_status)"\s*:\s*"?)([45]\d\d)'){$status=$Matches[1]}
+        if($payload -match '"resets_at"\s*:\s*(\d+)'){
+            try{$reset=[DateTimeOffset]::FromUnixTimeSeconds([long]$Matches[1]).ToOffset([TimeSpan]::FromHours(7)).ToString('HH:mm:ss dd/MM/yyyy')+' (UTC+7)'}catch{}
+        }
+        elseif($payload -match '"resets_in_seconds"\s*:\s*(\d+)'){$reset="sau $($Matches[1]) giây theo phản hồi dịch vụ (chưa có thời điểm tuyệt đối)"}
+        $detail="[CAUSE:$cause] $kind"
+        if($status){$detail+="; HTTP $status"}
+        if($message){$detail+="; Message: $($message -replace '[\r\n]+',' ')"}
+        if($reset){$detail+="; Reset: $reset"}
+        $found+=@([pscustomobject]@{Cause=$cause;Detail=$detail;Score=$(if($cause -eq 'QUOTA'){100}else{0})+$(if($status){2}else{0})+$(if($reset){1}else{0})})
+    }
+    $found|Sort-Object Score -Descending|Select-Object -First 1
+}
+
 # Run `codex exec` with a prompt and optional images. Returns the model's text reply.
 function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, [string]$Sandbox = 'read-only') {
     $isImage = $Sandbox -eq 'workspace-write'
@@ -106,28 +172,36 @@ function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, 
     if ($script:Config.ContainsKey('AiReconnectTimeoutSeconds')) { $reconnectTimeout = [Math]::Max(1, [int]$script:Config.AiReconnectTimeoutSeconds) }
     for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
         $attemptFile = if ($attempt -eq 1) { $ResultFile } else { "$ResultFile.attempt-$attempt.txt" }
-        $commandArgs = @('exec', '--skip-git-repo-check', '-s', $Sandbox, '-C', $script:Batch.Dir, '-o', $attemptFile)
+        $commandArgs = @('exec', '--json', '--skip-git-repo-check', '-s', $Sandbox, '-C', $script:Batch.Dir, '-o', $attemptFile)
         if ($script:Config.Model) { $commandArgs += @('-m', $script:Config.Model) }
         foreach ($photo in $Images) { $commandArgs += @('-i', $photo) }
         $trace = "$attemptFile.console.log"
+        # A new invocation must not accidentally consume an old last-message file.
+        if(Test-Path -LiteralPath $attemptFile){Remove-Item -LiteralPath $attemptFile -Force}
         $execution = Invoke-CodexProcess $PromptText $commandArgs $trace $timeout $reconnectTimeout
-        if ($execution.ExitCode -eq 0 -and (Test-Path -LiteralPath $attemptFile)) {
-            $text = (Get-Content -LiteralPath $attemptFile -Raw -Encoding UTF8).Trim()
-            if ($text) {
-                if ($attemptFile -ne $ResultFile) { Copy-Item -LiteralPath $attemptFile -Destination $ResultFile -Force }
-                # Console traces are only needed to diagnose failures.
-                Remove-Item -LiteralPath $trace -Force -ErrorAction SilentlyContinue
+        $toolFailure=Get-CodexToolFailure $trace
+        if ($execution.Cause -and -not $execution.StopConfirmed) { throw "AI failed; previous process termination is unconfirmed. Details: $trace [CAUSE:PROCESS_ACTIVE]" }
+        if ($execution.ExitCode -eq 0) {
+            $text=if(Test-Path -LiteralPath $attemptFile){[IO.File]::ReadAllText($attemptFile,[Text.Encoding]::UTF8).Trim()}else{''}
+            if ($text -or $isImage) {
+                if ($attemptFile -ne $ResultFile -and (Test-Path -LiteralPath $attemptFile)) { Copy-Item -LiteralPath $attemptFile -Destination $ResultFile -Force }
+                if(-not $isImage -and $toolFailure){throw "$($toolFailure.Detail); Details: $trace"}
+                # Image traces survive until technical PNG validation succeeds.
+                if(-not $isImage){Remove-Item -LiteralPath $trace -Force -ErrorAction SilentlyContinue}
                 return $text
             }
         }
-        $failure = if (Test-Path -LiteralPath $trace) { Get-Content -LiteralPath $trace -Raw } else { '' }
-        if ($execution.Cause -and -not $execution.StopConfirmed) { throw "AI failed; previous process termination is unconfirmed. Details: $trace [CAUSE:PROCESS_ACTIVE]" }
+        if($toolFailure){throw "$($toolFailure.Detail); Details: $trace"}
+        $failure = if (Test-Path -LiteralPath $trace) { Get-Content -LiteralPath $trace -Raw -Encoding UTF8 } else { '' }
+        # JSON event text may quote prompts or assistant guesses; only direct CLI stderr
+        # participates in the legacy fallback after structured evidence has been checked.
+        $failure=(@($failure -split '\r?\n' | Where-Object {$_ -notmatch '^\s*\{'}) -join "`n")
         # Never change the model, and never retry permanent auth/credit/input failures.
-        $permanent = $failure -match '(?i)out of credits|insufficient_quota|invalid.api.key|unauthorized|authentication failed'
+        $permanent = $failure -match '(?i)out of credits|insufficient_quota|usage_limit_reached|usage limit|quota exceeded|invalid.api.key|unauthorized|authentication failed'
         $transient = $execution.Cause -in @('AI_TIMEOUT','NETWORK') -or $failure -match '(?i)Selected model is at capacity|rate.limit.exceeded|too many requests|HTTP\s*(429|502|503|504)|temporarily unavailable|server overloaded|connection reset|Reconnecting|stream disconnected'
         if ($permanent -or -not $transient -or $attempt -eq $maxAttempts) {
             $cause = if ($execution.Cause) { $execution.Cause }
-                elseif ($failure -match '(?i)out of credits|insufficient_quota|usage limit|quota exceeded') { 'QUOTA' }
+                elseif ($failure -match '(?i)out of credits|insufficient_quota|usage_limit_reached|usage limit|quota exceeded') { 'QUOTA' }
                 elseif ($failure -match '(?i)invalid.api.key|unauthorized|authentication failed') { 'AUTH' }
                 elseif ($failure -match '(?i)connection reset|timed out|name resolution|Reconnecting|stream disconnected|Transport channel closed') { 'NETWORK' }
                 elseif ($transient) { 'BUSY' } else { 'UNKNOWN' }

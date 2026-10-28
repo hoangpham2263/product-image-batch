@@ -27,9 +27,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Quota transport checks failed.' }
 function node { '{"available":true,"data":{"rateLimits":{"primary":{"usedPercent":30,"windowDurationMins":300}}}}' }
 $quota = Get-ChatGptQuota 'fake-codex.exe'
 Assert ($quota.Available -and $quota.Messages[0] -match 'còn 70%') 'Quota transport output was not integrated.'
+Assert ($quota.Messages[0] -match 'chưa xác minh lượt tạo ảnh') 'CLI quota was presented as verified image-generation availability.'
 function node { '{"available":false,"reason":"timeout"}' }
 $quota = Get-ChatGptQuota 'fake-codex.exe'
 Assert (-not $quota.Available -and $quota.Messages[0] -match 'chưa lấy được dữ liệu') 'Unavailable quota was reported as known.'
+Assert ($quota.Messages[0] -match 'chưa xác định' -and $quota.Messages[0] -match 'Không đồng nghĩa hết hạn mức') 'Unreadable quota was confused with exhausted quota.'
 function node { 'invalid response with private information' }
 $quota = Get-ChatGptQuota 'fake-codex.exe'
 Assert (-not $quota.Available -and $quota.Messages[0] -notmatch 'private') 'Raw quota failure leaked.'

@@ -14,8 +14,8 @@
         TabStop = $false
     }
     $content = @'
-1. Thêm sản phẩm: dán link, gắn một hoặc nhiều ảnh bối cảnh (mỗi ảnh ra một ảnh kết quả), bấm Lưu.
-2. Chọn số ảnh mẫu và số luồng (khuyên dùng 1–2 luồng).
+1. Thêm sản phẩm: gắn ảnh sản phẩm gốc riêng và ảnh review riêng. Mỗi ảnh review tạo một kết quả; không ghép hai ảnh review trong một lượt. Bấm Lưu.
+2. Chọn số luồng (khuyên dùng 1–2 luồng). Mỗi lượt dùng một ảnh review và một ảnh sản phẩm gốc.
 3. Bấm Bắt đầu. Xong app mở Duyệt & xuất file: bấm Đạt/Chưa đạt từng ảnh, duyệt hết rồi bấm Xuất file cuối (loox_import_final.csv, chỉ gồm ảnh Đạt).
 4. Ảnh chưa đúng: bấm Kiểm tra ảnh / Làm lại, ghi chỗ sai rồi Lưu và làm lại.
 5. Google Drive: đăng nhập một lần để ảnh tự tải lên Drive.

@@ -55,6 +55,7 @@ try{
     try{
         $popup.StartPosition='Manual';$popup.Location=[Drawing.Point]::new(-32000,-32000);$popup.Show();$popup.Refresh()
         Assert ($popup.Tag.Row.Preview.Width -gt 600 -and $popup.Tag.Row.Preview.Height -ge 220 -and $popup.Tag.Row.Thumbs.Height -ge 72) 'Popup must show a large preview and its thumbnail strip.'
+        Assert ($popup.Tag.Row.ProductPreview.Visible -and $popup.Tag.Row.ProductPreview.Left -gt $popup.Tag.Row.Preview.Right) 'Original product input must stay separate and visible beside the review input.'
         $bitmap=[Drawing.Bitmap]::new($popup.Width,$popup.Height)
         try{$popup.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save((Join-Path $TestWorkspaceRoot 'product-popup-preview.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     }finally{$popup.Dispose()}
