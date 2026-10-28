@@ -151,8 +151,6 @@
     <span id="version" class="muted small"></span>
     <ol class="steps">
       <li>Giải nén file zip.</li>
-      <li>Lần đầu chạy <b class="ext">setup.cmd</b>.</li>
-      <li>Mở app bằng <b class="ext">start-app.cmd</b>.</li>
       <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
     </ol>
     <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
@@ -621,9 +619,6 @@ document.addEventListener("keydown", (event) => {
 });
 // Refresh the Drive state when returning from the Google consent tab.
 window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
-
-// Only the launcher names for this visitor's system.
-if (/Mac/i.test(navigator.platform || navigator.userAgent)) for (const b of document.querySelectorAll(".ext")) b.textContent = b.textContent.replace(".cmd", ".command");
 
 fetch("https://api.github.com/repos/hoangpham2263/product-review-batch/releases/latest")
   .then((r) => r.json())
