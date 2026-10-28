@@ -48,18 +48,16 @@ try {
     if ($txtLog.Text -notmatch 'Sản phẩm 2 đã hoàn tất' -or $lblProgress.Text -notmatch '1/2 sản phẩm đã xong') { throw 'Missing user-facing status.' }
     if ((ConvertTo-UiEvent '  [RETRY] AI busy; attempt 2/3 in 3s...  (#1)').Text -notmatch 'tự thử lại') { throw 'Retry guidance missing.' }
     if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; URL and source kept for retry. No suitable real scene reference was found').Text -notmatch 'chưa tìm được ảnh mẫu thực tế') { throw 'Missing-data failure needs a clear user message.' }
-    foreach ($case in @(@('MISSING_DATA','thiếu ảnh mẫu'), @('PRODUCT_TIMEOUT','3 lần thử'), @('PRODUCT_NETWORK','Kiểm tra mạng'), @('PRODUCT_ACCESS','chặn truy cập'), @('PRODUCT_NOT_FOUND','không tìm thấy'), @('PRODUCT_DOWNLOAD','chưa tải được'), @('STORE_LOCKED','cửa hàng đang bật mật khẩu'), @('AUTH','đăng nhập'), @('QUOTA','hết hạn mức'), @('NETWORK','Internet'), @('BUSY','thử lại sau'))) {
+    foreach ($case in @(@('MISSING_DATA','thiếu ảnh mẫu'), @('PRODUCT_TIMEOUT','quá chậm'), @('PRODUCT_NETWORK','Kiểm tra mạng'), @('PRODUCT_ACCESS','chặn truy cập'), @('PRODUCT_NOT_FOUND','không tìm thấy'), @('PRODUCT_DOWNLOAD','chưa tải được'), @('STORE_LOCKED','cửa hàng có mật khẩu'), @('AUTH','đăng nhập'), @('QUOTA','hết hạn mức'), @('NETWORK','Internet'), @('BUSY','thử lại sau'))) {
         $event = ConvertTo-UiEvent "WARNING: [ITEM 1] Failed; URL and source kept for retry. AI failed. Details: C:\private\error.log [CAUSE:$($case[0])]"
         if ($event.Text -notmatch $case[1] -or $event.Text -match 'CAUSE|C:\\|Details') { throw 'Account/network errors leaked technical text or lacked user guidance.' }
     }
     if ((ConvertTo-UiEvent '  [DOWNLOAD-RETRY] Attempt 2/3...  (#1)').Text -notmatch 'Đang tự thử tải lại') { throw 'Product download retry was hidden from the user.' }
-    if ((ConvertTo-UiEvent '  [REFERENCE-COUNT] Using 1 checked reference(s) and their real setting.').Text -notmatch 'dùng 1 ảnh mẫu') { throw 'Reduced reference count was not explained.' }
     if ((ConvertTo-UiEvent '[AI-CONNECTION] Connection interrupted').Text -notmatch '60 giây') { throw 'Live connection interruption is hidden.' }
-    if ((ConvertTo-UiEvent '[AI-RESUMED] Response stream resumed.').Text -notmatch 'phản hồi trở lại') { throw 'Connection recovery is hidden.' }
     if ((ConvertTo-UiEvent '[AI-WAIT] 90/480s elapsed.').Stage -notmatch '90/480') { throw 'AI waiting time is hidden.' }
     if ((ConvertTo-UiEvent '[IMAGE-RETRY] AI_TIMEOUT 2/3').Text -notmatch '2/3') { throw 'Automatic image retry count is hidden.' }
     if ((ConvertTo-UiEvent '[IMAGE-ATTEMPT] 3/3').Stage -notmatch '3/3') { throw 'Current image attempt is hidden.' }
-    if ((ConvertTo-UiEvent '[IMAGE-RECOVERED] Saved image found').Text -notmatch 'trước khi tạo lại') { throw 'Recovered image validation is hidden.' }
+    if ((ConvertTo-UiEvent '[IMAGE-RECOVERED] Saved image found').Stage -notmatch 'kiểm tra ảnh đã lưu') { throw 'Recovered image validation is hidden.' }
     if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; [CAUSE:AI_TIMEOUT] AI failed').Text -notmatch 'quá thời gian chờ') { throw 'AI deadline must be explained.' }
     foreach($legacy in @('[QUALITY] Checking','[REFINE] Improving','[QUALITY-REASON] FAIL: obsolete')){if(ConvertTo-UiEvent $legacy){throw 'Retired visual QA events are still active.'}}
     Write-Host 'PASS: parallel live status, completed count, user messages, retry guidance, and diagnostic filtering.' -ForegroundColor Green

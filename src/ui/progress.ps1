@@ -6,117 +6,108 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     if ($line -match '\(#(\d+)\)\s*$') { $event.Index = [int]$Matches[1] }
     if ($line -match '^Starting: (\d+) URLs') {
         $event.Kind = 'Start'; $event.Total = [int]$Matches[1]
-        $event.Text = "Bắt đầu xử lý $($event.Total) sản phẩm."
+        $event.Text = "Bắt đầu $($event.Total) sản phẩm."
     } elseif ($line -match '^\[(\d+)/(\d+)\] ') {
         $event.Kind = 'Item'; $event.Index = [int]$Matches[1]; $event.Total = [int]$Matches[2]; $event.Stage = 'Đang chuẩn bị'
     } elseif ($line -match '^Batch:\s*(.+)') {
         $event.Kind = 'Output'; $event.Path = $Matches[1].Trim()
     } elseif ($line -match '^Missing data: (\d+)') {
         $event.Kind = 'Info'
-        $event.Text = "Có $($Matches[1]) sản phẩm thiếu ảnh mẫu. Gửi file missing-data.csv và thư mục missing-data trong kết quả để bổ sung dữ liệu."
+        $event.Text = "$($Matches[1]) sản phẩm thiếu ảnh mẫu (xem missing-data.csv)."
     } elseif ($line -match '^\[PRODUCT\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang chuẩn bị'
     } elseif ($line -match '^\[CLASSIFY\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang nhận diện sản phẩm'
     } elseif ($line -match '^\[REFERENCE-COUNT\] Using (\d+)') {
         $event.Kind = 'Stage'; $event.Stage = 'Đã chọn ảnh mẫu phù hợp'
-        $event.Text = "Sản phẩm $($event.Index): dùng $($Matches[1]) ảnh mẫu đã kiểm tra và bối cảnh thật trong ảnh."
     } elseif ($line -match '^\[SELECT\] Subject') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang chọn người mẫu'
     } elseif ($line -match '^\[SELECT\] Scene') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang chọn bối cảnh'
     } elseif ($line -match '^\[MANUAL-REFERENCE\]') {
         $event.Kind='Stage';$event.Stage='Đã nhận ảnh bạn gắn'
-        $event.Text="Sản phẩm $($event.Index): dùng ảnh bạn gắn cho link, không chọn ngẫu nhiên từ data."
     } elseif ($line -match '^\[IMAGE\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang tạo ảnh'
-        $event.Text = "Sản phẩm $($event.Index): đang tạo ảnh."
     } elseif ($line -match '^\[HUMAN-APPROVED\]') {
-        $event.Kind='Stage';$event.Stage='Đang bàn giao ảnh đã duyệt'
-        $event.Text="Sản phẩm $($event.Index): bạn đã duyệt ảnh. Đang lưu ảnh và CSV; không tạo ảnh lại."
+        $event.Kind='Stage';$event.Stage='Đang lưu ảnh đã duyệt'
     } elseif ($line -match '^WARNING: Approved image saved; review text unavailable') {
-        $event.Kind='Info';$event.Text='Ảnh đã lưu. Chưa tạo được nội dung đánh giá; ô nội dung trong CSV để trống để bạn điền.'
+        $event.Kind='Info';$event.Text='Ảnh đã lưu, chưa có nội dung đánh giá (ô trong CSV để trống).'
     } elseif ($line -match '^\[REVIEW\]') {
         $event.Kind = 'Stage'; $event.Stage = 'Đang viết đánh giá'
-        $event.Text = "Sản phẩm $($event.Index): đang viết đánh giá."
     } elseif ($line -match '^\[IMAGE-ATTEMPT\]\s*(\d+)/(\d+)') {
         $event.Kind='Stage';$event.Stage="Đang tạo ảnh, lượt gửi $($Matches[1])/$($Matches[2])"
-        $event.Text="Sản phẩm $($event.Index): đang tạo ảnh, lượt gửi $($Matches[1])/$($Matches[2]). Chỉ thử lại khi kết nối lỗi và chưa nhận đủ file."
     } elseif ($line -match '^\[IMAGE-RETRY\]\s*(\S+)\s+(\d+)/(\d+)') {
         $event.Kind='Retry';$event.Stage="Đang tự thử lại lượt $($Matches[2])/$($Matches[3])"
-        $event.Text="Sản phẩm $($event.Index): lượt trước bị gián đoạn ($($Matches[1])). Đã dừng tiến trình cũ; tự thử lượt $($Matches[2])/$($Matches[3]) với cùng ảnh đầu vào."
+        $event.Text="Sản phẩm $($event.Index): bị gián đoạn, thử lại $($Matches[2])/$($Matches[3])."
     } elseif ($line -match '^\[IMAGE-RECOVERED\]') {
         $event.Kind='Stage';$event.Stage='Đang kiểm tra ảnh đã lưu'
-        $event.Text="Sản phẩm $($event.Index): đã tìm thấy ảnh lưu trước khi timeout; kiểm tra ảnh này trước khi tạo lại."
     } elseif ($line -match '^\[AWAITING-REVIEW\]') {
-        $event.Kind='Stage';$event.Stage='Ảnh đã tạo, chờ bạn kiểm tra'
-        $event.Text="Sản phẩm $($event.Index): ảnh đã tạo để bạn review. Không chạy QA hoặc tự sửa ảnh."
+        $event.Kind='Stage';$event.Stage='Ảnh đã tạo'
     } elseif ($line -match '^\[DOWNLOAD-RETRY\]') {
         $event.Kind = 'Retry'; $event.Stage = 'Đang thử tải lại sản phẩm'
-        $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh phản hồi chậm. Đang tự thử tải lại."
+        $event.Text = "Sản phẩm $($event.Index): trang chậm, đang tự thử tải lại."
     } elseif ($line -match '^\[AI-CONNECTION\]') {
         $event.Kind = 'Retry'; $event.Stage = 'Kết nối gián đoạn'
-        $event.Text = 'Kết nối AI bị gián đoạn. Đang chờ phục hồi; lượt này sẽ dừng nếu không kết nối lại được trong 60 giây.'
+        $event.Text = 'Mất kết nối AI, chờ tối đa 60 giây.'
     } elseif ($line -match '^\[AI-RESUMED\]') {
         $event.Kind = 'Retry'; $event.Stage = 'AI đã phản hồi trở lại'
-        $event.Text = 'AI đã phản hồi trở lại. Đang tiếp tục xử lý.'
     } elseif ($line -match '^\[AI-WAIT\] (\d+)/(\d+)s') {
         $event.Kind = 'Stage'; $event.Stage = "Đang chờ AI $($Matches[1])/$($Matches[2]) giây"
     } elseif ($line -match '^\[RETRY\]') {
         $event.Kind = 'Retry'; $event.Stage = 'Đang chờ dịch vụ'
-        $event.Text = 'Dịch vụ đang bận. Ứng dụng sẽ tự thử lại.'
+        $event.Text = 'Dịch vụ bận, đang tự thử lại.'
     } elseif ($line -match '^\[METADATA\]') {
         $event.Kind = 'Saving'; $event.Stage = 'Đang lưu kết quả'
     } elseif ($line -match '^\[OK\]') {
         if ($line -match '\[ITEM (\d+)\]') { $event.Index = [int]$Matches[1] }
         $event.Kind = 'Completed'; $event.Stage = 'Đã xong'
-        $event.Text = "Sản phẩm $($event.Index) đã hoàn tất."
+        $event.Text = "Sản phẩm $($event.Index): xong."
     } elseif ($line -match '^WARNING:\s*(?:\[ITEM (\d+)\]\s*)?Failed;') {
         if ($Matches[1]) { $event.Index = [int]$Matches[1] }
         $event.Kind = 'Failed'; $event.Stage = 'Chưa hoàn tất'
-        $event.Text = "Sản phẩm $($event.Index) chưa hoàn tất. Link được giữ lại để thử lại."
+        $event.Text = "Sản phẩm $($event.Index): lỗi, link được giữ để chạy lại."
         if ($line -match '\[CAUSE:PRODUCT_INPUT\]') {
-            $event.Text = "Sản phẩm $($event.Index): ảnh sản phẩm gốc bị thiếu, thay đổi hoặc không đọc được. Hãy gắn lại ảnh sản phẩm."
+            $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm gốc, hãy gắn lại."
         } elseif ($line -match '\[CAUSE:PRODUCT_TIMEOUT\]') {
-            $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh phản hồi quá chậm sau 3 lần thử. Link được giữ lại để chạy lại."
+            $event.Text = "Sản phẩm $($event.Index): trang quá chậm, thử lại sau."
         } elseif ($line -match '\[CAUSE:PRODUCT_NETWORK\]') {
-            $event.Text = "Sản phẩm $($event.Index): chưa kết nối được trang hoặc ảnh sau 3 lần thử. Kiểm tra mạng rồi chạy lại."
+            $event.Text = "Sản phẩm $($event.Index): không vào được trang, kiểm tra mạng."
         } elseif ($line -match '\[CAUSE:PRODUCT_ACCESS\]') {
-            $event.Text = "Sản phẩm $($event.Index): trang hoặc ảnh đang chặn truy cập. Gắn ảnh sản phẩm gốc để dùng trực tiếp hoặc dùng link công khai."
+            $event.Text = "Sản phẩm $($event.Index): trang chặn truy cập, hãy gắn ảnh sản phẩm."
         } elseif ($line -match '\[CAUSE:PRODUCT_NOT_FOUND\]') {
-            $event.Text = "Sản phẩm $($event.Index): không tìm thấy trang hoặc ảnh sản phẩm. Vui lòng kiểm tra link."
+            $event.Text = "Sản phẩm $($event.Index): không tìm thấy sản phẩm, kiểm tra link."
         } elseif ($line -match '\[CAUSE:MISSING_DATA\]') {
-            $event.Text = "Sản phẩm $($event.Index): thiếu ảnh mẫu cho loại sản phẩm này. Đã ghi vào missing-data trong kết quả."
+            $event.Text = "Sản phẩm $($event.Index): thiếu ảnh mẫu cho loại này."
         } elseif ($line -match '\[CAUSE:PRODUCT_DOWNLOAD\]') {
-            $event.Text = "Sản phẩm $($event.Index): chưa tải được trang hoặc ảnh. Link được giữ lại để thử lại."
+            $event.Text = "Sản phẩm $($event.Index): chưa tải được trang, thử lại sau."
         } elseif ($line -match '\[CAUSE:BRIDGE\]') {
-            $event.Text = "Sản phẩm $($event.Index): chưa kết nối được tab ChatGPT/Flow. Mở Chrome có extension product-image-bridge, đăng nhập rồi chạy lại."
+            $event.Text = "Sản phẩm $($event.Index): chưa nối được ChatGPT/Flow, mở Chrome có extension."
         } elseif ($line -match '\[CAUSE:STORE_LOCKED\]') {
-            $event.Text = "Sản phẩm $($event.Index): cửa hàng đang bật mật khẩu. Gắn ảnh sản phẩm gốc để chạy mà không cần mở khoá web."
+            $event.Text = "Sản phẩm $($event.Index): cửa hàng có mật khẩu, hãy gắn ảnh sản phẩm."
         } elseif ($line -match '\[CAUSE:AUTH\]') {
-            $event.Text = 'Không xác thực được tài khoản. Bấm Kiểm tra ChatGPT để xem hướng dẫn đăng nhập.'
+            $event.Text = 'Chưa đăng nhập ChatGPT, bấm Kiểm tra ChatGPT.'
         } elseif ($line -match '\[CAUSE:QUOTA\]') {
-            $event.Text = 'Tài khoản đã hết hạn mức. Kiểm tra tài khoản hoặc chờ hạn mức được cấp lại.'
+            $event.Text = 'Hết hạn mức, chờ được cấp lại.'
         } elseif ($line -match '\[CAUSE:AI_TIMEOUT\]') {
-            $event.Text = 'AI phản hồi quá thời gian chờ. Đã dừng lượt xử lý; link được giữ lại để thử lại.'
+            $event.Text = 'AI quá thời gian chờ, link được giữ để chạy lại.'
         } elseif ($line -match '\[CAUSE:PROCESS_ACTIVE\]') {
-            $event.Text = 'Chưa xác nhận tiến trình AI cũ đã dừng. App giữ link và không gửi lượt mới để tránh tạo trùng.'
+            $event.Text = 'Lượt AI cũ chưa dừng, giữ link để tránh tạo trùng.'
         } elseif ($line -match '\[CAUSE:NETWORK\]') {
-            $event.Text = 'Kết nối bị gián đoạn. Kiểm tra Internet rồi chạy lại các link còn lại.'
+            $event.Text = 'Mất mạng, kiểm tra Internet rồi chạy lại.'
         } elseif ($line -match '\[CAUSE:BUSY\]') {
-            $event.Text = 'Dịch vụ vẫn đang bận. Vui lòng thử lại sau.'
+            $event.Text = 'Dịch vụ bận, thử lại sau.'
         } elseif ($line -match 'No product reference found|Invalid reference image URL') {
-            $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm. Vui lòng kiểm tra link."
+            $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm, kiểm tra link."
         } elseif ($line -match 'Image technical validation failed') {
-            $event.Text="Sản phẩm $($event.Index): file ảnh chưa hợp lệ để xuất. Link được giữ lại. Đây là kiểm tra kỹ thuật, không phải AI chấm chất lượng."
+            $event.Text="Sản phẩm $($event.Index): file ảnh lỗi, link được giữ để chạy lại."
         } elseif ($line -match 'No suitable real scene reference|No suitable source photo found') {
-            $event.Text = "Sản phẩm $($event.Index): chưa tìm được ảnh mẫu thực tế phù hợp. Link được giữ lại."
+            $event.Text = "Sản phẩm $($event.Index): chưa tìm được ảnh mẫu thực tế phù hợp."
         }
     } elseif ($line -match '^Done: (\d+)/(\d+) exported in (\d+)s') {
         $event.Kind = 'Summary'; $event.Done = [int]$Matches[1]; $event.Total = [int]$Matches[2]; $event.Seconds = [int]$Matches[3]
-        $event.Text = "Đã hoàn tất $($event.Done)/$($event.Total) sản phẩm."
+        $event.Text = "Xong $($event.Done)/$($event.Total) sản phẩm."
     } elseif ($line -match '^WARNING: Invalid') {
-        $event.Kind = 'Warning'; $event.Text = 'Có link không hợp lệ. Vui lòng kiểm tra lại danh sách.'
+        $event.Kind = 'Warning'; $event.Text = 'Có link không hợp lệ.'
     } elseif ($line -match '^No product URLs') {
         $event.Kind = 'Warning'; $event.Text = 'Chưa có link sản phẩm để xử lý.'
     }

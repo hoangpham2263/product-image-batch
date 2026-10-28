@@ -9,13 +9,13 @@
 
 App là cửa sổ Windows. Trên macOS chạy lõi xử lý bằng dòng lệnh với PowerShell 7 (`brew install --cask powershell` hoặc `dotnet tool install --global PowerShell`) và Codex CLI đã đăng nhập. Ảnh trên Drive được quản lý ở trang web (GitHub Pages). Máy mới xem [setup.txt](setup.txt).
 
-Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xóa thông báo** chỉ dọn khung thông báo, giữ nguyên kết quả và file chẩn đoán.
+Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xoá** ở khung Thông báo chỉ dọn thông báo.
 
 Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. Nếu dịch vụ chưa trả số liệu, app báo chưa lấy được; tài khoản API chưa hỗ trợ xem số dư. Phần trăm Codex không quy đổi thành số ảnh còn tạo được.
 
 Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồng dùng nhiều RAM và hạn mức hơn, có thể làm máy chậm.
 
-Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn review, không AI QA hoặc tự sửa. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
+Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn xem. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
 
 ## Workflow
 
@@ -57,7 +57,7 @@ Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử t�
 
 ### Phản bác kết quả và lưu bài học
 
-Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo một kết quả mới để bạn review, không chạy AI QA hay tự sửa thêm. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
+Bấm **Kiểm tra ảnh / Làm lại** để chọn ảnh kết quả và xem cạnh ảnh sản phẩm gốc. Ghi rõ lỗi (ví dụ: “Thay cả ghế nệm bằng đúng ghế gỗ lưng cong của bộ sản phẩm”), rồi bấm **Lưu và làm lại**. App lưu bản sao đầu vào, ảnh bị phản bác và nội dung yêu cầu; lần làm lại giữ đúng sản phẩm/phòng đã lưu, tạo một kết quả mới để bạn xem. AI nhận cả yêu cầu sửa và ảnh lỗi để đối chiếu. Với kết quả cũ chưa lưu context, app nhận diện lại từ ảnh sản phẩm đã lưu, không tải sản phẩm khác.
 
 Tùy chọn **Lưu thành bài học** mặc định áp dụng cho riêng URL sản phẩm; chỉ chọn cả danh mục khi quy tắc thật sự phù hợp với các sản phẩm khác. Bài học nằm tập trung trong phần Saved user lessons của `AGENTS.md` và được đọc trực tiếp vào prompt theo đúng URL/danh mục. App cập nhật riêng phần đó khi lưu hoặc bật/tắt bài học; các hướng dẫn khác được giữ nguyên. `workspace/feedback/<id>/feedback.json` cùng ảnh lỗi và `refs/` là lịch sử lần chạy, không phải nguồn bài học.
 

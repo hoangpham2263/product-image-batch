@@ -107,39 +107,38 @@ $form.Size = New-Object Drawing.Size(1120, 840)
 $form.MinimumSize = New-Object Drawing.Size(1040, 760)
 $form.StartPosition = 'CenterScreen'
 $form.Font = New-Object Drawing.Font('Segoe UI', 10)
-$form.BackColor=[Drawing.SystemColors]::Control
+$form.BackColor=$script:Ui.Page
 $ui=$script:Ui; $ink=$ui.Ink; $muted=$ui.Muted
 $form.ForeColor=$ink
 # Each region is a bordered panel on the system-grey page so areas read as separate blocks.
 function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H,[string]$Anchor='Top,Left') {
-    $card=New-Object Windows.Forms.Panel -Property @{Name=$Name;Location=(New-Object Drawing.Point($X,$Y));Size=(New-Object Drawing.Size($W,$H));BackColor=$ui.Page;Anchor=$Anchor}
+    $card=New-Object Windows.Forms.Panel -Property @{Name=$Name;Location=(New-Object Drawing.Point($X,$Y));Size=(New-Object Drawing.Size($W,$H));BackColor=$ui.Surface;Anchor=$Anchor}
     $card.Add_Paint({$pen=New-Object Drawing.Pen($script:Ui.Line);try{$_.Graphics.DrawRectangle($pen,0,0,$this.Width-1,$this.Height-1)}finally{$pen.Dispose()}})
     if ($Heading) { $card.Controls.Add((New-Object Windows.Forms.Label -Property @{Text=$Heading;Location='14,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',10));ForeColor=$ui.Ink;UseMnemonic=$false})) }
     return $card
 }
-$header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
-$title=New-Object Windows.Forms.Label -Property @{Text='Product Image Batch';Location='20,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
-$lblThreadHint=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.';Location='22,38';Size='1040,20';ForeColor=$muted;Anchor='Top,Left,Right'}
-$header.Controls.AddRange(@($title,$lblThreadHint))
+$header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=60;BackColor=$ui.Page}
+$title=New-Object Windows.Forms.Label -Property @{Text='Product Image Batch';Location='18,16';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI Semibold',14));ForeColor=$ink}
+$header.Controls.Add($title)
 
-$cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh đi kèm' 20 78 820 344 'Top,Left,Right'
+$cardList=New-Card 'CardProducts' 'Sản phẩm' 20 60 820 362 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root
 $queueEditor.Panel.Location=[Drawing.Point]::new(14,36)
-$queueEditor.Panel.Size=[Drawing.Size]::new(792,296)
+$queueEditor.Panel.Size=[Drawing.Size]::new(792,314)
 $queueEditor.Panel.Anchor='Top,Left,Right'
-$queueEditor.Flow.BackColor=$ui.Surface;$queueEditor.Flow.BorderStyle='FixedSingle'
+$queueEditor.Flow.BackColor=$ui.Surface;$queueEditor.Flow.BorderStyle='None'
 $cardList.Controls.Add($queueEditor.Panel)
 
-$cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
-$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,36';Size='196,36'}
-$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,78';Size='196,36'}
-$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,120';Size='196,36'}
-$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,162';Size='196,36'}
-$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,204';Size='196,36'}
-$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,246';Size='196,36'}
-$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,288';Size='196,36'}
-foreach ($b in @($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
+$cardActions=New-Card 'CardActions' '' 856 60 224 362 'Top,Right'
+$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,14';Size='196,36'}
+$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,56';Size='196,36'}
+$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,98';Size='196,36'}
+$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,140';Size='196,36'}
+$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,182';Size='196,36'}
+$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,312';Size='196,36'}
+$btnClear=New-Object Windows.Forms.LinkLabel -Property @{Text='Xoá';Location='1000,10';Size='46,20';TextAlign='MiddleRight';Anchor='Top,Right';LinkColor=$ui.Muted;ActiveLinkColor=$ui.Accent;LinkBehavior='HoverUnderline'}
+foreach ($b in @($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp))
 function Update-DriveButton { $btnDrive.Text = if (Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json')) { 'Google Drive ✓' } else { 'Google Drive' } }
 Update-DriveButton
 
@@ -149,17 +148,17 @@ $btnStop=New-Object Windows.Forms.Button -Property @{Text='Dừng';Location='186
 Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
-$lblPer=New-Object Windows.Forms.Label -Property @{Text='Ảnh từ kho/SP:';Location='720,19';Size='110,24';Anchor='Top,Right';ForeColor=$muted}
+$lblPer=New-Object Windows.Forms.Label -Property @{Text='Ảnh mẫu/SP:';Location='720,19';Size='110,24';Anchor='Top,Right';ForeColor=$muted}
 $numPer=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=6;Value=1;Location='832,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
 $numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=1;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr))
 
-$cardLog=New-Card 'CardLog' 'Tiến trình & thông báo' 20 508 1060 282 'Top,Bottom,Left,Right'
+$cardLog=New-Card 'CardLog' 'Thông báo' 20 508 1060 282 'Top,Bottom,Left,Right'
 $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='14,36';Size='1032,8';Anchor='Top,Left,Right';Style='Blocks'}
-$lblProgress=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm và ảnh đi kèm để bắt đầu.';Location='14,50';Size='1032,24';AutoEllipsis=$true;Anchor='Top,Left,Right'}
-$txtLog=New-Object Windows.Forms.TextBox -Property @{Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Location='14,80';Size='1032,188';Anchor='Top,Bottom,Left,Right';BackColor=$ui.Surface;BorderStyle='FixedSingle';Font=(New-Object Drawing.Font('Segoe UI',10))}
-$cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog))
+$lblProgress=New-Object Windows.Forms.Label -Property @{Text='';ForeColor=$muted;Location='14,50';Size='1032,24';AutoEllipsis=$true;Anchor='Top,Left,Right'}
+$txtLog=New-Object Windows.Forms.TextBox -Property @{Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Location='14,80';Size='1032,188';Anchor='Top,Bottom,Left,Right';BackColor=$ui.Surface;BorderStyle='None';ForeColor=$ink;Font=(New-Object Drawing.Font('Segoe UI',10))}
+$cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog,$btnClear))
 
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 $lblStatus.Anchor='Top,Left'
@@ -168,7 +167,7 @@ $lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallb
 $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
-$btnClear.Add_Click({ $txtLog.Clear() })
+$btnClear.Add_LinkClicked({ $txtLog.Clear() })
 $btnFeedback.Add_Click({
     if ($script:proc) { return }
     $selection = Show-ImageFeedbackDialog $form $root $workspace.Output

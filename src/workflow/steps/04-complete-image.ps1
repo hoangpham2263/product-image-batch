@@ -21,7 +21,7 @@ function Complete-ProductImage($Request, $Context, [string]$ItemId) {
         Assert-GeneratedImage $output
         $status=[ordered]@{status='awaiting_user_review';ai_image_qa_performed=$false;generation_attempt=$attempt;output=$output}
         [IO.File]::WriteAllText((Join-Path $script:Batch.Logs "$ItemId-review-status.json"),($status|ConvertTo-Json),[Text.UTF8Encoding]::new($false))
-        Write-Host '  [AWAITING-REVIEW] Image ready for user review; no automatic visual QA or repair.' -ForegroundColor Cyan
+        Write-Host '  [AWAITING-REVIEW] Image ready for user review.' -ForegroundColor Cyan
         return $reply
     }
 }

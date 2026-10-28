@@ -1,4 +1,4 @@
-﻿# Explicit human acceptance is a separate completion path; it never masquerades as AI QA PASS.
+﻿# Explicit human acceptance is a separate completion path.
 function Export-ApprovedProduct([string]$ProjectRoot, [string]$ImagePath, [string]$OutDir) {
     $started=Get-Date
     $target=Get-FeedbackTarget $ImagePath
