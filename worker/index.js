@@ -81,8 +81,30 @@ async function uploadFile(env, name, mime, bytes, parent) {
   return (await r.json()).id;
 }
 
-const readList = async (env) => (await env.STORE.get(LIST_KEY, "json")) || [];
-const writeList = (env, list) => env.STORE.put(LIST_KEY, JSON.stringify(list));
+// One KV key per image (img:<id>, item copied into metadata for listing), so parallel
+// uploads never overwrite each other. LIST_KEY is the older single-array format, still read.
+const readLegacy = async (env) => (await env.STORE.get(LIST_KEY, "json")) || [];
+const writeLegacy = (env, list) => env.STORE.put(LIST_KEY, JSON.stringify(list));
+const putItem = (env, item) => env.STORE.put(`img:${item.id}`, JSON.stringify(item), { metadata: item });
+async function getItem(env, id) {
+  return (await env.STORE.get(`img:${id}`, "json")) || (await readLegacy(env)).find((i) => i.id === id) || null;
+}
+async function readList(env) {
+  const items = [];
+  let cursor;
+  do {
+    const page = await env.STORE.list({ prefix: "img:", cursor });
+    for (const key of page.keys) items.push(key.metadata || (await env.STORE.get(key.name, "json")));
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  const seen = new Set(items.map((i) => i.id));
+  return [...items, ...(await readLegacy(env)).filter((i) => !seen.has(i.id))].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+async function removeItem(env, id) {
+  await env.STORE.delete(`img:${id}`);
+  const legacy = await readLegacy(env);
+  if (legacy.some((i) => i.id === id)) await writeLegacy(env, legacy.filter((i) => i.id !== id));
+}
 const publicUrl = (origin, item) => `${origin}/img/${item.id}.png`;
 
 // ---------- Routes ----------
@@ -134,7 +156,7 @@ async function handle(req, env, ctx) {
     const cache = caches.default;
     const hit = await cache.match(req);
     if (hit) return hit;
-    const item = (await readList(env)).find((i) => i.id === img[1]);
+    const item = await getItem(env, img[1]);
     if (!item || item.status === "rejected") return new Response("Không tìm thấy ảnh.", { status: 404 });
     const r = await drive(env, `/drive/v3/files/${item.fileId}?alt=media`);
     const res = new Response(r.body, { headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" } });
@@ -168,29 +190,26 @@ async function handle(req, env, ctx) {
       product: String(url.searchParams.get("product") || "").slice(0, 200),
       size: bytes.byteLength, status: "awaiting_review", createdAt: new Date().toISOString(),
     };
-    const list = await readList(env);
-    list.unshift(item);
-    await writeList(env, list);
+    await putItem(env, item);
     return json({ ...item, url: publicUrl(url.origin, item) }, 201);
   }
 
   const one = path.match(/^\/api\/images\/(\w+)$/);
   if (one && (req.method === "PATCH" || req.method === "DELETE")) {
-    const list = await readList(env);
-    const index = list.findIndex((i) => i.id === one[1]);
-    if (index < 0) return json({ error: "Không tìm thấy ảnh." }, 404);
+    const item = await getItem(env, one[1]);
+    if (!item) return json({ error: "Không tìm thấy ảnh." }, 404);
     if (req.method === "DELETE") {
-      await drive(env, `/drive/v3/files/${list[index].fileId}`, { method: "DELETE" });
-      list.splice(index, 1);
-      await writeList(env, list);
+      await drive(env, `/drive/v3/files/${item.fileId}`, { method: "DELETE" });
+      await removeItem(env, item.id);
       return json({ ok: true });
     }
     const { status } = await req.json();
     if (!STATUSES.includes(status)) return json({ error: "Trạng thái không hợp lệ." }, 400);
-    list[index] = { ...list[index], status, reviewedAt: new Date().toISOString() };
-    await writeList(env, list);
-    ctx.waitUntil(caches.default.delete(new Request(publicUrl(url.origin, list[index]))));
-    return json({ ...list[index], url: publicUrl(url.origin, list[index]) });
+    const updated = { ...item, status, reviewedAt: new Date().toISOString() };
+    await removeItem(env, item.id);
+    await putItem(env, updated);
+    ctx.waitUntil(caches.default.delete(new Request(publicUrl(url.origin, updated))));
+    return json({ ...updated, url: publicUrl(url.origin, updated) });
   }
 
   return json({ error: "Not found" }, 404);

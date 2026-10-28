@@ -5,12 +5,14 @@ import worker, { cleanName } from "./index.js";
 // In-memory KV, edge cache and Google endpoints.
 function setup() {
   const kv = new Map([["refresh_token", "r"]]);
+  const meta = new Map();
   const env = {
     ADMIN_PASSWORD: "secret", GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "s",
     STORE: {
       get: async (k, type) => (kv.has(k) ? (type === "json" ? JSON.parse(kv.get(k)) : kv.get(k)) : null),
-      put: async (k, v) => kv.set(k, v),
-      delete: async (k) => kv.delete(k),
+      put: async (k, v, opts) => { kv.set(k, v); if (opts?.metadata) meta.set(k, opts.metadata); },
+      delete: async (k) => { kv.delete(k); meta.delete(k); },
+      list: async ({ prefix }) => ({ keys: [...kv.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name, metadata: meta.get(name) })), list_complete: true }),
     },
   };
   const files = new Map();
@@ -36,7 +38,7 @@ function setup() {
   };
   const ctx = { waitUntil: () => {} };
   const call = (path, init = {}) => worker.fetch(new Request(`https://api.test${path}`, init), env, ctx);
-  return { call, files };
+  return { call, files, kv };
 }
 
 test("upload stores the image in Drive and serves it from a public link", async () => {
@@ -67,4 +69,18 @@ test("writes need the admin key; review status and delete work", async () => {
 test("names from the local app are reduced to safe characters", () => {
   assert.equal(cleanName("../../etc/passwd", "x"), "_.._etc_passwd");
   assert.equal(cleanName("", "fallback.png"), "fallback.png");
+});
+
+test("parallel uploads all stay listed and served; old single-list items still work", async () => {
+  const { call, kv } = setup();
+  kv.set("images", JSON.stringify([{ id: "old1", fileId: "file-old", batch: "b", name: "o.png", status: "awaiting_review", createdAt: "2020-01-01T00:00:00Z" }]));
+  const admin = { "x-admin-key": "secret" };
+  const made = await Promise.all([1, 2, 3, 4, 5].map((n) => call(`/api/images?batch=b&name=${n}.png`, { method: "POST", headers: admin, body: String(n) }).then((r) => r.json())));
+  const list = await (await call("/api/images", { headers: admin })).json();
+  assert.equal(list.length, 6);
+  for (const item of made) assert.equal((await call(new URL(item.url).pathname)).status, 200);
+  const patched = await call("/api/images/old1", { method: "PATCH", headers: { ...admin, "content-type": "application/json" }, body: JSON.stringify({ status: "accepted" }) });
+  const body = await patched.json();
+  assert.equal(body.status, "accepted", JSON.stringify(body));
+  assert.equal((await (await call("/api/images", { headers: admin })).json()).length, 6);
 });
