@@ -277,6 +277,7 @@ $animTimer.Add_Tick({
 })
 function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '') {
     if ($script:proc) { return }
+    if(-not (Get-DriveConfig $workspace.Root)){Append-Log 'Đăng nhập Google Drive trước khi chạy để CSV có link ảnh công khai.';return}
     if (-not $FeedbackFile -and -not $ApprovedImage) { try{Save-Urls -RequireReady}catch{Append-Log $_.Exception.Message;return} }
     if (-not $FeedbackFile -and -not $ApprovedImage -and -not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
     if (-not $ApprovedImage -and -not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra ChatGPT" để xem hướng dẫn.') | Out-Null; return }

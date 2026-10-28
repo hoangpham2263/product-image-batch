@@ -28,7 +28,9 @@ Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/vi
 | 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
 | 6. Hoàn tất ảnh | Kiểm tra PNG đọc được rồi xuất nguyên file do AI tạo để người dùng review. |
 | 7. Viết review mẫu | Chọn tối đa 3 review tham khảo đúng danh mục từ review-samples.jsonl, xoay vòng mẫu để học cách viết; nội dung mới dựa trên ảnh. Không bắt buộc ngôi thứ nhất, không chép lời khách khác hay thêm trải nghiệm mua hàng. Câu mở đầu kiểu “I like/I love” hoặc chép câu nguồn sẽ được viết lại tối đa một lần; vẫn lỗi thì dừng sản phẩm. |
-| 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao, email @int và ngày; không gọi Codex cho phần này. |
+| 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao (55% 5 sao / 45% 4 sao), email @int và ngày; không gọi Codex cho phần này. |
+
+Kho `data/names.txt` có 4.000 tên hiển thị với tên riêng không trùng, giữ 965 tên riêng từ kho cũ và các tên đã bổ sung. Nguồn mở rộng: Names Corpus 1.3 của Mark Kantrowitz, bổ sung bởi Bill Ross, phân phối qua NLTK. Chỉ lưu danh sách tên trong `data/names.txt`; gộp tên riêng không trùng từ kho cũ và nguồn bổ sung, không nhân mỗi tên với chữ cái họ A–Z. Tên hiển thị theo dạng tên riêng + chữ cái đầu của họ, ví dụ Josh K.; mỗi tên riêng chỉ xuất hiện một dòng. Đây là dữ liệu mẫu, không phải danh tính khách hàng.
 | 9. Xuất kết quả | Lưu ảnh và CSV; URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
 
 ### Thư viện ảnh mẫu
@@ -121,7 +123,9 @@ Cài một lần:
 3. Trong app, bấm **Google Drive** và nhập mật khẩu quản lý (mỗi máy một lần). App kiểm tra mật khẩu rồi lưu vào `workspace/drive.json` (không lên Git).
 4. Mở trang quản lý `docs/index.html` (GitHub Pages: Settings → Pages → `main` / `docs`), nhập mật khẩu, bấm **Kết nối Drive**.
 
-Có `drive.json` thì mỗi ảnh được upload sau khi tạo và cột `photo_url` trong CSV là link Drive; upload lỗi thì giữ đường dẫn local. Trang quản lý: lọc theo batch/trạng thái, duyệt, loại, copy link, xoá và tải danh sách link.
+App kiểm tra đăng nhập/kết nối Drive trước khi tạo ảnh. Ảnh có thể tạo song song, nhưng được tải lên Drive tuần tự; chỉ ảnh có link HTTPS công khai mới được ghi vào CSV bàn giao. Upload tạm lỗi thử tối đa 3 lượt; vẫn lỗi thì giữ URL và lưu ảnh/nội dung tại `workspace/delivery-pending/`. Bấm Bắt đầu sẽ dùng lại các kết quả đã lưu để tiếp tục upload, không gọi AI tạo lại; với nhiều ảnh cùng link, các ảnh đã thành công cũng được dùng lại đến khi cả link hoàn tất. Không thay upload lỗi bằng đường dẫn local. Trang quản lý: lọc theo batch/trạng thái, duyệt, loại, copy link, xoá và tải danh sách link.
+
+CLI có `-LocalOnly` cho kiểm thử hoặc chủ đích chỉ xuất local; đây không phải chế độ bàn giao ảnh công khai cho Loox. Giao diện desktop luôn yêu cầu Drive.
 
 ## Cấu trúc thư mục
 
@@ -144,3 +148,26 @@ Logo chỉ được thay bằng brand giả khi thực sự in, khắc, thêu ho
 Chạy **test.cmd** để kiểm tra cú pháp và các bộ kiểm thử offline, không gọi AI trả phí.
 
 - [Chi tiết workflow và cấu trúc mã nguồn](docs/workflow.txt)
+
+Nguồn bổ sung: https://github.com/nltk/nltk_data/blob/gh-pages/packages/corpora/names.zip
+
+Điều khoản gốc của Names Corpus:
+
+```text
+Names Corpus, Version 1.3 (1994-03-29)
+Copyright (C) 1991 Mark Kantrowitz
+Additions by Bill Ross
+
+This corpus contains 5001 female names and 2943 male names, sorted
+alphabetically, one per line.
+
+You may use the lists of names for any purpose, so long as credit is
+given in any published work. You may also redistribute the list if you
+provide the recipients with a copy of this README file. The lists are
+not in the public domain (I retain the copyright on the lists) but are
+freely redistributable.  If you have any additions to the lists of
+names, I would appreciate receiving them.
+
+Mark Kantrowitz <mkant+@cs.cmu.edu>
+http://www-2.cs.cmu.edu/afs/cs/project/ai-repository/ai/areas/nlp/corpora/names/
+```

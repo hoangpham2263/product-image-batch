@@ -25,7 +25,7 @@ function Update-ProductQueueRow($Editor,$Row) {
         Set-FeedbackPreview $Row.ProductPreview ''
         if($entry.Count -and $entry[0].product_file){Set-FeedbackPreview $Row.ProductPreview $entry[0].product_file}
     }
-    $scenes=if($entry.Count){@(Get-ManualScenes $entry[0])}else{@()}
+    $scenes=@(if($entry.Count){Get-ManualScenes $entry[0]})
     $index=0
     if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[Math]::Max(0,[Math]::Min($Row.SceneIndex,$scenes.Count-1));$index=$Row.SceneIndex}
     if($Row.PSObject.Properties['Thumbs']){Update-SceneThumbs $Editor $Row $scenes $index}
@@ -297,7 +297,7 @@ function Save-ProductQueueEditor($Editor,[string]$QueuePath,[switch]$RequireRead
     $map.preferred_source_group=$Editor.SourceGroup
     if($RequireReady -and -not $map.allow_library_fallback){
         foreach($url in $urls){$entry=@($map.entries|Where-Object product_url -eq $url)
-            $scenes=if($entry.Count){@(Get-ManualScenes $entry[0])}else{@()}
+            $scenes=@(if($entry.Count){Get-ManualScenes $entry[0]})
             if(-not $scenes.Count){throw "Chưa có ảnh bối cảnh: $url"}
             foreach($scene in $scenes){
                 if(-not (Test-Path -LiteralPath $scene.file)){throw "Chưa có ảnh bối cảnh: $url"}

@@ -28,6 +28,7 @@ try{
     $before=[IO.File]::ReadAllBytes($output);ConvertTo-PngFile $output
     Assert ([Convert]::ToBase64String([IO.File]::ReadAllBytes($output)) -eq [Convert]::ToBase64String($before)) 'PNG output was rewritten.'
     if($IsWindows -or $PSVersionTable.PSEdition -eq 'Desktop'){
+        Add-Type -AssemblyName System.Drawing
         $jpeg=Join-Path $temp 'flow.png'
         $bitmap=[Drawing.Bitmap]::new(4,4);try{$bitmap.Save($jpeg,[Drawing.Imaging.ImageFormat]::Jpeg)}finally{$bitmap.Dispose()}
         ConvertTo-PngFile $jpeg

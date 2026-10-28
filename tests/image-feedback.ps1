@@ -125,6 +125,22 @@ try {
     Set-ImageFeedbackStatus $path failed $script:Batch.Dir 'fixture failure'
     $failed=Get-Content -LiteralPath $path -Raw -Encoding UTF8|ConvertFrom-Json
     Assert ($failed.status -eq 'failed' -and $failed.error -eq 'fixture failure') 'Failure status did not preserve the diagnostic for follow-up.'
+    # Approved handover also retries only Drive, retaining its image and text.
+    $previousDrive=$script:Config.Drive;$previousRequired=$script:Config.DriveRequired;$previousRoot=$script:Config.DeliveryRoot
+    try{
+        $script:Config.Drive=@{ApiUrl='https://api.test';AdminKey='test'};$script:Config.DriveRequired=$true;$script:Config.DeliveryRoot=Join-Path $temp 'approved-pending'
+        function New-Review {return 'Approved review retained for upload retry.'}
+        function Publish-ImageToDrive {throw '[CAUSE:DRIVE_UPLOAD] fixture upload failure'}
+        $uploadFailed=$false
+        try{Export-ApprovedProduct $temp $acceptedSource (Join-Path $temp 'approved-online')|Out-Null}catch{$uploadFailed=$_.Exception.Message -match 'DRIVE_UPLOAD'}
+        Assert $uploadFailed 'Approved upload error was swallowed.'
+        function New-Review {throw 'Approved upload retry must reuse saved text.'}
+        function Publish-ImageToDrive {return 'https://api.test/img/approved.png'}
+        $online=Export-ApprovedProduct $temp $acceptedSource (Join-Path $temp 'approved-online')
+        $onlineRows=@(Import-Csv (Join-Path $online 'loox_import.csv'))
+        Assert ($onlineRows.Count -eq 1 -and $onlineRows[0].body -eq 'Approved review retained for upload retry.' -and $onlineRows[0].photo_url -eq 'https://api.test/img/approved.png') 'Approved retry regenerated text or exported a local image path.'
+        Assert (@(Get-ChildItem $script:Config.DeliveryRoot -Filter '*.json').Count -eq 0) 'Completed approval retained a pending upload.'
+    }finally{$script:Config.Drive=$previousDrive;$script:Config.DriveRequired=$previousRequired;$script:Config.DeliveryRoot=$previousRoot}
     # Snapshot corruption is rejected rather than silently using modified references.
     [IO.File]::WriteAllText((Join-Path $feedback.Folder 'refs/01-scene.png'),'tampered snapshot')
     $bad=$false;try{Read-ImageFeedback $path|Out-Null}catch{$bad=$true};Assert $bad 'Tampered feedback input was accepted.'

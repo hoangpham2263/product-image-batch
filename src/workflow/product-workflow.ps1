@@ -2,6 +2,13 @@
 function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
     $script:Config.ActiveProductUrl = $Item.Url
     $script:Config.ActiveScene = if ($Item.PSObject.Properties['Scene']) { $Item.Scene } else { $null }
+    $cached=Read-DeliveryCache $Item
+    if($cached){
+        Write-Host '  [DRIVE-RESUME] Reusing saved image and review; no AI generation.' -ForegroundColor Cyan
+        $row=Restore-DeliveryCache $cached $ItemId
+        Save-DeliveryCache $Item $ItemId $row
+        return $row
+    }
     if ($script:Config.Feedback) {
         $feedback = $script:Config.Feedback
         if ($Item.Url -ne $feedback.Record.product_url) { throw 'Feedback URL mismatch.' }
@@ -41,15 +48,8 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
     }
     if ($reply -match '(?im)^BRAND:\s*(.+)$' -and $Matches[1].Trim() -notmatch '^(?i)none$') { [void]$Brands.Add($Matches[1].Trim()) }
     $body = New-Review $Item.Url $Item.Handle $request.Output $ItemId $product.Context
-    # With Drive configured the CSV carries the public Drive link; the local file stays in the batch.
-    $photoUrl = $request.Output -replace '\\', '/'
-    if ($script:Config.Drive) {
-        try {
-            $photoUrl = Publish-ImageToDrive $request.Output $script:Batch.Id $Item.Handle
-            Write-Host "  [DRIVE] $photoUrl" -ForegroundColor Cyan
-        } catch { Write-Warning "[DRIVE] Upload failed; CSV keeps the local path. $($_.Exception.Message)" }
-    }
-    [pscustomobject][ordered]@{
+    # Uploads are serialized by the coordinator; local paths never stand in for failed uploads.
+    $row=[pscustomobject][ordered]@{
         product_handle = $Item.Handle
         rating = ''
         author = ''
@@ -57,7 +57,9 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
         body = $body
         created_at = ''
         verified_purchase = 'true'
-        photo_url = $photoUrl
+        photo_url = $(if($script:Config.Drive -or $script:Config.DriveRequired){''}else{$request.Output -replace '\\','/'})
         photo_path = ($request.Output -replace '\\', '/')
     }
+    Save-DeliveryCache $Item $ItemId $row
+    return $row
 }

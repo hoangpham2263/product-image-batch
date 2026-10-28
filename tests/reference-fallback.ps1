@@ -27,13 +27,13 @@ function Test-ObjectSceneSelection {
     Assert ($tableRequest.Prompt -match 'Do not bleach, desaturate or restain') 'Direct furniture edits must preserve intrinsic wood color.'
     Assert ($tableRequest.Prompt -match 'without further image processing' -and $tableRequest.Prompt -match 'originally bare table bare') 'Generation must directly deliver the tool image and preserve originally empty surfaces.'
     Assert ($tableRequest.Prompt -match 'NO INVENTED PROPS' -and $tableRequest.Prompt -match 'Empty areas and bare surfaces must stay empty' -and $tableRequest.Prompt -match 'must not be transplanted into an empty room') 'Empty-room constraints must prevent newly staged props, including objects copied from the product photo.'
-    Assert ($tableRequest.Prompt -match 'USER TABLE-SEATING PREFERENCE' -and $tableRequest.Prompt -match 'not unrelated room objects to freeze' -and $tableRequest.Prompt -match 'does not imply chairs are included') 'Table seating preference is missing or falsely claims sold components.'
+    Assert ($tableRequest.Prompt -match 'Ghế quanh bàn ăn.*chiều cao sử dụng' -and $tableRequest.Prompt -match 'bán cả bộ.*đúng ghế' -and $tableRequest.Prompt -match 'không coi ghế là hàng bán kèm') 'Table seating preference is missing or falsely claims sold components.'
     $object.source_categories=@('coffee-table');$object.product='low oval coffee table'
     $coffeeRequest=New-ProductImageRequest 'product.jpg' 'coffee-room' $object $selected ([Collections.ArrayList]::new())
-    Assert ($coffeeRequest.Prompt -match 'do not retain tall dining chairs' -and $coffeeRequest.Prompt -match 'Do not reuse curved wooden backs or woven seats from another product' -and $coffeeRequest.Prompt -match 'do not add extra seats') 'Coffee-table seating must fit the current product without borrowing another product style or adding seats.'
+    Assert ($coffeeRequest.Prompt -match 'Bàn trà thấp.*không giữ ghế ăn cao' -and $coffeeRequest.Prompt -match 'không tự thêm ghế hoặc đổi toàn bộ căn phòng') 'Coffee-table seating must fit the current product without adding seats or redesigning the room.'
     $object.source_categories=@('lamps');$object.product='floor lamp'
     $lampRequest=New-ProductImageRequest 'product.jpg' 'lamp-room' $object $selected ([Collections.ArrayList]::new())
-    Assert ($lampRequest.Prompt -notmatch 'USER TABLE-SEATING PREFERENCE') 'Table preference leaked into an unrelated product category.'
+    Assert ($lampRequest.Prompt -notmatch 'Ghế quanh bàn ăn|Bàn trà thấp') 'Table preference leaked into an unrelated product category.'
 }
 Test-ObjectSceneSelection
 $picked = @(Select-ProductReferences 'actual.png' 'apron' 'one-source' $context)

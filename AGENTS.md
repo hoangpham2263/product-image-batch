@@ -53,12 +53,15 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 
 ## 6. Review mẫu và báo cáo
 
+- Rating mẫu random độc lập từng review: 55% cho 5 sao, 45% cho 4 sao; batch nhỏ không bắt buộc đúng tỉ lệ tuyệt đối.
+- Kho tên nam/nữ dùng dạng tên riêng + chữ cái đầu của họ, ví dụ `Josh K.`; mỗi tên riêng một dòng, không nhân từng tên với họ A–Z. Xáo trộn, dùng hết kho trước khi lặp; đây là tên cho dữ liệu mẫu.
 - Đưa review tham khảo đúng danh mục vào luồng viết thực tế. Học cách diễn đạt và độ dài, không chép nội dung hoặc trải nghiệm của người khác.
 - Không ép mở đầu bằng “I like”, “I love”, “tôi thích”. Không bịa trải nghiệm mua hàng, giao hàng hay sử dụng. Đây là dữ liệu mẫu được tạo, không phải lời chứng thực khách thật.
 - Phân biệt thời gian một lượt AI với tổng thời gian sản phẩm; giữ timeout, tiến độ, số lượt thử và lý do lỗi. Không tắt tiến trình không thuộc lượt workflow.
 - Báo riêng code đã sửa, kiểm tra offline, ảnh đã tạo thật và ảnh đã xem đối chiếu. Không dùng mock để khẳng định chất lượng ảnh đã đạt. Ghi bài học không có nghĩa lỗi đã được sửa và kiểm chứng.
 - Chỉ nói đã cập nhật Git sau commit/push thành công. Kiểm tra diff, giữ thay đổi đang có và không đưa output tạm vào repository.
 - CSV Loox: giữ đúng 8 tên cột theo template tải trực tiếp của Loox, header không có dấu nháy hoặc BOM; xuất UTF-8, ngày `YYYY-MM-DD` và boolean viết hoa. Khi Loox báo lỗi cột, kiểm tra đúng file người dùng đã upload trước khi quy lỗi cho việc chọn nhầm file. Khác biệt định dạng chỉ là giả thuyết cho đến khi import thực tế được xác nhận.
+- Bàn giao Drive: kiểm tra kết nối trước khi tạo; upload tuần tự và chỉ ghi link HTTPS công khai vào CSV. Upload lỗi không được âm thầm thay bằng đường dẫn local hay đánh dấu hoàn tất. Giữ ảnh, nội dung và snapshot để thử lại upload, không tạo ảnh lại; giữ cả các cảnh đã thành công của cùng URL đến khi toàn bộ URL hoàn tất.
 
 ## 7. Cách ghi bài học
 
@@ -84,7 +87,7 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 <!-- app-lessons:start -->
 ## Bài học đã đúc kết
 
-Mỗi mục là nguyên tắc đã rút ra để áp dụng lần sau. Chỉ áp dụng đúng URL/danh mục; yêu cầu mới nhất của người dùng có ưu tiên cao nhất. Comment giữ mã và phạm vi để app đọc, bật/tắt bài học.
+Bài học được đúc kết thành nguyên tắc ngắn để áp dụng lần sau, không chép lời phản hồi hoặc kể lịch sử xử lý. Chỉ áp dụng đúng URL/danh mục; yêu cầu mới nhất của người dùng có ưu tiên cao nhất. Comment giữ mã và phạm vi để app đọc, bật/tắt bài học.
 
 ### Giữ cấu tạo ghế đầy đủ
 <!-- app-lesson: {"id":"2b459eefc9514ffa999909bbc85d42ea","scope":"product","product_url":"https://bangometay.com/p/ban-go-tu-nhien-chan-tang-nguyen-khoi-tu-nhien-2m8x85x6-5cm/","category":"dining-tables","created_at":"2026-10-26T07:04:24.644366Z"} -->
@@ -112,6 +115,7 @@ Mỗi mục là nguyên tắc đã rút ra để áp dụng lần sau. Chỉ áp
 Áp dụng: danh mục `dining-tables`.
 
 - Ghế quanh bàn ăn phải hợp phong cách và chiều cao sử dụng; bán cả bộ thì dùng đúng ghế của bộ.
+- Chỉ bán bàn thì phối ghế hiện có theo yêu cầu, không coi ghế là hàng bán kèm.
 - Không áp kiểu ghế của sản phẩm khác, tự thêm chỗ ngồi hoặc đổi kiến trúc phòng.
 
 ### Chỗ ngồi cho bàn trà
@@ -136,5 +140,13 @@ Mỗi mục là nguyên tắc đã rút ra để áp dụng lần sau. Chỉ áp
 - Đọc kỹ hình cổ, mép viền, thứ tự màu, số và độ rộng sọc, đường may, nút, nẹp, mảng phối và vị trí logo trước khi tạo.
 - Giữ đúng chi tiết của mẫu hiện tại; không thêm bớt, đơn giản hóa hoặc lấy chi tiết áo người mẫu tham khảo.
 - Chỉ thay thương hiệu theo quy tắc chung; ghi nhận phần bị che là chưa xác minh.
+
+### Giữ đúng cấu tạo chân và thanh giằng
+<!-- app-lesson: {"id":"coffee-table-support-topology","scope":"category","product_url":"","category":"coffee-table","created_at":"2026-10-28T10:45:54.5790622+07:00"} -->
+Áp dụng: danh mục `coffee-table`.
+
+- Giữ đúng số lượng, hướng và điểm nối của chân/thanh giằng theo ảnh sản phẩm; không tự thêm nhánh gỗ, thanh chéo hoặc đầu gỗ cụt.
+- Thanh giằng phải nối hợp lý giữa các chân; không được chìa ra thành khúc gỗ không có chức năng hoặc giao xuyên nhau.
+- Không sao chép phần chân/giằng của đồ cũ trong ảnh bối cảnh; không tự đoán cấu tạo bị che.
 
 <!-- app-lessons:end -->

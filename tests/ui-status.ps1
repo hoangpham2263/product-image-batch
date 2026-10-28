@@ -45,10 +45,10 @@ try {
     if ($script:itemStages[2] -ne 'Đã xong' -or $script:itemStages[1] -ne 'Chưa hoàn tất') { throw 'Parallel item attribution failed.' }
     if ($script:resultFolder -ne 'C:\private\output\batch') { throw 'Result folder was not retained for the open button.' }
     if ($txtLog.Text -match 'C:\\|#\d|CHECK|NativeCommandError|CategoryInfo|METADATA|product-one') { throw 'Technical details leaked into user messages.' }
-    if ($txtLog.Text -notmatch 'Sản phẩm 2 đã hoàn tất' -or $lblProgress.Text -notmatch '1/2 sản phẩm đã xong') { throw 'Missing user-facing status.' }
+    if ($txtLog.Text -notmatch 'Sản phẩm 2: xong' -or $lblProgress.Text -notmatch '1/2 ảnh đã xong') { throw 'Missing user-facing status.' }
     if ((ConvertTo-UiEvent '  [RETRY] AI busy; attempt 2/3 in 3s...  (#1)').Text -notmatch 'tự thử lại') { throw 'Retry guidance missing.' }
-    if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; URL and source kept for retry. No suitable real scene reference was found').Text -notmatch 'chưa tìm được ảnh mẫu thực tế') { throw 'Missing-data failure needs a clear user message.' }
-    foreach ($case in @(@('MISSING_DATA','thiếu ảnh mẫu'), @('PRODUCT_TIMEOUT','quá chậm'), @('PRODUCT_NETWORK','Kiểm tra mạng'), @('PRODUCT_ACCESS','chặn truy cập'), @('PRODUCT_NOT_FOUND','không tìm thấy'), @('PRODUCT_DOWNLOAD','chưa tải được'), @('STORE_LOCKED','cửa hàng có mật khẩu'), @('AUTH','đăng nhập'), @('QUOTA','hết hạn mức'), @('NETWORK','Internet'), @('BUSY','thử lại sau'))) {
+    if ((ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; URL and source kept for retry. No suitable real scene reference was found').Text -notmatch 'chưa tìm được ảnh mẫu') { throw 'Missing-data failure needs a clear user message.' }
+    foreach ($case in @(@('MISSING_DATA','thiếu ảnh mẫu'), @('PRODUCT_TIMEOUT','quá chậm'), @('PRODUCT_NETWORK','Kiểm tra mạng'), @('PRODUCT_ACCESS','chặn truy cập'), @('PRODUCT_NOT_FOUND','không tìm thấy'), @('PRODUCT_DOWNLOAD','chưa tải được'), @('STORE_LOCKED','cửa hàng có mật khẩu'), @('AUTH','đăng nhập'), @('QUOTA','hết hạn mức'), @('NETWORK','Mất mạng'), @('BUSY','thử lại sau'), @('DRIVE_UPLOAD','không tạo ảnh mới'), @('DRIVE_AUTH','Đăng nhập lại'), @('DRIVE_CONFIG','Đăng nhập lại'))) {
         $event = ConvertTo-UiEvent "WARNING: [ITEM 1] Failed; URL and source kept for retry. AI failed. Details: C:\private\error.log [CAUSE:$($case[0])]"
         if ($event.Text -notmatch $case[1] -or $event.Text -match 'CAUSE|C:\\|Details') { throw 'Account/network errors leaked technical text or lacked user guidance.' }
     }

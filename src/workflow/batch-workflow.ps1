@@ -2,7 +2,7 @@
 function Expand-SceneJobs($Items) {
     foreach ($item in $Items) {
         $entry = @($script:Config.ManualReferences.entries | Where-Object product_url -eq $item.Url)
-        $scenes = if ($entry.Count) { @(Get-ManualScenes $entry[0]) } else { @() }
+        $scenes = @(if ($entry.Count) { Get-ManualScenes $entry[0] })
         if ($scenes.Count -le 1) { $item; continue }
         foreach ($scene in $scenes) { [pscustomobject]@{ Url = $item.Url; Handle = $item.Handle; Scene = $scene } }
     }
@@ -58,7 +58,7 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
             $ps = [PowerShell]::Create()
             $ps.RunspacePool = $pool
             [void]$ps.AddScript($workerScript).AddArgument($ModuleFiles).AddArgument($configSnapshot).AddArgument($script:Batch).AddArgument($brands).AddArgument($item).AddArgument(('{0:D3}-{1}' -f $index, $item.Handle))
-            $jobs.Add([pscustomobject]@{ Index = $index; Item = $item; PS = $ps; Async = $ps.BeginInvoke(); Seen = 0; Announced = $false; Done = $false })
+            $jobs.Add([pscustomobject]@{ Index = $index; Item = $item; PS = $ps; Async = $ps.BeginInvoke(); Seen = 0; SeenWarnings = 0; Announced = $false; Done = $false })
         }
 
         # Stream worker output as it arrives; commit each finished item in the main thread.
@@ -77,18 +77,23 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
                     Write-Host ("$($info[$job.Seen].MessageData)" + (& $tag $job))
                     $job.Seen++
                 }
+                while($job.SeenWarnings -lt $job.PS.Streams.Warning.Count){
+                    Write-Warning ("[ITEM $($job.Index)] "+$job.PS.Streams.Warning[$job.SeenWarnings].Message+(& $tag $job))
+                    $job.SeenWarnings++
+                }
                 if (-not $job.Async.IsCompleted) { continue }
                 $job.Done = $true; $pending--
                 if (-not $job.Announced) { Write-Host "`n[$($job.Index)/$($urls.Count)] $($job.Item.Handle)" -ForegroundColor Cyan }
                 try {
                     $result = @($job.PS.EndInvoke($job.Async) | Where-Object { $_ -and $_.PSObject.Properties['photo_path'] })[-1]
                     if (-not $result) { throw 'Worker returned no result.' }
+                    $result=Complete-DriveDelivery $result $job.Index
                 } catch {
                     $inner = if ($_.Exception.InnerException) { $_.Exception.InnerException.Message } else { $_.Exception.Message }
                 $errorLog = Join-Path $script:Batch.Logs ('{0:D3}-{1}-error.txt' -f $job.Index, $job.Item.Handle)
                 @($_ | Out-String; $_.ScriptStackTrace; $job.PS.Streams.Error | Format-List * -Force | Out-String) |
                     Set-Content -LiteralPath $errorLog -Encoding UTF8
-                $causeTag = if ($inner -match '\[CAUSE:(BRIDGE|AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|PROCESS_ACTIVE|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA)\]') { $Matches[0] + ' ' } else { '' }
+                $causeTag = if ($inner -match '\[CAUSE:(DRIVE_CONFIG|DRIVE_AUTH|DRIVE_UPLOAD|BRIDGE|AUTH|QUOTA|NETWORK|AI_TIMEOUT|BUSY|PROCESS_ACTIVE|STORE_LOCKED|PRODUCT_TIMEOUT|PRODUCT_NETWORK|PRODUCT_ACCESS|PRODUCT_NOT_FOUND|PRODUCT_DOWNLOAD|MISSING_DATA)\]') { $Matches[0] + ' ' } else { '' }
                 Write-Warning "[ITEM $($job.Index)] Failed; ${causeTag}URL and source kept for retry. $inner"
                     continue
                 } finally { $job.PS.Dispose() }

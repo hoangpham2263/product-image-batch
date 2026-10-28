@@ -12,6 +12,7 @@ param(
     [string]$FeedbackFile = '',
     [string]$ApprovedImage = '',
     [string]$ReferenceMapFile = '',
+    [switch]$LocalOnly,
     # codex: Codex CLI; chatgpt / flow: the signed-in browser tab through bridge/ + extension/.
     [ValidateSet('codex', 'chatgpt', 'flow')][string]$ImageBackend = $(if ($env:PIB_IMAGE_BACKEND) { $env:PIB_IMAGE_BACKEND } else { 'codex' })
 )
@@ -30,6 +31,12 @@ foreach ($variableName in @('List', 'SourceDir', 'OutDir')) {
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'bootstrap.ps1')
 $script:Config = New-WorkflowConfiguration $ProjectRoot $SourceDir $MaxTries $PhotosPerImage $Model
+$script:Config.DriveRequired = -not $LocalOnly
+if($LocalOnly){$script:Config.Drive=$null}
+if($script:Config.DriveRequired){
+    try{Assert-DriveReady}
+    catch{Write-Warning ("Failed; "+$_.Exception.Message);throw}
+}
 $script:Config.ImageBackend = $ImageBackend
 if ($ImageBackend -ne 'codex') { Start-ImageBridge $ProjectRoot }
 if($ReferenceMapFile){$script:Config.ManualReferences=Read-ManualReferenceMap $ReferenceMapFile}

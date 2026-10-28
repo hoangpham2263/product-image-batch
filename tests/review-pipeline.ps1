@@ -86,7 +86,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     @('https://example.test/products/one', 'https://example.test/products/two', 'https://example.test/products/fail') | Set-Content $queue
     $batchFailed = $false
     try {
-        & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2
+        & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2 -LocalOnly
     } catch {
         if ($_.Exception.Message -notlike 'Batch incomplete:*') { throw }
         $batchFailed = $true
@@ -130,12 +130,12 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     Assert (@(Get-ChildItem $csv.DirectoryName -Filter '*-review-status.json' -Recurse).Count -eq 3) 'Delivered images must await user review.'
     # Resume the failed queue through the same public entry point.
     'allow success' | Set-Content (Join-Path $tempRoot 'data/source-photos/allow-review-success.flag')
-    & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2
+    & (Join-Path $tempRoot 'src/run-images.ps1') -ThrottleLimit 2 -PhotosPerImage 2 -LocalOnly
     Assert (-not ([IO.File]::ReadAllText($queue).Trim())) 'Successful retry must empty the queue.'
     $retryCsv = Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Filter loox_import.csv -Recurse | Where-Object FullName -ne $csv.FullName
     $retryRows = @(Import-Csv $retryCsv.FullName)
     Assert ($retryRows.Count -eq 1 -and $retryRows[0].product_handle -eq 'fail' -and $retryRows[0].author) 'Retry must export only the previously failed product with final metadata.'
-    & (Join-Path $tempRoot 'src/run-images.ps1') -List $queue
+    & (Join-Path $tempRoot 'src/run-images.ps1') -List $queue -LocalOnly
     Assert (@(Get-ChildItem (Join-Path $tempRoot 'workspace/output') -Directory).Count -eq 2) 'Empty queue must not create an extra batch.'
     . (Join-Path $root 'src/bootstrap.ps1')
     $profiles = @(Get-ReviewStyleProfiles (Join-Path $root 'data/review-style.json'))

@@ -58,6 +58,10 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     } elseif ($line -match '^\[RETRY\]') {
         $event.Kind = 'Retry'; $event.Stage = 'Đang chờ dịch vụ'
         $event.Text = 'Dịch vụ bận, đang tự thử lại.'
+    } elseif ($line -match '^\[DRIVE-(UPLOAD|RETRY)\]') {
+        $event.Kind='Stage';$event.Stage='Đang tải ảnh lên Drive';$event.Text='Đang tải ảnh lên Drive; CSV chỉ nhận ảnh đã tải thành công.'
+    } elseif ($line -match '^\[DRIVE-RESUME\]') {
+        $event.Kind='Stage';$event.Stage='Tiếp tục bàn giao ảnh đã lưu';$event.Text='Dùng lại ảnh và nội dung đã lưu, không gọi AI tạo lại.'
     } elseif ($line -match '^\[METADATA\]') {
         $event.Kind = 'Saving'; $event.Stage = 'Đang lưu kết quả'
     } elseif ($line -match '^\[OK\]') {
@@ -68,7 +72,11 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         if ($Matches[1]) { $event.Index = [int]$Matches[1] }
         $event.Kind = 'Failed'; $event.Stage = 'Chưa hoàn tất'
         $event.Text = "Sản phẩm $($event.Index): lỗi, link được giữ để chạy lại."
-        if ($line -match '\[CAUSE:PRODUCT_INPUT\]') {
+        if ($line -match '\[CAUSE:DRIVE_(CONFIG|AUTH)\]') {
+            $event.Text='Chưa kết nối được Drive. Đăng nhập lại; chưa bàn giao CSV có đường dẫn local.'
+        } elseif ($line -match '\[CAUSE:DRIVE_UPLOAD\]') {
+            $event.Text='Ảnh đã lưu nhưng chưa tải được lên Drive. Thử bàn giao lại để tiếp tục upload, không tạo ảnh mới.'
+        } elseif ($line -match '\[CAUSE:PRODUCT_INPUT\]') {
             $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm gốc, hãy gắn lại."
         } elseif ($line -match '\[CAUSE:PRODUCT_TIMEOUT\]') {
             $event.Text = "Sản phẩm $($event.Index): trang quá chậm, thử lại sau."
