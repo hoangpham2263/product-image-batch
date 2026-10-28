@@ -40,6 +40,7 @@
   .icon { width: 36px; padding: 0; flex: none; }
   a.btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
   a.btn:hover { background: var(--soft); }
+  a.btn.primary:hover { background: var(--primary); filter: brightness(.92); }
   .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   /* Settings (manage mode), as in memories */
   .settings-btn { position: relative; }
@@ -54,6 +55,7 @@
   .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
   .stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--soft); border: 1px solid transparent; text-align: left; height: auto; justify-content: stretch; }
   .stat strong { font-size: 22px; font-weight: 500; line-height: 1.2; }
+  .stat:hover { background: var(--soft); border-color: var(--border); }
   .stat.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--bg)); }
   /* Filters */
   .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
@@ -138,7 +140,7 @@
     <ol class="steps">
       <li>Giải nén file zip.</li>
       <li>Chạy <b>start-app.cmd</b>.</li>
-      <li>Mỗi lần mở lại, app tự cập nhật bản mới.</li>
+      <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
     </ol>
     <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
   </section>

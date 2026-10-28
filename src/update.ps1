@@ -1,6 +1,7 @@
-﻿# Runs before the app opens: bring the app files up to the latest GitHub Release (vX.Y.Z).
+﻿# Run from the app's Cập nhật button: bring the app files up to the latest GitHub Release (vX.Y.Z).
 # Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
-param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun)
+# -Check prints the newer version ('' when current); -Restart waits for the app to close, updates and reopens it.
+param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun, [switch]$Check, [switch]$Restart, [int]$WaitPid)
 $ErrorActionPreference = 'Stop'
 $script:Repo = 'hoangpham2263/product-review-batch'
 # Local data and lessons the app writes; an update keeps them as they are.
@@ -16,14 +17,30 @@ function Copy-AppUpdate([string]$Source, [string]$Target) {
     }
 }
 
+function Get-LatestRelease {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    return Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers @{ 'User-Agent' = 'product-review-batch' } -TimeoutSec 10
+}
+
+function Get-AppUpdate([string]$Root) {
+    if (Test-Path -LiteralPath (Join-Path $Root '.git')) {
+        git -C $Root fetch --quiet 2>$null | Out-Null
+        $behind = git -C $Root rev-list --count 'HEAD..@{u}' 2>$null
+        return $(if ([int]$behind -gt 0) { 'git' } else { '' })
+    }
+    $latest = (Get-LatestRelease).tag_name
+    $versionFile = Join-Path $Root 'workspace/version.txt'
+    $current = if (Test-Path -LiteralPath $versionFile) { (Get-Content -LiteralPath $versionFile -Raw).Trim() } else { '' }
+    return $(if ($latest -match '^v\d+(\.\d+)*$' -and $latest -ne $current) { $latest } else { '' })
+}
+
 function Update-App([string]$Root) {
     if (Test-Path -LiteralPath (Join-Path $Root '.git')) {
         if (Get-Command git -ErrorAction SilentlyContinue) { git -C $Root pull --ff-only --quiet 2>$null | Out-Null }
         return
     }
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $headers = @{ 'User-Agent' = 'product-review-batch' }
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers $headers -TimeoutSec 10
+    $release = Get-LatestRelease
     $latest = $release.tag_name
     $asset = @($release.assets | Where-Object name -eq 'product-review-batch.zip')
     if ($latest -notmatch '^v\d+(\.\d+)*$' -or -not $asset.Count) { return }
@@ -43,5 +60,10 @@ function Update-App([string]$Root) {
     } finally { Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
-# No network or GitHub down: open the version already on this machine.
-if (-not $NoRun) { try { Update-App $Root } catch { Write-Verbose $_ } }
+if ($Check) { return (Get-AppUpdate $Root) }
+if ($Restart) {
+    if ($WaitPid) { Wait-Process -Id $WaitPid -Timeout 30 -ErrorAction SilentlyContinue }
+    # No network or GitHub down: reopen the version already on this machine.
+    try { Update-App $Root } catch { Write-Verbose $_ }
+    Start-Process powershell -WorkingDirectory $Root -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', ('"' + (Join-Path $Root 'src\gui.ps1') + '"'))
+}

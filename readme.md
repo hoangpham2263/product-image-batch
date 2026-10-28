@@ -188,4 +188,4 @@ Push code lên `main` chưa làm máy khác cập nhật. Muốn phát hành th�
 git tag v1.0.1 && git push origin v1.0.1
 ```
 
-GitHub Actions tự tạo Release; máy cài từ ZIP sẽ cập nhật lên bản đó ở lần mở app kế tiếp. Số phiên bản hiện trên thanh tiêu đề app.
+GitHub Actions tự tạo Release; trong app bấm **Cập nhật** (góc trên bên phải) để tải bản đó và mở lại app. Số phiên bản hiện trên thanh tiêu đề app.

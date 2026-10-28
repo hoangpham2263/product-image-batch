@@ -127,7 +127,9 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
 $header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $lblThreadHint=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.';Location='22,38';Size='1040,20';ForeColor=$muted;Anchor='Top,Left,Right'}
-$header.Controls.AddRange(@($title,$lblThreadHint))
+$btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,6';Size='100,28';Anchor='Top,Right'}
+Set-FlatButton $btnUpdate
+$header.Controls.AddRange(@($title,$lblThreadHint,$btnUpdate))
 
 $cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh đi kèm' 20 78 820 344 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root
@@ -183,6 +185,20 @@ $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.
 $btnHelp.Add_Click({ Show-AppHelp $form })
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnClear.Add_Click({ $txtLog.Clear() })
+$btnUpdate.Add_Click({
+    if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
+    $updater = Join-Path $root 'src\update.ps1'
+    $form.Cursor = 'WaitCursor'
+    try { $next = & $updater -Root $root -Check }
+    catch { $next = $null; $err = $_.Exception.Message }
+    finally { $form.Cursor = 'Default' }
+    if ($null -eq $next) { [Windows.Forms.MessageBox]::Show($form, "Không kiểm tra được bản mới: $err", 'Cập nhật') | Out-Null; return }
+    if (-not $next) { [Windows.Forms.MessageBox]::Show($form, 'Đang dùng bản mới nhất.', 'Cập nhật') | Out-Null; return }
+    $label = if ($next -eq 'git') { 'mới' } else { $next }
+    if ([Windows.Forms.MessageBox]::Show($form, "Có bản $label. Cập nhật và mở lại app?", 'Cập nhật', 'YesNo') -ne 'Yes') { return }
+    Start-Process powershell -WorkingDirectory $root -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',('"' + $updater + '"'),'-Restart','-WaitPid',$PID)
+    $form.Close()
+})
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 $btnFeedback.Add_Click({
     if ($script:proc) { return }
