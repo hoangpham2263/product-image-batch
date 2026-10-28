@@ -377,7 +377,7 @@ async function showProductDialog(target = null) {
   const view = openWindow("Ảnh sản phẩm gốc & ảnh review", 760, 430, { white: true });
   const b = view.body;
   let saved = false;
-  view.onClose = () => { if (!saved) api("draftDiscard", { root }).catch(() => {}); };
+  view.onClose = () => { document.removeEventListener("paste", onPaste); if (!saved) api("draftDiscard", { root }).catch(() => {}); };
   const urlBox = at(el("input", "text", { value: target ? target.url : "" }), 20, 40, 720, 25);
   const rowsBox = at(el("div", "flow"), 20, 100, 720, 250);
   Object.assign(rowsBox.style, { background: "#fff", border: "1px solid #000" });
@@ -467,12 +467,15 @@ async function showProductDialog(target = null) {
     else { status.textContent = `● ${products.length} ảnh gốc · ${reviews} ảnh review → ${reviews} ảnh kết quả`; status.style.color = "var(--ok)"; }
   };
   // Clipboard: an image goes to the active row (or becomes a product image when none); text in the link box stays text.
-  view.body.addEventListener("paste", (e) => {
+  // Cmd/Ctrl+V anywhere while this popup is on top, even before anything in it has focus.
+  const onPaste = (e) => {
+    if (stack.at(-1) !== view) return;
     const files = imageFiles(e.clipboardData?.files || []);
     if (!files.length) return;
     e.preventDefault();
     attach(files, products.length && active >= 0 ? Math.min(active, products.length - 1) : -1);
-  });
+  };
+  document.addEventListener("paste", onPaste);
   rowsBox.addEventListener("dragover", (e) => e.preventDefault());
   rowsBox.addEventListener("drop", (e) => { e.preventDefault(); attach(e.dataTransfer.files, -1); });
   urlBox.oninput = () => { active = -1; refresh(); };
