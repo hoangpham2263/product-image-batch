@@ -305,6 +305,12 @@ function showImagePreview(path, title) {
   close.focus();
 }
 
+// Native macOS file dialog opened at a folder; returns the picked files' real paths.
+async function chooseImages(folder) {
+  const r = await fetch("/api/choose-images", { method: "POST", body: JSON.stringify({ folder }) }).then((x) => x.json()).catch(() => ({ paths: [] }));
+  return list(r.paths);
+}
+
 // "Từ kho Drive": the group's images already on this Mac; Đồng bộ brings it up to date with Drive
 // (new or changed files only, deleted ones removed), so picking never downloads or duplicates.
 function showDrivePicker() {
@@ -443,7 +449,7 @@ async function showProductDialog(target = null) {
       const arrow = el("div", "label muted", { text: "→", style: { position: "static", width: "16px", textAlign: "center" } });
       row.append(product, arrow, ...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
         await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
-      }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await Promise.all(imageFiles(await pickFiles("image/png,image/jpeg", true)).map(upload)), i); }),
+      }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await chooseImages(await api("reviewFolder", { group: state.group }).catch(() => "")), i); }),
         addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }),
         addTile("Dán", () => { active = i; pasteButton(i); }));
       // The row under the pointer receives pasted images.
@@ -455,7 +461,7 @@ async function showProductDialog(target = null) {
       return row;
     });
     const addRow = el("div", "", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px" } });
-    addRow.append(addTile("+", async () => attach(await pickFiles("image/png,image/jpeg", true), -1)), addTile("Dán", () => pasteButton(-1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
+    addRow.append(addTile("+", async () => attachPaths(await chooseImages(""), -1)), addTile("Dán", () => pasteButton(-1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
     addRow.addEventListener("mouseenter", () => { active = -1; for (const r of rowsBox.children) r.style.background = ""; });
     addRow.addEventListener("dragover", (e) => e.preventDefault());
     addRow.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); attach(e.dataTransfer.files, -1); });

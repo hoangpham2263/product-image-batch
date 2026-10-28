@@ -157,7 +157,7 @@ function Update-ProductDraftRows($State) {
             $row.Controls.Add((& $newThumb $scenes[$k].file "Ảnh review $($k+1) · ảnh gốc #$($i+1)" {Remove-ManualScene $State.Editor.MapPath $State.Url.Text.Trim() $scene $index;Update-ProductDraftRows $State}.GetNewClosure() $State))
         }
         # Review images for this product image: from this computer or from the Drive library.
-        $fromComputer=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true) $index}.GetNewClosure()
+        $fromComputer=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true (Get-ReviewLibraryFolder $State.Editor)) $index}.GetNewClosure()
         $fromDrive=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Show-DriveSourcePicker $State.Dialog $State.Editor) $index}.GetNewClosure()
         $fromClipboard=& $newAdd {$State.Active=$index;Paste-ProductDraftImage $State $index}.GetNewClosure()
         foreach($b in @($fromComputer,$fromDrive,$fromClipboard)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
@@ -190,8 +190,16 @@ function Update-ProductDraftRows($State) {
     else{$status.Text="● $($products.Count) ảnh gốc · $reviews ảnh review → $reviews ảnh kết quả";$status.ForeColor=$ui.Ok}
 }
 
-function Select-ImageFiles([bool]$Multiple) {
+# "+ Máy" opens this app's own library: the group used last, else data/source-photos.
+function Get-ReviewLibraryFolder($Editor) {
+    $library=Join-Path $Editor.ProjectRoot 'data/source-photos'
+    if($Editor.SourceGroup){$group=Join-Path $library ([string]$Editor.SourceGroup).Normalize([Text.NormalizationForm]::FormC);if(Test-Path -LiteralPath $group){return $group}}
+    return $library
+}
+
+function Select-ImageFiles([bool]$Multiple,[string]$Folder='') {
     $picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg';Multiselect=$Multiple}
+    if($Folder -and (Test-Path -LiteralPath $Folder)){$picker.InitialDirectory=$Folder}
     try{if($picker.ShowDialog() -eq 'OK'){return @($picker.FileNames)};return @()}finally{$picker.Dispose()}
 }
 

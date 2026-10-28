@@ -150,6 +150,19 @@ async function handle(req, res) {
     });
     return;
   }
+  if (path === "/api/choose-images" && req.method === "POST") {
+    // macOS file dialog: opens the app's own folder and returns real paths (no copy through the browser).
+    const { folder = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
+    const at = folder && existsSync(folder) ? ` default location (POSIX file ${JSON.stringify(folder)})` : "";
+    const script = `set picked to choose file with prompt "Chọn ảnh" of type {"public.png", "public.jpeg"} with multiple selections allowed${at}
+set out to ""
+repeat with f in picked
+set out to out & POSIX path of f & linefeed
+end repeat
+return out`;
+    execFile("osascript", ["-e", script], (err, stdout) => send(res, 200, { paths: err ? [] : stdout.split("\n").map((p) => p.trim()).filter(Boolean) }));
+    return;
+  }
   if (path === "/api/setup-step" && req.method === "POST") {
     // Cài (Codex via npm) or Đăng nhập (opens the browser, waits for the sign-in to finish).
     const { step } = JSON.parse((await body(req)).toString("utf8") || "{}");
