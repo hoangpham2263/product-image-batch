@@ -159,9 +159,10 @@ function Update-ProductDraftRows($State) {
         # Review images for this product image: from this computer or from the Drive library.
         $fromComputer=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true) $index}.GetNewClosure()
         $fromDrive=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Show-DriveSourcePicker $State.Dialog $State.Editor) $index}.GetNewClosure()
-        foreach($b in @($fromComputer,$fromDrive)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
-        $fromComputer.Text='+ Máy';$fromDrive.Text='+ Drive'
-        $row.Controls.AddRange(@($fromComputer,$fromDrive))
+        $fromClipboard=& $newAdd {$State.Active=$index;Paste-ProductDraftImage $State $index}.GetNewClosure()
+        foreach($b in @($fromComputer,$fromDrive,$fromClipboard)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
+        $fromComputer.Text='+ Máy';$fromDrive.Text='+ Drive';$fromClipboard.Text='Dán'
+        $row.Controls.AddRange(@($fromComputer,$fromDrive,$fromClipboard))
         # The row under the pointer (or clicked) receives pasted images.
         $select={$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$row.BackColor=$script:Ui.Hover}.GetNewClosure()
         $row.Add_Click($select);$row.Add_MouseEnter($select)
@@ -172,6 +173,9 @@ function Update-ProductDraftRows($State) {
     }
     $addRow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
     $addRow.Controls.Add((& $newAdd {Add-ProductDraftImages $State (Select-ImageFiles $true) -1}.GetNewClosure()))
+    $pasteProduct=& $newAdd {Paste-ProductDraftImage $State -1}.GetNewClosure()
+    $pasteProduct.Font=New-Object Drawing.Font('Segoe UI',8);$pasteProduct.Text='Dán'
+    $addRow.Controls.Add($pasteProduct)
     $addRow.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='Thêm ảnh gốc';Size='160,56';TextAlign='MiddleLeft';ForeColor=$ui.Muted}))
     $toProduct={$State.Active=-1;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White}}.GetNewClosure()
     $addRow.Add_MouseEnter($toProduct);foreach($child in @($addRow.Controls)){$child.Add_MouseEnter($toProduct)}
@@ -206,12 +210,15 @@ function Add-ProductDraftImages($State,[string[]]$Paths,[int]$ProductIndex) {
 }
 
 # Ctrl+V outside the link box: an image goes to the active row (or becomes a product image).
-function Paste-ProductDraftImage($State) {
-    $target=if(@($State.Products).Count -and $State.Active -ge 0){[Math]::Min($State.Active,@($State.Products).Count-1)}else{-1}
+# Target: a product row (its reviews) or -1 (a new product image); -2 picks the active row (Ctrl+V).
+function Paste-ProductDraftImage($State,[int]$Target=-2) {
+    if($Target -eq -2){$Target=if(@($State.Products).Count -and $State.Active -ge 0){[Math]::Min($State.Active,@($State.Products).Count-1)}else{-1}}
+    $target=$Target
     if([Windows.Forms.Clipboard]::ContainsImage()){
         $image=[Windows.Forms.Clipboard]::GetImage();$path=Join-Path ([IO.Path]::GetTempPath()) ('clipboard-'+[Guid]::NewGuid().ToString('N')+'.png')
         try{$image.Save($path,[Drawing.Imaging.ImageFormat]::Png);Add-ProductDraftImages $State @($path) $target}finally{$image.Dispose();Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue}
     }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){Add-ProductDraftImages $State @([Windows.Forms.Clipboard]::GetFileDropList()) $target}
+    else{$State.Status.Text='Clipboard chưa có ảnh.';$State.Status.ForeColor=$script:Ui.Warn}
 }
 
 function Save-ProductQueueDraft($Editor,$State,$Target=$null) {

@@ -444,7 +444,8 @@ async function showProductDialog(target = null) {
       row.append(product, arrow, ...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
         await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
       }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await Promise.all(imageFiles(await pickFiles("image/png,image/jpeg", true)).map(upload)), i); }),
-        addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }));
+        addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }),
+        addTile("Dán", () => { active = i; pasteButton(i); }));
       // The row under the pointer receives pasted images.
       const select = () => { if (active !== i) { active = i; for (const [n, r] of [...rowsBox.children].entries()) r.style.background = n === i ? "var(--hover)" : ""; } };
       row.addEventListener("click", select);
@@ -454,7 +455,7 @@ async function showProductDialog(target = null) {
       return row;
     });
     const addRow = el("div", "", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px" } });
-    addRow.append(addTile("+", async () => attach(await pickFiles("image/png,image/jpeg", true), -1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
+    addRow.append(addTile("+", async () => attach(await pickFiles("image/png,image/jpeg", true), -1)), addTile("Dán", () => pasteButton(-1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
     addRow.addEventListener("mouseenter", () => { active = -1; for (const r of rowsBox.children) r.style.background = ""; });
     addRow.addEventListener("dragover", (e) => e.preventDefault());
     addRow.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); attach(e.dataTransfer.files, -1); });
@@ -467,6 +468,18 @@ async function showProductDialog(target = null) {
     else { status.textContent = `● ${products.length} ảnh gốc · ${reviews} ảnh review → ${reviews} ảnh kết quả`; status.style.color = "var(--ok)"; }
   };
   // Clipboard: an image goes to the active row (or becomes a product image when none); text in the link box stays text.
+  // Nút Dán: images from the clipboard (the browser asks once for clipboard access).
+  const pasteButton = async (productIndex) => {
+    const files = [];
+    try {
+      for (const item of await navigator.clipboard.read()) {
+        const type = item.types.find((t) => /^image\/(png|jpeg)$/.test(t));
+        if (type) files.push(new File([await item.getType(type)], type === "image/png" ? "clipboard.png" : "clipboard.jpg", { type }));
+      }
+    } catch {}
+    if (!files.length) return fail(new Error("Clipboard chưa có ảnh."));
+    attach(files, productIndex);
+  };
   // Cmd/Ctrl+V anywhere while this popup is on top, even before anything in it has focus.
   const onPaste = (e) => {
     if (stack.at(-1) !== view) return;
