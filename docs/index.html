@@ -49,11 +49,17 @@
   .dlg.warn .admin-dot { background: var(--warn); }
   .settings-list { display: grid; gap: 8px; }
   .settings-list > * { width: 100%; justify-content: flex-start; }
-  /* Tabs (signed in) */
-  .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--soft); width: fit-content; }
-  .tabs button { border: 0; background: none; height: 32px; color: var(--muted); }
-  .tabs button:hover { color: var(--fg); background: none; }
-  .tabs button.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
+  /* Management home: one row per area; images load only inside an area. */
+  .menu { padding: 8px; gap: 2px; }
+  .menu-row { display: flex; align-items: center; gap: 14px; width: 100%; height: auto; padding: 12px; border: 0; border-radius: 10px; background: none; text-align: left; justify-content: flex-start; }
+  .menu-row:hover { background: var(--soft); }
+  .menu-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--soft); display: grid; place-items: center; flex: none; color: var(--muted); }
+  .menu-text { flex: 1; min-width: 0; display: grid; gap: 1px; }
+  .menu-text span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chev { color: var(--muted); font-size: 20px; line-height: 1; }
+  .crumbs { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .back { height: 32px; padding: 0 8px; border: 0; background: none; color: var(--muted); }
+  .back:hover { color: var(--fg); }
   /* Filters */
   .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
   .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -135,40 +141,55 @@
     <span id="version" class="muted small"></span>
     <ol class="steps">
       <li>Giải nén file zip.</li>
-      <li>Chạy <b>start-app.cmd</b>.</li>
+      <li>Lần đầu chạy <b>setup.cmd</b> (Mac: <b>setup.command</b>).</li>
+      <li>Mở app bằng <b>start-app.cmd</b> (Mac: <b>start-app.command</b>).</li>
       <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
     </ol>
     <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
   </section>
 
-  <nav id="tabs" class="tabs" hidden>
-    <button type="button" class="on" data-tab="manage">Ảnh đã tạo</button>
-    <button type="button" data-tab="sources">Nguồn ảnh</button>
-  </nav>
+  <section id="home" class="card menu" hidden>
+    <button class="menu-row" type="button" data-go="anh">
+      <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg></span>
+      <span class="menu-text"><span>Ảnh đã tạo</span><span id="homeImages" class="muted small">…</span></span>
+      <span class="chev">›</span>
+    </button>
+    <button class="menu-row" type="button" data-go="nguon">
+      <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg></span>
+      <span class="menu-text"><span>Nguồn ảnh</span><span id="homeSources" class="muted small">…</span></span>
+      <span class="chev">›</span>
+    </button>
+    <button class="menu-row" type="button" id="homeDrive">
+      <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9Z"/></svg></span>
+      <span class="menu-text"><span>Google Drive</span><span id="homeDriveText" class="muted small">…</span></span>
+      <span class="chev">›</span>
+    </button>
+  </section>
 
   <section id="manage" class="card" hidden>
     <div class="sec-head">
-      <h2 id="listTitle">Ảnh</h2>
-      <div class="filters" id="filters" hidden>
+      <div class="crumbs"><button class="back" type="button" data-go="">← Quản lý</button><h2 id="listTitle">Ảnh đã tạo</h2></div>
+      <div class="filters" id="filters">
         <input id="search" type="search" placeholder="Tìm sản phẩm" aria-label="Tìm sản phẩm" />
-        <select id="batch" aria-label="Batch"></select>
+        <select id="batch" aria-label="Lần chạy"></select>
       </div>
     </div>
     <div id="grid" class="grid"></div>
-    <p id="empty" class="empty">Đăng nhập để xem ảnh.</p>
+    <button id="imgMore" class="more" type="button" hidden>Xem thêm</button>
+    <p id="empty" class="empty" hidden></p>
   </section>
 
   <section id="sources" class="card" hidden>
     <div class="sec-head">
-      <h2 id="srcTitle">Nguồn ảnh</h2>
+      <div class="crumbs"><button id="srcBack" class="back" type="button">← Quản lý</button><h2 id="srcTitle">Nguồn ảnh</h2></div>
       <div class="filters">
-        <select id="group" aria-label="Nhóm"></select>
         <button id="newGroupBtn" type="button">Tạo nhóm</button>
         <button id="srcHelpBtn" class="icon" type="button" title="Hướng dẫn" aria-label="Hướng dẫn">?</button>
         <button id="uploadBtn" class="primary" type="button">Tải ảnh lên</button>
         <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
       </div>
     </div>
+    <div id="groupList" class="menu"></div>
     <div id="srcGrid" class="grid"></div>
     <button id="srcMore" class="more" type="button" hidden>Xem thêm</button>
     <p id="srcEmpty" class="empty" hidden></p>
@@ -252,8 +273,9 @@
 const API = "https://product-images-api.hoangpham2263.workers.dev";
 const PAGE = 120;
 const $ = (id) => document.getElementById(id);
-// The viewer shows either generated images (list "images") or the current source group ("sources").
-const state = { images: [], sources: [], groups: [], group: "", shown: PAGE, tab: "manage", list: "images", current: -1, connected: false };
+// view: home (menu), anh (generated images) or nguon (source groups; group = the open one).
+// list says which images the viewer steps through.
+const state = { images: null, sources: [], groups: null, group: "", view: "", shown: PAGE, imgShown: PAGE, list: "images", current: -1, connected: false };
 
 const store = {
   get: () => { try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; } },
@@ -286,53 +308,80 @@ function tile(url, name, meta, onClick) {
   b.onclick = onClick;
   return b;
 }
+const go = (hash) => { location.hash = hash ? "#" + hash : ""; };
+const num = (n) => n.toLocaleString("vi-VN");
+
+// ----- Home: counts only, no images -----
+function renderHome() {
+  const imgs = state.images;
+  $("homeImages").textContent = imgs ? (imgs.length ? `${num(imgs.length)} ảnh · ${new Set(imgs.map((i) => i.batch)).size} lần chạy` : "Chưa có ảnh") : "Đang tải…";
+  const groups = state.groups;
+  $("homeSources").textContent = groups ? `${groups.length} nhóm · ${num(groups.reduce((n, g) => n + g.count, 0))} ảnh` : "Đang tải…";
+  $("homeDriveText").textContent = state.connected ? `Đã kết nối${state.email ? " · " + state.email : ""}` : "Chưa kết nối";
+}
 
 // ----- Generated images -----
 function visible() {
   const q = $("search").value.trim().toLowerCase();
   const batch = $("batch").value;
-  return state.images.filter((i) => (!batch || i.batch === batch) && (!q || `${i.product} ${i.name}`.toLowerCase().includes(q)));
+  return (state.images || []).filter((i) => (!batch || i.batch === batch) && (!q || `${i.product} ${i.name}`.toLowerCase().includes(q)));
 }
 
 function render() {
   const items = visible();
-  $("listTitle").textContent = `Ảnh (${items.length})`;
+  $("listTitle").textContent = `Ảnh đã tạo (${items.length})`;
   $("empty").hidden = items.length > 0;
-  $("empty").textContent = state.images.length ? "Không có ảnh khớp bộ lọc." : "Chưa có ảnh nào được tải lên.";
-  $("grid").replaceChildren(...items.map((item) => tile(item.url, item.product || item.name, item.batch, () => openViewer("images", state.images.indexOf(item)))));
+  $("empty").textContent = (state.images || []).length ? "Không có ảnh khớp bộ lọc." : "Chưa có ảnh nào được tải lên.";
+  $("imgMore").hidden = items.length <= state.imgShown;
+  $("grid").replaceChildren(...items.slice(0, state.imgShown).map((item) => tile(item.url, item.product || item.name, item.batch, () => openViewer("images", state.images.indexOf(item)))));
 }
 
-// ----- Source library -----
+// ----- Source library: group list, then one group's images -----
 function renderSources() {
-  const files = state.sources;
-  const count = state.groups.find((g) => g.name === state.group)?.count;
-  $("srcTitle").textContent = state.group ? `Nguồn ảnh (${files.length || count || 0})` : "Nguồn ảnh";
-  $("group").hidden = !state.groups.length;
-  $("uploadBtn").disabled = !state.group;
-  $("srcEmpty").hidden = files.length > 0;
-  $("srcEmpty").textContent = state.groups.length ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
-  $("deleteGroupBtn").hidden = !state.group || files.length > 0;
-  $("srcMore").hidden = files.length <= state.shown;
-  $("srcGrid").replaceChildren(...files.slice(0, state.shown).map((f, i) => tile(f.url, f.name, `${Math.round(f.size / 1024)} KB`, () => openViewer("sources", i))));
+  const inGroup = !!state.group;
+  const groups = state.groups || [];
+  $("srcTitle").textContent = inGroup ? `${state.group} (${state.sources.length})` : `Nguồn ảnh (${groups.length} nhóm)`;
+  $("srcBack").textContent = inGroup ? "← Nguồn ảnh" : "← Quản lý";
+  $("newGroupBtn").hidden = inGroup;
+  $("uploadBtn").hidden = !inGroup;
+  $("groupList").hidden = inGroup;
+  $("srcGrid").hidden = !inGroup;
+  $("groupList").replaceChildren(...groups.map((g) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "menu-row";
+    b.innerHTML = `<span class="menu-text"><span></span><span class="muted small"></span></span><span class="chev">›</span>`;
+    b.querySelector(".menu-text span").textContent = g.name;
+    b.querySelector(".muted").textContent = `${num(g.count)} ảnh`;
+    b.onclick = () => go(`nguon/${encodeURIComponent(g.name)}`);
+    return b;
+  }));
+  const empty = inGroup ? !state.sources.length : !groups.length;
+  $("srcEmpty").hidden = !empty || (inGroup && state.loading);
+  $("srcEmpty").textContent = inGroup ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
+  $("deleteGroupBtn").hidden = !inGroup || state.loading || state.sources.length > 0;
+  $("srcMore").hidden = !inGroup || state.sources.length <= state.shown;
+  $("srcGrid").replaceChildren(...(inGroup ? state.sources.slice(0, state.shown) : []).map((f, i) => tile(f.url, f.name, `${Math.round(f.size / 1024)} KB`, () => openViewer("sources", i))));
 }
 
-async function loadGroups(select) {
+async function loadGroups() {
   state.groups = (await api("/api/sources")).groups;
-  if (select !== undefined) state.group = select;
-  if (!state.groups.some((g) => g.name === state.group)) state.group = state.groups[0]?.name || "";
-  $("group").replaceChildren(...state.groups.map((g) => new Option(`${g.name} (${g.count})`, g.name)));
-  $("group").value = state.group;
-  await loadGroup();
+  renderHome();
+  if (state.view === "nguon") renderSources();
 }
 
 async function loadGroup() {
+  const group = state.group;
   state.sources = [];
   state.shown = PAGE;
+  state.loading = true;
   renderSources();
-  if (!state.group) return;
-  const group = state.group;
-  const body = await api(`/api/sources/${encodeURIComponent(group)}`);
-  if (group === state.group) { state.sources = body.files; renderSources(); }
+  try {
+    const body = await api(`/api/sources/${encodeURIComponent(group)}`);
+    if (group === state.group) state.sources = body.files;
+  } finally {
+    if (group === state.group) { state.loading = false; renderSources(); }
+  }
 }
 
 // Shrink to at most 1600px JPEG before upload so the app downloads a light library.
@@ -352,7 +401,7 @@ async function shrink(file) {
 
 async function upload(files) {
   files = [...files].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
-  if (!state.group) return toast("Chọn hoặc tạo nhóm trước.");
+  if (!state.group) return toast("Mở một nhóm trước khi tải ảnh.");
   if (!files.length) return toast("Chỉ nhận ảnh JPG, PNG hoặc WebP.");
   const group = state.group;
   let done = 0, failed = 0;
@@ -371,15 +420,7 @@ async function upload(files) {
   await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker));
   $("uploadBtn").disabled = false;
   toast(failed ? `Đã tải ${done} ảnh, lỗi ${failed} ảnh` : `Đã tải ${done} ảnh`);
-  await loadGroups(group).catch((e) => toast(e.message));
-}
-
-function showTab(tab) {
-  state.tab = tab;
-  for (const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("on", b.dataset.tab === tab);
-  $("manage").hidden = tab !== "manage";
-  $("sources").hidden = tab !== "sources";
-  if (tab === "sources" && !state.groups.length) loadGroups().catch((e) => toast(e.message));
+  await Promise.all([loadGroups(), group === state.group ? loadGroup() : null]).catch((e) => toast(e.message));
 }
 
 // ----- Viewer -----
@@ -423,10 +464,11 @@ async function act(action) {
     } else {
       await api(`/api/sources/${encodeURIComponent(state.group)}/${item.id}`, { method: "DELETE" });
       state.sources.splice(state.current, 1);
-      const g = state.groups.find((x) => x.name === state.group);
+      const g = (state.groups || []).find((x) => x.name === state.group);
       if (g) g.count = state.sources.length;
       renderSources();
     }
+    renderHome();
     $("viewer").close();
     toast("Đã xoá ảnh");
   } catch (e) { toast(e.message); }
@@ -441,32 +483,52 @@ function downloadCsv() {
   a.click();
 }
 
-// Signed out: download page and lock button. Signed in: tabs, management and the settings button.
+// ----- Navigation (#anh, #nguon, #nguon/<group>) -----
+function route() {
+  const signedIn = !!store.get();
+  const [view, group] = location.hash.slice(1).split("/");
+  state.view = signedIn && ["anh", "nguon"].includes(view) ? view : "";
+  const nextGroup = state.view === "nguon" && group ? decodeURIComponent(group) : "";
+  const groupChanged = nextGroup !== state.group;
+  state.group = nextGroup;
+  $("download").hidden = signedIn;
+  $("home").hidden = !signedIn || state.view !== "";
+  $("manage").hidden = !signedIn || state.view !== "anh";
+  $("sources").hidden = !signedIn || state.view !== "nguon";
+  if (!signedIn) return;
+  if (state.view === "anh") { state.imgShown = PAGE; render(); }
+  if (state.view === "nguon") {
+    if (state.group && groupChanged) loadGroup().catch((e) => toast(e.message));
+    else renderSources();
+  }
+  renderHome();
+  scrollTo(0, 0);
+}
+
+// Signed out: download page and lock button. Signed in: management menu and the settings button.
 function showAdmin() {
   const signedIn = !!store.get();
   $("lockBtn").hidden = signedIn;
   $("settingsBtn").hidden = !signedIn;
-  $("download").hidden = signedIn;
-  $("tabs").hidden = !signedIn;
-  $("manage").hidden = !signedIn || state.tab !== "manage";
-  $("sources").hidden = !signedIn || state.tab !== "sources";
   $("dlIcon").hidden = !signedIn;
-  $("filters").hidden = !signedIn;
   $("settingsBtn").classList.toggle("warn", !state.connected);
   $("settingsDlg").classList.toggle("warn", !state.connected);
   $("adminText").textContent = state.connected ? `Đã kết nối${state.email ? " · " + state.email : ""}` : "Chưa kết nối";
   $("connectBtn").textContent = state.connected ? "Đổi tài khoản Drive" : "Kết nối Drive";
+  route();
 }
 
 async function load() {
   const status = await api("/api/status");
   state.connected = status.connected;
   state.email = status.email;
-  state.images = await api("/api/images");
-  const batches = [...new Set(state.images.map((i) => i.batch))];
-  $("batch").replaceChildren(new Option("Mọi batch", ""), ...batches.map((b) => new Option(b, b)));
   showAdmin();
-  render();
+  const [images] = await Promise.all([api("/api/images"), loadGroups().catch(() => {})]);
+  state.images = images;
+  const batches = [...new Set(state.images.map((i) => i.batch))];
+  $("batch").replaceChildren(new Option("Mọi lần chạy", ""), ...batches.map((b) => new Option(b, b)));
+  renderHome();
+  if (state.view === "anh") render();
 }
 
 $("loginForm").addEventListener("submit", async (event) => {
@@ -475,9 +537,10 @@ $("loginForm").addEventListener("submit", async (event) => {
   store.set($("keyInput").value);
   $("loginBtn").disabled = true;
   try {
-    await load();
+    await api("/api/images?limit=1");
     $("loginDlg").close();
     $("keyInput").value = "";
+    load().catch((e) => toast(e.message));
   } catch (e) {
     store.set("");
     $("loginError").hidden = false;
@@ -487,26 +550,29 @@ $("loginForm").addEventListener("submit", async (event) => {
 document.querySelector("[data-close-login]").onclick = () => $("loginDlg").close();
 $("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
 $("settingsBtn").onclick = () => $("settingsDlg").showModal();
+$("homeDrive").onclick = () => $("settingsDlg").showModal();
 $("logoutBtn").onclick = () => {
   $("settingsDlg").close(); store.set("");
-  Object.assign(state, { images: [], sources: [], groups: [], group: "", tab: "manage" });
-  showTab("manage"); showAdmin(); render();
+  Object.assign(state, { images: null, sources: [], groups: null, group: "" });
+  go(""); showAdmin();
 };
 $("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
 $("csvBtn").onclick = () => { $("settingsDlg").close(); downloadCsv(); };
-$("search").oninput = render;
-$("batch").onchange = render;
-for (const b of document.querySelectorAll("[data-tab]")) b.onclick = () => showTab(b.dataset.tab);
-$("group").onchange = () => { state.group = $("group").value; loadGroup().catch((e) => toast(e.message)); };
+$("search").oninput = () => { state.imgShown = PAGE; render(); };
+$("batch").onchange = () => { state.imgShown = PAGE; render(); };
+$("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
+for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
+$("srcBack").onclick = () => go(state.group ? "nguon" : "");
+window.addEventListener("hashchange", route);
 $("srcMore").onclick = () => { state.shown += PAGE; renderSources(); };
 $("uploadBtn").onclick = () => $("uploadInput").click();
 $("uploadInput").onchange = () => { upload($("uploadInput").files); $("uploadInput").value = ""; };
-$("sources").addEventListener("dragover", (e) => { e.preventDefault(); $("sources").classList.add("drop-on"); });
+$("sources").addEventListener("dragover", (e) => { if (!state.group) return; e.preventDefault(); $("sources").classList.add("drop-on"); });
 $("sources").addEventListener("dragleave", () => $("sources").classList.remove("drop-on"));
-$("sources").addEventListener("drop", (e) => { e.preventDefault(); $("sources").classList.remove("drop-on"); upload(e.dataTransfer.files); });
-// Paste (Ctrl/Cmd+V) on the Nguồn ảnh tab uploads clipboard images to the current group.
+$("sources").addEventListener("drop", (e) => { if (!state.group) return; e.preventDefault(); $("sources").classList.remove("drop-on"); upload(e.dataTransfer.files); });
+// Paste (Ctrl/Cmd+V) inside an open group uploads clipboard images to it.
 document.addEventListener("paste", (e) => {
-  if ($("sources").hidden || document.querySelector("dialog[open]")) return;
+  if ($("sources").hidden || !state.group || document.querySelector("dialog[open]")) return;
   const stamp = Date.now();
   const files = [...(e.clipboardData?.files || [])].map((f, i) => new File([f], `anh-dan-${stamp}-${i + 1}.${f.type.split("/")[1] || "png"}`, { type: f.type }));
   if (!files.length) return;
@@ -523,13 +589,14 @@ $("groupForm").addEventListener("submit", async (event) => {
   try {
     await api("/api/sources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
     $("groupDlg").close();
-    await loadGroups(name);
+    await loadGroups();
+    go(`nguon/${encodeURIComponent(name)}`);
     toast("Đã tạo nhóm");
   } catch (e) { $("groupError").hidden = false; $("groupError").textContent = e.message; }
 });
 $("deleteGroupBtn").onclick = async () => {
   if (!confirm(`Xoá nhóm "${state.group}"?`)) return;
-  try { await api(`/api/sources/${encodeURIComponent(state.group)}`, { method: "DELETE" }); await loadGroups(); toast("Đã xoá nhóm"); }
+  try { await api(`/api/sources/${encodeURIComponent(state.group)}`, { method: "DELETE" }); await loadGroups(); go("nguon"); toast("Đã xoá nhóm"); }
   catch (e) { toast(e.message); }
 };
 $("viewer").addEventListener("click", (event) => {
