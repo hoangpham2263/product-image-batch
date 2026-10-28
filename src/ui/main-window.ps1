@@ -108,7 +108,8 @@ function Receive-RunLine([string]$line) {
 }
 
 $form = New-Object Windows.Forms.Form
-$form.Text = 'Product Image Batch'
+$appVersion = try { (Get-Content -LiteralPath (Join-Path $workspace.Root 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { '' }
+$form.Text = ('Product Image Batch ' + $appVersion).Trim()
 $form.Size = New-Object Drawing.Size(1120, 840)
 $form.MinimumSize = New-Object Drawing.Size(1040, 760)
 $form.StartPosition = 'CenterScreen'

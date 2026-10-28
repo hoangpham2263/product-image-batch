@@ -4,7 +4,7 @@
 
 ## Tải về
 
-**[Tải app (ZIP)](https://github.com/hoangpham2263/product-image-batch/archive/refs/heads/main.zip)** → giải nén → mở `start-app.cmd`. Không cần git: mỗi lần mở, app tự tải bản mới nhất từ GitHub và giữ nguyên `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md`.
+**[Tải bản mới nhất](https://github.com/hoangpham2263/product-image-batch/releases/latest)** (mục Assets → Source code (zip)) → giải nén → mở `start-app.cmd`. Không cần git: mỗi lần mở, app tự tải bản phát hành (Release) mới nhất và giữ nguyên `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md`.
 
 | | Mở app | Chạy test |
 |---|---|---|
@@ -176,3 +176,13 @@ names, I would appreciate receiving them.
 Mark Kantrowitz <mkant+@cs.cmu.edu>
 http://www-2.cs.cmu.edu/afs/cs/project/ai-repository/ai/areas/nlp/corpora/names/
 ```
+
+## Phát hành phiên bản
+
+Push code lên `main` chưa làm máy khác cập nhật. Muốn phát hành thì tạo tag:
+
+```bash
+git tag v1.0.1 && git push origin v1.0.1
+```
+
+GitHub Actions tự tạo Release; máy cài từ ZIP sẽ cập nhật lên bản đó ở lần mở app kế tiếp. Số phiên bản hiện trên thanh tiêu đề app.

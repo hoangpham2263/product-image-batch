@@ -1,5 +1,5 @@
-# Runs before the app opens: bring the app files up to the latest version on GitHub.
-# Git checkouts use git pull; ZIP installs download the newest ZIP. User data is never touched.
+# Runs before the app opens: bring the app files up to the latest GitHub Release (vX.Y.Z).
+# Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
 param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun)
 $ErrorActionPreference = 'Stop'
 $script:Repo = 'hoangpham2263/product-image-batch'
@@ -23,14 +23,15 @@ function Update-App([string]$Root) {
     }
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $headers = @{ 'User-Agent' = 'product-image-batch' }
-    $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/commits/main" -Headers $headers -TimeoutSec 10).sha
+    $latest = (Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers $headers -TimeoutSec 10).tag_name
+    if ($latest -notmatch '^v\d+(\.\d+)*$') { return }
     $versionFile = Join-Path $Root 'workspace/version.txt'
     if ((Test-Path -LiteralPath $versionFile) -and (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $latest) { return }
     $temp = Join-Path ([IO.Path]::GetTempPath()) ('pib-update-' + [Guid]::NewGuid().ToString('N'))
     try {
         New-Item -ItemType Directory -Force -Path $temp | Out-Null
         $zip = Join-Path $temp 'app.zip'
-        Invoke-WebRequest -Uri "https://codeload.github.com/$script:Repo/zip/$latest" -Headers $headers -OutFile $zip -UseBasicParsing -TimeoutSec 120
+        Invoke-WebRequest -Uri "https://codeload.github.com/$script:Repo/zip/refs/tags/$latest" -Headers $headers -OutFile $zip -UseBasicParsing -TimeoutSec 120
         Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $temp 'x') -Force
         $source = @(Get-ChildItem -LiteralPath (Join-Path $temp 'x') -Directory)[0].FullName
         if (-not (Test-Path -LiteralPath (Join-Path $source 'src/gui.ps1'))) { throw 'ZIP không đúng cấu trúc app.' }
