@@ -166,12 +166,9 @@ function buildMain() {
   const c = ui.client;
   // Header (Dock Top, 64).
   const header = at(el("div", "panel"), 0, 0, null, 64, { right: 0 });
-  header.append(
-    at(label("Product Review Batch", ""), 20, 10, null, 24),
-    at(label("Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.", "muted"), 22, 38, null, 20, { right: 42 }),
-  );
+  header.append(at(label("Product Review Batch", ""), 20, 20, null, 24));
   header.firstChild.style.fontSize = "17.33px";
-  ui.btnUpdate = at(button("Cập nhật"), null, 6, 100, 28, { right: 24, left: false });
+  ui.btnUpdate = at(button("Cập nhật"), null, 18, 100, 28, { right: 24, left: false });
   header.append(ui.btnUpdate);
 
   // Link sản phẩm & ảnh đi kèm (20,78 820x344, Top/Left/Right).
@@ -180,15 +177,13 @@ function buildMain() {
   const editor = at(el("div", "panel"), 14, 36, null, 296, { right: 14 });
   ui.btnAdd = at(button("+ Thêm sản phẩm", true), 0, 0, 160, 34);
   ui.btnBulk = at(button("Thêm nhiều link"), 172, 0, 150, 34);
-  const tip = at(label("Bấm dòng để xem / sửa.", "muted"), 338, 5, 300, 24);
-  tip.style.lineHeight = "24px";
   ui.flow = at(el("div", "flow"), 0, 44, null, null, { right: 0, bottom: 34 });
   Object.assign(ui.flow.style, { background: "#fff", border: "1px solid #000", padding: "10px 10px 6px 10px" });
   ui.fallback = at(checkbox("Tự tìm trong kho ảnh cho dòng chưa có ảnh"), 0, null, 330, 26, { bottom: 3, top: false });
   ui.fallback.classList.add("muted");
   ui.library = at(combo(["drive", "local"]), 340, null, 170, 24, { bottom: 6, top: false });
   ui.library.setItems(["drive", "local"], ["Kho trên Drive", "Kho trên máy"]);
-  editor.append(ui.btnAdd, ui.btnBulk, tip, ui.flow, ui.fallback, ui.library);
+  editor.append(ui.btnAdd, ui.btnBulk, ui.flow, ui.fallback, ui.library);
   cardList.append(editor);
 
   // Thao tác (856,78 224x344, Top/Right).

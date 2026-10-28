@@ -125,11 +125,10 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
     return $card
 }
 $header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
-$title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
-$lblThreadHint=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.';Location='22,38';Size='1040,20';ForeColor=$muted;Anchor='Top,Left,Right'}
-$btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,6';Size='100,28';Anchor='Top,Right'}
+$title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,20';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
+$btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,18';Size='100,28';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
-$header.Controls.AddRange(@($title,$lblThreadHint,$btnUpdate))
+$header.Controls.AddRange(@($title,$btnUpdate))
 
 $cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh đi kèm' 20 78 820 344 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root

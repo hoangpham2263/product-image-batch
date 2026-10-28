@@ -320,7 +320,6 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $add=New-Object Windows.Forms.Button -Property @{Name='AddProduct';Text='+ Thêm sản phẩm';Location='0,0';Size='160,34'}
     $bulk=New-Object Windows.Forms.Button -Property @{Text='Thêm nhiều link';Location='172,0';Size='150,34'}
     Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk
-    $tip=New-Object Windows.Forms.Label -Property @{Text='Bấm dòng để xem / sửa.';Location='338,5';Size='300,24';ForeColor=$script:Ui.Muted;TextAlign='MiddleLeft'}
     $fallback=New-Object Windows.Forms.CheckBox -Property @{Name='AllowLibraryFallback';Text='Tự tìm trong kho ảnh cho dòng chưa có ảnh';Location='0,5';Size='330,26';ForeColor=$script:Ui.Muted}
     $library=New-Object Windows.Forms.ComboBox -Property @{Name='SourceLibrary';Location='340,4';Size='170,28';DropDownStyle='DropDownList'}
     [void]$library.Items.AddRange(@('Kho trên Drive','Kho trên máy'))
@@ -330,7 +329,7 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $library.SelectedIndex=if((Read-ManualReferenceMap $editor.MapPath).source_library -eq 'local'){1}else{0}
     $library.Enabled=$fallback.Checked
     $fallback.Add_CheckedChanged({$library.Enabled=$fallback.Checked}.GetNewClosure())
-    $toolbar.Controls.AddRange(@($add,$bulk,$tip));$footer.Controls.AddRange(@($fallback,$library));$panel.Controls.AddRange(@($flow,$footer,$toolbar))
+    $toolbar.Controls.AddRange(@($add,$bulk));$footer.Controls.AddRange(@($fallback,$library));$panel.Controls.AddRange(@($flow,$footer,$toolbar))
     $flow.Add_ClientSizeChanged({foreach($row in $editor.Rows){$row.Card.Width=[Math]::Max(700,$flow.ClientSize.Width-40)}}.GetNewClosure())
     $add.Add_Click({Show-ProductQueueDialog $editor}.GetNewClosure())
     $bulk.Add_Click({Show-ProductQueueBulkDialog $editor}.GetNewClosure())
