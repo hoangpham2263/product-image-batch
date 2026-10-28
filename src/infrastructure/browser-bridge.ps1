@@ -10,7 +10,7 @@ function Start-ImageBridge([string]$ProjectRoot) {
     $state = Test-ImageBridge
     if ($null -eq $state) {
         $server = Join-Path $ProjectRoot 'bridge/server.mjs'
-        if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) { throw 'Bridge chưa cài. Bấm Cài Codex trong app, hoặc chạy npm install trong bridge/.' }
+        if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) { throw 'Bridge chưa cài. Bấm Kiểm tra ChatGPT → Cài trong app, hoặc chạy npm install trong bridge/.' }
         if ($script:OnWindows) { Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null }
         else { Start-Process node -ArgumentList $server | Out-Null }
     }

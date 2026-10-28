@@ -12,7 +12,7 @@ $engine = Get-Command codex -ErrorAction SilentlyContinue
 $checks.Add([pscustomobject]@{
     Ok = [bool]$engine
     Message = $(if ($engine) { 'Công cụ xử lý: đã cài đặt.' } else { 'Chưa cài công cụ xử lý.' })
-    Action = 'Bấm Cài Codex để cài.'
+    Action = 'Bấm Kiểm tra ChatGPT rồi bấm Cài.'
 })
 $loggedIn = $false
 $apiKey = $false
@@ -36,6 +36,7 @@ $checks.Add([pscustomobject]@{
 })
 . (Join-Path $PSScriptRoot 'infrastructure/quota.ps1')
 $quotaAvailable = $false
+$quotaMessages = @()
 if ($loggedIn) {
     if ($apiKey) {
         $quotaMessages = @('Hạn mức: tài khoản API tính phí riêng; app chưa hiển thị số dư API.')
@@ -49,12 +50,28 @@ if ($loggedIn) {
     }
 }
 $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
+# The app's check window shows these in order; each step only matters once the one before it is done.
+# State: ok, fail, warn (works but unconfirmed) or wait (blocked by an earlier step). Action names the fix button.
+$node = Get-Command node -ErrorAction SilentlyContinue
+$driveReady = Test-Path -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/drive.json')
+$quotaText = (@($quotaMessages) -join ' ').Trim()
+$steps = @(
+    [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
+    [pscustomobject]@{ Id = 'codex'; Title = 'Codex'; State = $(if ($engine) { 'ok' } else { 'fail' }); Detail = $(if ($engine) { 'Đã cài.' } else { 'Chưa cài công cụ tạo ảnh.' }); Action = $(if ($engine) { '' } else { 'install' }) }
+    [pscustomobject]@{ Id = 'login'; Title = 'Đăng nhập ChatGPT'; State = $(if (-not $engine) { 'wait' } elseif ($loggedIn) { 'ok' } else { 'fail' })
+        Detail = $(if (-not $engine) { 'Cài Codex trước.' } elseif ($apiKey) { 'Đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'Đã đăng nhập.' } else { 'Chưa đăng nhập hoặc phiên đã hết hạn.' })
+        Action = $(if ($engine -and -not $loggedIn) { 'login' } else { '' }) }
+    [pscustomobject]@{ Id = 'quota'; Title = 'Hạn mức sử dụng'; State = $(if (-not $loggedIn) { 'wait' } elseif ($apiKey -or $quotaAvailable) { 'ok' } else { 'warn' })
+        Detail = $(if (-not $loggedIn) { 'Đăng nhập trước.' } else { $quotaText }); Action = '' }
+    [pscustomobject]@{ Id = 'drive'; Title = 'Google Drive'; State = $(if ($driveReady) { 'ok' } else { 'fail' }); Detail = $(if ($driveReady) { 'Đã kết nối; ảnh tạo xong tự tải lên.' } else { 'Chưa đăng nhập; cần để có link ảnh trong file Loox.' }); Action = $(if ($driveReady) { '' } else { 'drive' }) }
+)
 $report = [pscustomobject]@{
     Ready = $ready
     QuotaAvailable = $quotaAvailable
     # The app turns its check button into this step: install, login or nothing left.
     NextAction = $(if (-not $engine) { 'install' } elseif (-not $loggedIn) { 'login' } else { '' })
     Checks = $checks.ToArray()
+    Steps = $steps
     Summary = $(if (-not $ready) { 'Vui lòng xử lý các mục trên trước khi bắt đầu.' } elseif ($apiKey) { 'Đã kiểm tra cài đặt và tài khoản API.' } elseif ($quotaAvailable) { 'Đã kiểm tra đăng nhập và hạn mức Codex. Hạn mức tạo ảnh không được thống kê riêng.' } else { 'Đã kiểm tra cài đặt và đăng nhập. Chưa xác định được hạn mức còn lại.' })
 }
 if ($AsJson) { $report | ConvertTo-Json -Depth 5 }

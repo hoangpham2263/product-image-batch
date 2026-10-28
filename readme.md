@@ -4,7 +4,7 @@
 
 ## Tải về
 
-**[Tải bản mới nhất](https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip)** ([các phiên bản](https://github.com/hoangpham2263/product-review-batch/releases)) → giải nén → mở app bằng `start-app.cmd` (Windows) hoặc `start-app.command` (Mac). Thiếu Codex thì bấm **Cài Codex** trong app để cài Node.js, Codex và đăng nhập ChatGPT; trên Mac, lần mở đầu tự cài Homebrew, Node.js và PowerShell 7 nếu chưa có. Có bản mới thì bấm **Cập nhật** trong app; `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md` được giữ nguyên.
+**[Tải bản mới nhất](https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip)** ([các phiên bản](https://github.com/hoangpham2263/product-review-batch/releases)) → giải nén → mở app bằng `start-app.cmd` (Windows) hoặc `start-app.command` (Mac). Thiếu gì thì bấm **Kiểm tra ChatGPT** trong app rồi bấm **Cài** / **Đăng nhập** ở bước đó; trên Mac, lần mở đầu tự cài Homebrew, Node.js và PowerShell 7 nếu chưa có. Có bản mới thì bấm **Cập nhật** trong app; `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md` được giữ nguyên.
 
 | | Mở app | Chạy test |
 |---|---|---|
@@ -13,7 +13,7 @@
 
 Bản Mac có giao diện giống hệt cửa sổ Windows: `src/mac/server.mjs` mở cửa sổ (Chrome chế độ app, hoặc trình duyệt mặc định) ở `127.0.0.1:47831` và gọi đúng các hàm PowerShell của app qua `src/mac/rpc.ps1`. Ảnh trên Drive được quản lý ở trang web (GitHub Pages). Máy mới xem [setup.txt](setup.txt).
 
-Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); thiếu Codex thì nút đổi thành **Cài Codex**, chưa đăng nhập thì thành **Đăng nhập Codex**.
+Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** mở cửa sổ kiểm tra từng bước: Node.js, Codex, đăng nhập ChatGPT, hạn mức sử dụng (kèm giờ đặt lại, GMT+7) và Google Drive. Bước nào chưa đạt có nút **Cài** hoặc **Đăng nhập** ngay trên dòng đó; app tự cài (Node.js qua winget hoặc bản cài từ nodejs.org, Codex qua npm) rồi kiểm tra lại.
 
 Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. Nếu dịch vụ chưa trả số liệu, app báo chưa lấy được; tài khoản API chưa hỗ trợ xem số dư. Phần trăm Codex không quy đổi thành số ảnh còn tạo được.
 
@@ -103,7 +103,7 @@ Ngoài Codex CLI, app có thể tạo ảnh trong tab ChatGPT / Google Flow đan
 app (PowerShell) → bridge/ (Node, 127.0.0.1:8765) → extension/ (Chrome) → tab ChatGPT / Flow
 ```
 
-1. Bấm **Cài Codex** trong app (cài `bridge/`), hoặc chạy `npm install` trong `bridge/`.
+1. Bấm **Kiểm tra ChatGPT** → **Cài** trong app (cài cả `bridge/`), hoặc chạy `npm install` trong `bridge/`.
 2. Chrome → `chrome://extensions` → bật Developer mode → **Load unpacked** → chọn thư mục `extension/`.
 3. Mở tab ChatGPT và một dự án Google Flow (`flow.google.com/project/...`), đã đăng nhập.
 4. Chạy với `-ImageBackend chatgpt` hoặc `-ImageBackend flow` (hoặc đặt biến môi trường `PIB_IMAGE_BACKEND`). App tự bật bridge.

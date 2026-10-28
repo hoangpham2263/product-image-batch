@@ -279,7 +279,6 @@ async function loadState() {
   ui.library.disabled = !state.fallback;
   for (const e of [ui.lblPer, ui.numPer]) e.hidden = !state.fallback;
   ui.btnDrive.textContent = state.drive ? "Google Drive ✓" : "Google Drive";
-  if (!state.codex && !setupAction) setSetupButton("install");
   renderRows();
   updateStatus();
 }
@@ -553,6 +552,55 @@ function showReviewPreview(item, decide) {
   refresh();
 }
 
+// ----- Kiểm tra ChatGPT (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
+async function showSetupDialog() {
+  const view = openWindow("Kiểm tra ChatGPT", 520, 372);
+  const titles = ["Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Google Drive"];
+  const rows = titles.map((title, i) => {
+    const y = 16 + i * 58;
+    const icon = at(label("○"), 20, y, 26, 24);
+    icon.style.fontSize = "16px";
+    const detail = at(label("", "muted"), 52, y + 22, 330, 32);
+    const fix = at(button("", true), 390, y + 6, 110, 32);
+    fix.hidden = true;
+    view.body.append(icon, at(label(title), 52, y, 330, 22), detail, fix);
+    return { icon, detail, fix };
+  });
+  const again = at(button("Kiểm tra lại"), 290, 322, 110, 34), close = at(button("Đóng"), 410, 322, 90, 34);
+  close.onclick = view.close;
+  view.body.append(again, close);
+  const icons = { ok: ["✔", "var(--ok)"], fail: ["✖", "var(--error)"], warn: ["!", "var(--warn)"] };
+  const check = async () => {
+    again.disabled = true;
+    for (const row of rows) { row.icon.textContent = "○"; row.icon.style.color = "var(--muted)"; row.detail.textContent = "Đang kiểm tra…"; row.fix.hidden = true; }
+    try {
+      const steps = list((await (await fetch("/api/setup", { method: "POST" })).json()).Steps);
+      steps.forEach((step, i) => {
+        const row = rows[i];
+        if (!row) return;
+        const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
+        row.icon.textContent = mark; row.icon.style.color = color;
+        row.detail.textContent = step.Detail || "";
+        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : "Đăng nhập"; row.fix.hidden = false; row.fix.onclick = () => fix(step.Action, row); }
+      });
+    } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
+    finally { again.disabled = false; }
+  };
+  // Installing or signing in runs here; the steps are checked again when it finishes.
+  const fix = async (action, row) => {
+    if (action === "drive") { await showDriveDialog(); return check(); }
+    for (const r of rows) r.fix.disabled = true;
+    row.detail.textContent = action === "install" ? "Đang cài…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
+    const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
+    for (const x of rows) x.fix.disabled = false;
+    Object.assign(state, { codex: (await api("state")).codex });
+    await check();
+    if (r.error) row.detail.textContent = r.error;
+  };
+  again.onclick = check;
+  check();
+}
+
 // ----- Google Drive (Show-DriveLogin) -----
 function showDriveDialog() {
   const view = openWindow("Google Drive", 400, 170);
@@ -674,12 +722,6 @@ async function finish(r) {
 setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) % 3; setStatus("Đang chạy " + [".", "..", "..."][run.anim], "var(--accent)"); } }, 350);
 
 // ---------- wiring ----------
-let setupAction = "";
-function setSetupButton(action) {
-  setupAction = action;
-  ui.btnSetup.textContent = { install: "Cài Codex", login: "Đăng nhập Codex" }[action] || "Kiểm tra ChatGPT";
-  ui.btnSetup.classList.toggle("primary", !!action);
-}
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
@@ -692,31 +734,7 @@ function wire() {
   ui.btnSave.onclick = async () => { try { await saveQueue(); updateStatus(); appendLog("Đã lưu danh sách link và ảnh đi kèm."); } catch (e) { appendLog(e.message); } };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
-  // Kiểm tra ChatGPT turns into Cài Codex / Đăng nhập Codex when the check finds that step missing.
-  ui.btnSetup.onclick = async () => {
-    if (setupAction) {
-      const step = setupAction;
-      ui.btnSetup.disabled = true;
-      appendLog(step === "install" ? "Đang cài Codex..." : "Đăng nhập ChatGPT trong trình duyệt vừa mở; xong app tự kiểm tra lại.");
-      const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step }) })).json().catch(() => ({ error: "setup" }));
-      if (r.error) appendLog(r.error);
-      ui.btnSetup.disabled = false;
-      setSetupButton("");
-      Object.assign(state, { codex: (await api("state")).codex });
-      return ui.btnSetup.onclick();
-    }
-    ui.btnSetup.disabled = true;
-    document.body.style.cursor = "wait";
-    ui.txtLog.value = "";
-    appendLog("Đang kiểm tra ChatGPT...");
-    try {
-      const report = await (await fetch("/api/setup", { method: "POST" })).json();
-      for (const check of list(report.Checks)) { appendLog(check.Message); if (!check.Ok && check.Action) appendLog(check.Action); }
-      appendLog(report.Summary);
-      setSetupButton(report.NextAction || "");
-    } catch { appendLog("Chưa kiểm tra được ChatGPT. Vui lòng thử lại hoặc xem setup.txt."); }
-    finally { ui.btnSetup.disabled = false; document.body.style.cursor = ""; }
-  };
+  ui.btnSetup.onclick = showSetupDialog;
   ui.btnUpdate.onclick = async () => {
     if (run.active) return messageBox("Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.", "Cập nhật");
     let next;

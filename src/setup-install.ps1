@@ -1,4 +1,4 @@
-﻿# Install on Windows, run from the app's Cài Codex button: Node.js, Codex CLI, ChatGPT sign-in and the
+﻿# Install on Windows, run from the Cài button in the app's Kiểm tra ChatGPT window: Node.js, Codex CLI, ChatGPT sign-in and the
 # browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -11,8 +11,21 @@ Step 'Node.js'
 if (-not (Test-Tool node)) {
     if (Test-Tool winget) { winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements; Update-SessionPath }
     if (-not (Test-Tool node)) {
-        Write-Host 'Chưa cài được Node.js tự động. Tải bản LTS ở trang vừa mở, cài xong bấm Cài Codex lại.' -ForegroundColor Yellow
-        Start-Process 'https://nodejs.org'
+        # No winget: the official LTS installer from nodejs.org (asks for administrator approval).
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+            $lts = @(Invoke-RestMethod 'https://nodejs.org/dist/index.json' -TimeoutSec 30 | Where-Object { $_.lts })[0].version
+            $arch = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+            $msi = Join-Path ([IO.Path]::GetTempPath()) "node-$lts-$arch.msi"
+            Write-Host "Đang tải Node.js $lts..."
+            Invoke-WebRequest "https://nodejs.org/dist/$lts/node-$lts-$arch.msi" -OutFile $msi -UseBasicParsing
+            Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi + '"'), '/passive') -Verb RunAs -Wait
+            Remove-Item -LiteralPath $msi -Force -ErrorAction SilentlyContinue
+            Update-SessionPath
+        } catch { Write-Host $_.Exception.Message -ForegroundColor Yellow }
+    }
+    if (-not (Test-Tool node)) {
+        Write-Host 'Chưa cài được Node.js. Kiểm tra mạng rồi bấm Cài lại.' -ForegroundColor Yellow
         Read-Host 'Nhấn Enter để đóng'
         exit 1
     }
@@ -21,7 +34,7 @@ Write-Host "Node.js $(node --version)"
 
 Step 'Codex'
 if (-not (Test-Tool codex)) { npm install -g @openai/codex; Update-SessionPath }
-if (-not (Test-Tool codex)) { Write-Host 'Chưa cài được Codex. Bấm Cài Codex lại để thử tiếp.' -ForegroundColor Yellow; Read-Host 'Nhấn Enter để đóng'; exit 1 }
+if (-not (Test-Tool codex)) { Write-Host 'Chưa cài được Codex. Bấm Cài lại để thử tiếp.' -ForegroundColor Yellow; Read-Host 'Nhấn Enter để đóng'; exit 1 }
 Write-Host (codex --version)
 
 Step 'Đăng nhập ChatGPT'

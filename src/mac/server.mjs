@@ -148,7 +148,7 @@ async function handle(req, res) {
     return;
   }
   if (path === "/api/setup-step" && req.method === "POST") {
-    // Cài Codex (npm) or Đăng nhập Codex (opens the browser, waits for the sign-in to finish).
+    // Cài (Codex via npm) or Đăng nhập (opens the browser, waits for the sign-in to finish).
     const { step } = JSON.parse((await body(req)).toString("utf8") || "{}");
     const npm = findTool("npm"), codex = findTool("codex");
     if (step === "install" && !npm) return send(res, 400, { error: "Chưa có Node.js. Mở lại start-app.command để cài." });

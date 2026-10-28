@@ -4,6 +4,7 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'progress.ps1')
 . (Join-Path $PSScriptRoot 'drive-login.ps1')
+. (Join-Path $PSScriptRoot 'setup-dialog.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
@@ -196,58 +197,32 @@ $btnOut.Add_Click({
     $target = if ($script:resultFolder -and (Test-Path -LiteralPath $script:resultFolder)) { $script:resultFolder } else { $workspace.Output }
     Open-Path $target
 })
-# Kiểm tra ChatGPT turns into Cài Codex / Đăng nhập Codex when the check finds that step missing.
-$script:setupAction = ''
-function Set-SetupButton([string]$Action) {
-    $script:setupAction = $Action
-    switch ($Action) {
-        'install' { $btnSetup.Text = 'Cài Codex'; Set-FlatButton $btnSetup -Primary }
-        'login' { $btnSetup.Text = 'Đăng nhập Codex'; Set-FlatButton $btnSetup -Primary }
-        default { $btnSetup.Text = 'Kiểm tra ChatGPT'; Set-FlatButton $btnSetup }
-    }
-}
 function Update-CodexPath {
     # npm installs into a folder Windows adds to PATH only for new processes.
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 }
-# Runs a setup step in its own console window (npm progress, the Codex sign-in link), then checks again.
+# A fix step runs in its own window (install progress, the sign-in link); the check window reopens after it.
 $script:setupProc = $null
 $setupTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 1000 }
 $setupTimer.Add_Tick({
     if (-not $script:setupProc -or -not $script:setupProc.HasExited) { return }
     $setupTimer.Stop(); $script:setupProc.Dispose(); $script:setupProc = $null
-    Update-CodexPath; $btnSetup.Enabled = $true; Set-SetupButton ''; $btnSetup.PerformClick()
+    Update-CodexPath; $btnSetup.Enabled = $true; $btnSetup.PerformClick()
 })
-function Start-SetupStep([string]$Program, [string[]]$Arguments, [string]$Message) {
-    Append-Log $Message
+function Start-SetupStep([string]$Program, [string[]]$Arguments) {
     $btnSetup.Enabled = $false
     $script:setupProc = Start-Process $Program -ArgumentList $Arguments -PassThru
     $setupTimer.Start()
 }
 $btnSetup.Add_Click({
-    # Installs whatever is missing (Node.js, Codex, sign-in, browser bridge) in its own window.
-    if ($script:setupAction -eq 'install') { Start-SetupStep 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-install.ps1') + '"')) 'Đang cài Node.js, Codex và đăng nhập ChatGPT trong cửa sổ mới; xong app tự kiểm tra lại.'; return }
-    if ($script:setupAction -eq 'login') { Start-SetupStep 'cmd.exe' @('/c', 'codex login') 'Đăng nhập ChatGPT trong trình duyệt vừa mở; xong app tự kiểm tra lại.'; return }
-    $btnSetup.Enabled = $false; $form.Cursor = 'WaitCursor'
-    $txtLog.Clear(); Append-Log 'Đang kiểm tra ChatGPT...'
-    $outFile = Join-Path $workspace.Logs "image-batch-setup-$PID.log"
-    $setupError = Join-Path $workspace.Logs "image-batch-setup-$PID.err.log"
-    try {
-        $setupArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-check.ps1') + '"'), '-AsJson')
-        Start-Process powershell.exe -WindowStyle Hidden -Wait -ArgumentList $setupArgs -RedirectStandardOutput $outFile -RedirectStandardError $setupError
-        $report = Get-Content -LiteralPath $outFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        foreach ($check in $report.Checks) {
-            Append-Log $check.Message
-            if (-not $check.Ok -and $check.Action) { Append-Log $check.Action }
-        }
-        Append-Log $report.Summary
-        Set-SetupButton $report.NextAction
-    } catch {
-        Append-Log 'Chưa kiểm tra được ChatGPT. Vui lòng thử lại hoặc xem setup.txt.'
-    } finally { $form.Cursor = 'Default'; $btnSetup.Enabled = $true }
+    switch (Show-SetupDialog $form $srcDir $workspace.Logs) {
+        # Installs whatever is missing (Node.js, Codex, sign-in, browser bridge).
+        'install' { Start-SetupStep 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-install.ps1') + '"')) }
+        'login' { Start-SetupStep 'cmd.exe' @('/c', 'codex login') }
+        'drive' { [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton; $btnSetup.PerformClick() }
+    }
 })
 $queueEditor.OnChanged={ Update-Status }
-if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { Set-SetupButton 'install' }
 
 $logFile = Join-Path $workspace.Logs "image-batch-gui-$PID.log"
 $errFile = Join-Path $workspace.Logs "image-batch-gui-$PID.err.log"
