@@ -36,20 +36,53 @@ function Update-ProductQueueRow($Editor,$Row) {
     if($Editor.OnChanged){& $Editor.OnChanged}
 }
 
-# Adds one or more scene images to the link; each image produces its own result.
-function Update-SceneThumbs($Editor,$Row,$Scenes,[int]$Selected) {
-    foreach($old in @($Row.Thumbs.Controls)){Set-FeedbackPreview $old '';$old.Dispose()}
-    $Row.Thumbs.Controls.Clear()
-    for($i=0;$i -lt @($Scenes).Count;$i++){
-        $thumb=New-Object Windows.Forms.PictureBox -Property @{Size='72,72';SizeMode='Zoom';Margin='0,0,6,0';Cursor='Hand';BackColor=$script:Ui.Page;Padding=if($i -eq $Selected){'3,3,3,3'}else{'1,1,1,1'}}
-        $thumb.BackColor=if($i -eq $Selected){$script:Ui.Accent}else{$script:Ui.Line}
-        try{Set-FeedbackPreview $thumb $Scenes[$i].file}catch{}
-        $index=$i
-        $thumb.Add_Click({$Row.SceneIndex=$index;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row}.GetNewClosure())
-        $Row.Thumbs.Controls.Add($thumb)
-    }
+# Small copy for thumbnails so the strip never holds full-size bitmaps.
+function New-ThumbnailImage([string]$Path,[int]$Size=72) {
+    $stream=[IO.File]::OpenRead($Path)
+    try{
+        $loaded=[Drawing.Image]::FromStream($stream,$false,$false)
+        try{$scale=[Math]::Min($Size/$loaded.Width,$Size/$loaded.Height);return [Drawing.Bitmap]::new($loaded,[Math]::Max(1,[int]($loaded.Width*$scale)),[Math]::Max(1,[int]($loaded.Height*$scale)))}finally{$loaded.Dispose()}
+    }finally{$stream.Dispose()}
 }
 
+# A small × that appears while the pointer is over an image; clicking it removes that image.
+function Add-RemoveOverlay($Picture,[scriptblock]$OnRemove) {
+    $x=New-Object Windows.Forms.Label -Property @{Text='×';Size='22,22';TextAlign='MiddleCenter';Cursor='Hand';Visible=$false;BackColor=[Drawing.Color]::FromArgb(15,23,42);ForeColor=[Drawing.Color]::White;Font=(New-Object Drawing.Font('Segoe UI',10))}
+    $x.Location=[Drawing.Point]::new($Picture.Width-24,2);$x.Anchor='Top,Right'
+    $Picture.Controls.Add($x)
+    $show={if($Picture.Image){$x.Visible=$true}}.GetNewClosure()
+    $hide={if(-not $Picture.ClientRectangle.Contains($Picture.PointToClient([Windows.Forms.Cursor]::Position))){$x.Visible=$false}}.GetNewClosure()
+    $Picture.Add_MouseEnter($show);$Picture.Add_MouseLeave($hide);$x.Add_MouseLeave($hide)
+    $x.Add_Click($OnRemove)
+}
+
+function Select-SceneThumb($Row,[int]$Index) {
+    $Row.SceneIndex=$Index
+    for($i=0;$i -lt $Row.Thumbs.Controls.Count;$i++){$Row.Thumbs.Controls[$i].BackColor=if($i -eq $Index){$script:Ui.Accent}else{$script:Ui.Line};$Row.Thumbs.Controls[$i].Padding=if($i -eq $Index){'3,3,3,3'}else{'1,1,1,1'}}
+    $file=$Row.Thumbs.Controls[$Index].Tag
+    try{Set-FeedbackPreview $Row.Preview $file;$Row.ImagePath=$file}catch{}
+}
+
+function Update-SceneThumbs($Editor,$Row,$Scenes,[int]$Selected) {
+    # Rebuild only when the set of images changed; a click just moves the highlight.
+    $key=(@($Scenes)|ForEach-Object sha256) -join ','
+    if($Row.ThumbKey -ne $key){
+        foreach($old in @($Row.Thumbs.Controls)){if($old.Image){$old.Image.Dispose()};$old.Dispose()}
+        $Row.Thumbs.Controls.Clear()
+        for($i=0;$i -lt @($Scenes).Count;$i++){
+            $thumb=New-Object Windows.Forms.PictureBox -Property @{Size='72,72';SizeMode='Zoom';Margin='0,0,6,0';Cursor='Hand';Tag=$Scenes[$i].file}
+            try{$thumb.Image=New-ThumbnailImage $Scenes[$i].file}catch{}
+            $index=$i
+            $thumb.Add_Click({Select-SceneThumb $Row $index}.GetNewClosure())
+            Add-RemoveOverlay $thumb {Remove-ManualScene $Editor.MapPath $Row.Url.Text.Trim() $index;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row}.GetNewClosure()
+            $Row.Thumbs.Controls.Add($thumb)
+        }
+        $Row.ThumbKey=$key
+    }
+    for($i=0;$i -lt $Row.Thumbs.Controls.Count;$i++){$Row.Thumbs.Controls[$i].BackColor=if($i -eq $Selected){$script:Ui.Accent}else{$script:Ui.Line};$Row.Thumbs.Controls[$i].Padding=if($i -eq $Selected){'3,3,3,3'}else{'1,1,1,1'}}
+}
+
+# Adds one or more scene images to the link; each image produces its own result.
 function Set-ProductQueueReference($Editor,$Row,[string[]]$Source) {
     foreach($path in @($Source|Where-Object{$_})){[void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path)}
     if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[int]::MaxValue}
@@ -86,12 +119,12 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $picture=New-Object Windows.Forms.PictureBox -Property @{Name='ReferencePreview';Location='20,112';Size='720,310';SizeMode='Zoom';BackColor=[Drawing.Color]::FromArgb(241,244,240);Anchor='Top,Bottom,Left,Right';AllowDrop=$true;TabStop=$true;BorderStyle='FixedSingle'}
     $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh · Ctrl+V';Location='20,436';Size='164,32';Anchor='Bottom,Left'}
     $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh…';Location='196,436';Size='120,32';Anchor='Bottom,Left'}
-    $clear=New-Object Windows.Forms.Button -Property @{Name='ClearReference';Text='Bỏ ảnh này';Location='328,436';Size='110,32';Anchor='Bottom,Left'}
     # Every attached scene image is shown as a thumbnail; clicking one previews it above.
     $picture.Height=230
     $thumbs=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='SceneThumbs';Location='20,348';Size='720,80';Anchor='Bottom,Left,Right';AutoScroll=$true;WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
-    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;Thumbs=$thumbs}
-    $card.Controls.AddRange(@($box,$status,$picture,$thumbs,$paste,$choose,$clear))
+    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;Thumbs=$thumbs;ThumbKey=$null}
+    $card.Controls.AddRange(@($box,$status,$picture,$thumbs,$paste,$choose))
+    Add-RemoveOverlay $picture {Remove-ManualScene $Editor.MapPath $row.Url.Text.Trim() $row.SceneIndex;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure()
     $box.Add_TextChanged({Update-ProductQueueRow $Editor $row}.GetNewClosure())
     $key={if($_.Control -and $_.KeyCode -eq [Windows.Forms.Keys]::V){$_.SuppressKeyPress=$true;Paste-ProductQueueRow $Editor $row}}.GetNewClosure()
     $box.Add_KeyDown($key);$picture.Add_KeyDown($key);$paste.Add_Click({Paste-ProductQueueRow $Editor $row}.GetNewClosure())
@@ -101,10 +134,6 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $enter={if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}}
     $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
     $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop);$thumbs.Add_DragEnter($enter);$thumbs.Add_DragDrop($drop)
-    $clear.Add_Click({
-        Remove-ManualScene $Editor.MapPath $row.Url.Text.Trim() $row.SceneIndex
-        $row.BoundUrl=$null;Update-ProductQueueRow $Editor $row
-    }.GetNewClosure())
     $box.Text=$Url;Update-ProductQueueRow $Editor $row
     return $row
 }
@@ -117,7 +146,6 @@ function Add-ProductImageControls($Editor,$Row) {
     $preview=New-Object Windows.Forms.PictureBox -Property @{Name='ProductImagePreview';Location='720,112';Size='300,310';SizeMode='Zoom';BorderStyle='FixedSingle';AllowDrop=$true;TabStop=$true}
     $Row|Add-Member NoteProperty ProductPreview $preview
     $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh sản phẩm';Location='720,436';Size='180,32'}
-    $clear=New-Object Windows.Forms.Button -Property @{Text='Bỏ ảnh';Location='910,436';Size='110,32'}
     $attach={param($path)
         if(-not $Row.Url.Text.Trim()){$Row.Url.Text='https://local.invalid/products/manual-'+[Guid]::NewGuid().ToString('N')}
         [void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path Product)
@@ -141,13 +169,13 @@ function Add-ProductImageControls($Editor,$Row) {
     $paste=New-Object Windows.Forms.Button -Property @{Name='PasteProductImage';Text='Dán ảnh sản phẩm';Location='720,474';Size='180,32'}
     $paste.Add_Click($pasteProduct)
     $Row.Status.Width=680
-    $clear.Add_Click({
+    Add-RemoveOverlay $preview {
         $map=Read-ManualReferenceMap $Editor.MapPath
         foreach($entry in @($map.entries|Where-Object product_url -eq $Row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('product_file');$entry.PSObject.Properties.Remove('product_sha256')}
         $map.entries=@($map.entries|Where-Object{@(Get-ManualScenes $_).Count -or $_.product_file})
         Write-FeedbackJson $Editor.MapPath $map;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
-    }.GetNewClosure())
-    $Row.Card.Controls.AddRange(@($label,$preview,$choose,$clear,$paste))
+    }.GetNewClosure()
+    $Row.Card.Controls.AddRange(@($label,$preview,$choose,$paste))
     $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh bối cảnh';Location='560,82';Size='140,26'}
     $Row.Card.Controls.Add($sceneLabel)
     $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
@@ -233,7 +261,7 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $row.Card.Controls.AddRange(@($label,$hint,$groups,$openFolder,$save,$cancel));$dialog.Controls.Add($row.Card);$dialog.CancelButton=$cancel
     $state=[pscustomobject]@{Row=$row;Editor=$draftEditor;TempFolder=$temp};$dialog.Tag=$state
     $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
-    $dialog.Add_Disposed({foreach($thumb in @($row.Thumbs.Controls)){Set-FeedbackPreview $thumb ''};Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
+    $dialog.Add_Disposed({foreach($thumb in @($row.Thumbs.Controls)){if($thumb.Image){$thumb.Image.Dispose()}};Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
     return $dialog
 }
 
