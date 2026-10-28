@@ -108,7 +108,9 @@
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
   footer { text-align: center; }
   /* Download (signed out) */
-  .hero { justify-items: center; text-align: center; gap: 16px; padding: 32px 24px; }
+  .hero { justify-items: center; text-align: center; gap: 16px; padding: 32px 24px; width: 100%; max-width: 520px; justify-self: center; align-self: center; }
+  /* Signed out: the download card sits in the middle of the screen. */
+  body.out .wrap { min-height: 100dvh; grid-template-rows: auto 1fr auto; }
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding: 0; list-style-position: inside; font-size: 14px; display: grid; gap: 4px; }
@@ -510,6 +512,7 @@ function route() {
 // Signed out: download page and lock button. Signed in: management menu and the settings button.
 function showAdmin() {
   const signedIn = !!store.get();
+  document.body.classList.toggle("out", !signedIn);
   $("lockBtn").hidden = signedIn;
   $("settingsBtn").hidden = !signedIn;
   $("dlIcon").hidden = !signedIn;
