@@ -6,3 +6,4 @@
 /test.sh export-ignore
 /test.cmd export-ignore
 /.gitattributes export-ignore
+/tools export-ignore
