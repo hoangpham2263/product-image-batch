@@ -2,6 +2,10 @@
 
 Ứng dụng tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV. Chạy trên Windows và macOS.
 
+## Tải về
+
+**[Tải app (ZIP)](https://github.com/hoangpham2263/product-image-batch/archive/refs/heads/main.zip)** → giải nén → mở `start-app.cmd`. Không cần git: mỗi lần mở, app tự tải bản mới nhất từ GitHub và giữ nguyên `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md`.
+
 | | Mở app | Chạy test |
 |---|---|---|
 | Windows | `start-app.cmd` | `test.cmd` |

@@ -38,6 +38,8 @@
   .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .primary:hover { background: var(--primary); filter: brightness(.92); }
   .icon { width: 36px; padding: 0; flex: none; }
+  a.btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
+  a.btn:hover { background: var(--soft); }
   .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   /* Settings (manage mode), as in memories */
   .settings-btn { position: relative; }
@@ -109,6 +111,9 @@
   <header class="top">
     <a class="brand" href="https://hoangpham.is-a.dev" aria-label="HoangPham"><img src="brand/hp-icon.svg" alt="HoangPham" width="40" height="40" /></a>
     <div class="top-text"><h1>Product Images</h1></div>
+    <a class="icon btn" href="https://github.com/hoangpham2263/product-image-batch/archive/refs/heads/main.zip" title="Tải app (ZIP)" aria-label="Tải app (ZIP)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+    </a>
     <button id="lockBtn" class="icon" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
     </button>
