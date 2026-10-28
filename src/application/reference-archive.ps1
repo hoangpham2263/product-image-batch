@@ -24,8 +24,8 @@ function Save-ProductReferenceBundle($Item, [string]$ItemId, $Context, $Request,
         Copy-Item -LiteralPath $original -Destination $destination -Force
         if ((Get-BytesHash ([IO.File]::ReadAllBytes($destination))) -ne $hash) { throw 'Reference archive copy does not match source.' }
         $entry = $catalog[$original]
-        $manualSource = $role -in @('scene','subject') -and @($script:Config.ManualReferences.entries | Where-Object file -eq $original).Count -gt 0
-        $manualProduct = $role -eq 'product' -and @($script:Config.ManualReferences.entries | Where-Object { $_.product_url -eq $Item.Url -and $_.product_sha256 -eq $hash }).Count -gt 0
+        $manualSource = $role -in @('scene','subject') -and @($script:Config.ManualReferences.entries | ForEach-Object { Get-ManualScenes $_ } | Where-Object file -eq $original).Count -gt 0
+        $manualProduct = $role -eq 'product' -and @($script:Config.ManualReferences.entries | Where-Object product_url -eq $Item.Url | ForEach-Object { Get-ManualProducts $_ } | Where-Object sha256 -eq $hash).Count -gt 0
         $sourcePage = if ($role -eq 'product') { $Item.Url } elseif ($entry) { $entry.source_page } else { '' }
         $entries += [pscustomobject][ordered]@{
             index = $index + 1; role = $role; label = $label; file = $file

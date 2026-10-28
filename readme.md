@@ -40,7 +40,7 @@ Kho `data/names.txt` có 4.000 tên hiển thị với tên riêng không trùng
 
 ### Thư viện ảnh mẫu
 
-Ảnh sản phẩm gốc và ảnh review là hai đầu vào riêng. Mỗi ảnh review được xử lý thành một kết quả độc lập với ảnh gốc của cùng sản phẩm. Mỗi lượt tạo mới nhận đúng một ảnh review và một ảnh sản phẩm gốc, không gộp hai ảnh review hay thêm ảnh phong cách thứ ba. Popup có ô **Ảnh review** bên trái và **Ảnh sản phẩm gốc** bên phải. Ảnh review áo gấp/đặt trên bàn được giữ cách trình bày đó, không bắt buộc có người mẫu.
+Ảnh sản phẩm gốc và ảnh review là hai đầu vào riêng. Mỗi ảnh review được xử lý thành một kết quả độc lập với ảnh gốc của cùng sản phẩm. Mỗi lượt tạo mới nhận đúng một ảnh review và một ảnh sản phẩm gốc, không gộp hai ảnh review hay thêm ảnh phong cách thứ ba. Một link có thể có nhiều ảnh sản phẩm gốc (ví dụ nhiều màu); popup hiện mỗi ảnh gốc một dòng, bên cạnh là các ảnh review của riêng ảnh gốc đó (1 hoặc nhiều). Mỗi cặp ảnh gốc + ảnh review tạo một kết quả. Ảnh hiện nhỏ, bấm vào để xem lớn; kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào dòng đang chọn, hoặc vào dòng **Thêm ảnh gốc**. Ảnh review áo gấp/đặt trên bàn được giữ cách trình bày đó, không bắt buộc có người mẫu.
 
 Web chưa public hoặc không tải được sản phẩm: gắn **Ảnh sản phẩm gốc** và **Ảnh bối cảnh để ghép vào** trong popup. Ảnh sản phẩm được dùng trực tiếp, không truy cập link. Bản web cho phép để trống link khi đã gắn ảnh sản phẩm; bản Windows tự tạo mã local khi chọn ảnh sản phẩm trước khi nhập link. Dán ảnh vào ô đã chọn, kéo thả hoặc chọn file PNG/JPEG. Hai ảnh được lưu snapshot/hash riêng; đổi link không mang ảnh cũ sang và Hủy không thay ảnh đã lưu.
 

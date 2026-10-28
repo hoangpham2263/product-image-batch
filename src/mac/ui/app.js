@@ -229,10 +229,17 @@ function setBar(value, max, marquee = false) {
 }
 
 // ----- queue rows (Add-ProductQueueRow / Update-ProductQueueRow) -----
+// Link info from PowerShell: products[] (each with scenes[]) plus all scenes flattened.
+function normInfo(info) {
+  if (!info) return null;
+  return { ...info, products: list(info.products).map((p) => ({ ...p, scenes: list(p.scenes) })), scenes: list(info.scenes) };
+}
 function rowStatus(row) {
-  const scenes = row.info?.scenes || [];
-  if (scenes.length && scenes[0].ok) return { text: scenes.length > 1 ? `● ${scenes.length} ảnh` : "● Đã có ảnh", color: "var(--ok)", image: scenes[0].file };
-  if (scenes.length) return { text: "Không đọc được ảnh, hãy gắn lại.", color: "var(--error)", image: "" };
+  const products = row.info?.products || [], scenes = row.info?.scenes || [];
+  const image = products.find((p) => p.ok)?.file || scenes.find((s) => s.ok)?.file || "";
+  if (scenes.some((s) => !s.ok) || products.some((p) => p.file && !p.ok)) return { text: "Không đọc được ảnh, hãy gắn lại.", color: "var(--error)", image };
+  if (products.some((p) => !p.scenes.length)) return { text: "● Có ảnh gốc chưa có review", color: "var(--warn)", image };
+  if (scenes.length) return { text: products.length > 1 ? `● ${products.length} mẫu · ${scenes.length} ảnh` : scenes.length > 1 ? `● ${scenes.length} ảnh` : "● Đã có ảnh", color: "var(--ok)", image };
   return row.url.trim() ? { text: "● Chưa có ảnh", color: "var(--warn)", image: "" } : { text: "Chưa có link", color: "var(--muted)", image: "" };
 }
 function renderRows() {
@@ -262,7 +269,7 @@ function renderRows() {
         if (!files.length) return;
         const root = await api("draftOpen");
         await api("draftAttach", { root, url: row.url.trim(), paths: await Promise.all(files.map(upload)) });
-        row.info = await api("draftSave", { root, url: row.url.trim(), others: [], group: state.group });
+        row.info = normInfo(await api("draftSave", { root, url: row.url.trim(), others: [], group: state.group }));
         renderRows();
       } catch (err) { row.stage = { text: err.message, color: "var(--error)" }; renderRows(); row.stage = null; }
     });
@@ -272,7 +279,7 @@ function renderRows() {
 
 async function loadState() {
   Object.assign(state, await api("state"));
-  state.rows = list(state.rows).map((info) => ({ url: info.url, info: { ...info, scenes: list(info.scenes) } }));
+  state.rows = list(state.rows).map((info) => ({ url: info.url, info: normInfo(info) }));
   document.title = ("Product Review Batch " + (state.version || "")).trim();
   ui.fallback.input.checked = state.fallback;
   ui.library.value = state.library === "local" ? "local" : "drive";
@@ -293,43 +300,45 @@ async function updateReviewButton() {
   ui.btnReview.classList.toggle("primary", pending > 0);
 }
 
-// ----- product dialog (New-ProductQueueDialog) -----
+// ----- product dialog: one row per product image, its review images beside it -----
+// Small thumbnails only; clicking one opens it large. Each pair becomes one generated image.
+function showImagePreview(path, title) {
+  const view = openWindow(title, 760, 560);
+  const pic = at(picture(), 12, 12, 736, 490);
+  pic.style.background = "var(--smoke)";
+  pic.set(path);
+  const close = at(button("Đóng"), 648, 514, 100, 32);
+  close.onclick = view.close;
+  view.body.append(pic, close);
+  close.focus();
+}
+
 async function showProductDialog(target = null) {
   let root;
   try { root = await api("draftOpen"); } catch (e) { return appendLog(e.message); }
-  const view = openWindow("Ảnh review & ảnh sản phẩm gốc", 1040, 570, { white: true });
+  const view = openWindow("Ảnh sản phẩm gốc & ảnh review", 760, 470, { white: true });
   const b = view.body;
   let saved = false;
   view.onClose = () => { if (!saved) api("draftDiscard", { root }).catch(() => {}); };
-  const urlBox = at(el("input", "text", { value: target ? target.url : "" }), 20, 42, 1000, 25);
-  const status = at(label(""), 20, 482, 680, 30);
-  status.style.lineHeight = "30px";
-  const preview = at(picture("border"), 20, 112, 680, 230);
-  preview.style.background = "rgb(241, 244, 240)";
-  preview.tabIndex = 0;
-  const thumbs = at(el("div", "flow"), 20, 348, 680, 80);
-  Object.assign(thumbs.style, { display: "flex", overflowX: "auto", overflowY: "hidden", background: "#fff" });
-  const paste = at(button("Dán ảnh review · Ctrl+V"), 20, 436, 180, 32);
-  const choose = at(button("Chọn ảnh review…"), 212, 436, 156, 32);
-  const productPreview = at(picture("border"), 720, 112, 300, 310);
-  productPreview.tabIndex = 0;
-  const chooseProduct = at(button("Chọn ảnh sản phẩm"), 720, 436, 146, 32);
-  const pasteProduct = at(button("Dán ảnh sản phẩm"), 874, 436, 146, 32);
-  const groups = at(combo(), 132, 78, 216, 24);
-  const openFolder = at(button("Mở thư mục"), 360, 78, 140, 28);
-  const save = at(button("Lưu sản phẩm"), 760, 526, 144, 32);
-  const cancel = at(button("Hủy"), 916, 526, 104, 32);
+  const urlBox = at(el("input", "text", { value: target ? target.url : "" }), 20, 40, 720, 25);
+  const groups = at(combo(), 92, 76, 200, 24);
+  const openFolder = at(button("Mở thư mục"), 302, 74, 120, 28);
+  const rowsBox = at(el("div", "flow"), 20, 140, 720, 250);
+  Object.assign(rowsBox.style, { background: "#fff", border: "1px solid #000" });
+  const status = at(label(""), 20, 398, 500, 26);
+  status.style.lineHeight = "26px";
+  const save = at(button("Lưu sản phẩm"), 516, 428, 120, 30);
+  const cancel = at(button("Hủy"), 646, 428, 94, 30);
   b.append(
-    at(label("Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)"), 20, 16, null, 22),
-    urlBox, at(label("Kho ảnh:"), 20, 82, 110, 26), groups, openFolder,
-    at(label("Ảnh review"), 560, 82, 140, 26), at(label("Ảnh sản phẩm gốc (quyết định thiết kế)"), 720, 82, 300, 26),
-    preview, thumbs, paste, choose, productPreview, chooseProduct, pasteProduct, status, save, cancel,
+    at(label("Link sản phẩm"), 20, 16, null, 22), urlBox,
+    at(label("Kho ảnh:"), 20, 80, 70, 22), groups, openFolder,
+    at(label("Ảnh gốc", "muted"), 26, 116, 70, 22), at(label("Ảnh review của ảnh gốc đó", "muted"), 110, 116, 300, 22),
+    rowsBox, status, save, cancel,
   );
   view.cancel = view.close;
   cancel.onclick = view.close;
   const fail = (e) => { status.textContent = e.message; status.style.color = "var(--error)"; };
 
-  // Kho ảnh: groups on Drive (or on this Mac when "Kho trên máy" is chosen).
   api("groups", { local: ui.library.value === "local" }).then((g) => {
     g = list(g);
     groups.setItems(g);
@@ -337,96 +346,92 @@ async function showProductDialog(target = null) {
   }).catch(() => {});
   openFolder.onclick = async () => { try { await api("openPath", { path: await api("sourceDir", { group: groups.value }) }); } catch (e) { fail(e); } };
 
-  let info = { scenes: [], product: "" }, index = 0;
-  const refresh = async () => {
-    const url = urlBox.value.trim();
-    try { info = await api("draftInfo", { root, url }); info.scenes = list(info.scenes); } catch { info = { scenes: [], product: "" }; }
-    index = Math.max(0, Math.min(index, info.scenes.length - 1));
-    const scene = info.scenes[index];
-    preview.set(scene && scene.ok ? scene.file : "", "Dán / kéo ảnh");
-    productPreview.set(info.product || "");
-    thumbs.replaceChildren(...info.scenes.map((s, i) => {
-      const t = picture();
-      Object.assign(t.style, { position: "relative", width: "72px", height: "72px", flex: "none", marginRight: "6px", cursor: "pointer", padding: i === index ? "3px" : "1px", background: i === index ? "var(--accent)" : "var(--line)" });
-      t.querySelector("img").style.background = "#fff";
-      t.set(s.file);
-      t.onclick = () => { index = i; refresh(); };
-      t.onRemove(async () => { await api("draftRemoveScene", { root, url, index: i }).catch(fail); refresh(); });
-      return t;
-    }));
-    if (info.scenes.length && scene?.ok) { status.textContent = info.scenes.length > 1 ? `● ${info.scenes.length} ảnh` : "● Đã có ảnh"; status.style.color = "var(--ok)"; }
-    else if (info.scenes.length) { status.textContent = "Không đọc được ảnh, hãy gắn lại."; status.style.color = "var(--error)"; }
-    else { status.textContent = url ? "● Chưa có ảnh" : "Chưa có link"; status.style.color = url ? "var(--warn)" : "var(--muted)"; }
-  };
-  preview.onRemove(async () => { await api("draftRemoveScene", { root, url: urlBox.value.trim(), index }).catch(fail); refresh(); });
-  productPreview.onRemove(async () => { await api("draftRemoveProduct", { root, url: urlBox.value.trim() }).catch(fail); refresh(); });
-
-  const attach = async (files, role = "Scene") => {
+  // Paste and drop go to the row last used; -1 means "a new product image".
+  let products = [], active = -1;
+  const attach = async (files, productIndex) => {
     try {
-      files = role === "Product" ? files.slice(0, 1) : files;
+      files = imageFiles(files);
+      if (!files.length) return;
       const paths = await Promise.all(files.map(upload));
-      const url = await api("draftAttach", { root, url: urlBox.value.trim(), paths, role });
+      const role = productIndex < 0 ? "Product" : "Scene";
+      const url = await api("draftAttach", { root, url: urlBox.value.trim(), paths, role, productIndex });
       if (url !== urlBox.value.trim()) urlBox.value = url;
-      if (role === "Scene") index = Number.MAX_SAFE_INTEGER;
+      if (role === "Product") active = Number.MAX_SAFE_INTEGER;
       await refresh();
     } catch (e) { fail(e); }
   };
-  // Clipboard: an image attaches, one line of text becomes the link (Paste-ProductQueueRow).
-  const pasteFrom = async (items, role) => {
-    const files = imageFiles(items.files || []);
-    if (files.length) return attach(files, role);
-    if (role === "Product") return;
-    const text = (items.text || "").trim();
-    if (!text) return fail(new Error("Clipboard chưa có link hoặc ảnh."));
-    if (text.split(/\r?\n/).length > 1) return fail(new Error("Popup này chỉ nhận một link. Dùng Thêm nhiều link để nhập hàng loạt."));
-    urlBox.value = text; refresh();
+  const thumb = (path, ok, onRemove, title) => {
+    const t = picture();
+    Object.assign(t.style, { position: "relative", width: "56px", height: "56px", flex: "none", border: "1px solid var(--line)", background: "var(--smoke)", cursor: "pointer" });
+    t.set(ok ? path : "");
+    t.title = title;
+    t.onclick = () => ok && showImagePreview(path, title);
+    t.onRemove(onRemove);
+    return t;
   };
-  const readClipboard = async () => {
-    const files = [];
-    let text = "";
+  const addTile = (text, onPick) => {
+    const tile = el("button", "btn", { type: "button", text });
+    Object.assign(tile.style, { position: "static", width: "56px", height: "56px", flex: "none", fontSize: "20px", color: "var(--muted)", borderStyle: "dashed" });
+    tile.onclick = onPick;
+    return tile;
+  };
+  const refresh = async () => {
+    const url = urlBox.value.trim();
     try {
-      for (const item of await navigator.clipboard.read()) {
-        const type = item.types.find((t) => /^image\/(png|jpeg)$/.test(t));
-        if (type) files.push(new File([await item.getType(type)], type === "image/png" ? "clipboard.png" : "clipboard.jpg", { type }));
-        else if (item.types.includes("text/plain")) text = await (await item.getType("text/plain")).text();
-      }
-    } catch { text = await navigator.clipboard.readText().catch(() => ""); }
-    return { files, text };
-  };
-  paste.onclick = async () => pasteFrom(await readClipboard(), "Scene");
-  pasteProduct.onclick = async () => pasteFrom(await readClipboard(), "Product");
-  view.body.addEventListener("paste", (e) => {
-    const product = document.activeElement === productPreview;
-    const files = [...(e.clipboardData?.files || [])];
-    if (document.activeElement === urlBox && !files.length) return;
-    e.preventDefault();
-    pasteFrom({ files, text: e.clipboardData.getData("text/plain") }, product ? "Product" : "Scene");
-  });
-  choose.onclick = async () => attach(imageFiles(await pickFiles("image/png,image/jpeg", true)));
-  chooseProduct.onclick = async () => attach(imageFiles(await pickFiles("image/png,image/jpeg", false)), "Product");
-  for (const zone of [view.body, preview, thumbs, productPreview]) {
-    zone.addEventListener("dragover", (e) => e.preventDefault());
-    zone.addEventListener("drop", (e) => {
-      e.preventDefault(); e.stopPropagation();
-      attach(imageFiles(e.dataTransfer.files), zone === productPreview ? "Product" : "Scene");
+      const info = await api("draftInfo", { root, url });
+      products = list(info.products).map((p) => ({ ...p, scenes: list(p.scenes) }));
+    } catch { products = []; }
+    if (active >= products.length) active = products.length - 1;
+    const rows = products.map((p, i) => {
+      const row = el("div", "", { style: { display: "flex", alignItems: "center", gap: "6px", padding: "6px", borderBottom: "1px solid var(--line)" } });
+      if (i === active) row.style.background = "var(--hover)";
+      const product = p.file
+        ? thumb(p.file, p.ok, async () => { await api("draftRemoveProduct", { root, url, productIndex: i }).catch(fail); refresh(); }, `Ảnh gốc #${i + 1}`)
+        : el("div", "label muted", { text: "Ảnh từ link", style: { position: "static", width: "56px", whiteSpace: "normal", fontSize: "11px" } });
+      const arrow = el("div", "label muted", { text: "→", style: { position: "static", width: "16px", textAlign: "center" } });
+      row.append(product, arrow, ...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
+        await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
+      }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+", async () => { active = i; attach(await pickFiles("image/png,image/jpeg", true), i); }));
+      row.addEventListener("click", () => { if (active !== i) { active = i; for (const [n, r] of [...rowsBox.children].entries()) r.style.background = n === i ? "var(--hover)" : ""; } });
+      row.addEventListener("dragover", (e) => e.preventDefault());
+      row.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); active = i; attach(e.dataTransfer.files, i); });
+      return row;
     });
-  }
-  preview.onclick = () => urlBox.focus();
-  urlBox.oninput = () => { index = 0; refresh(); };
+    const addRow = el("div", "", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px" } });
+    addRow.append(addTile("+", async () => attach(await pickFiles("image/png,image/jpeg", true), -1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
+    addRow.addEventListener("dragover", (e) => e.preventDefault());
+    addRow.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); attach(e.dataTransfer.files, -1); });
+    rowsBox.replaceChildren(...rows, addRow);
+    const reviews = products.reduce((n, p) => n + p.scenes.length, 0);
+    const missing = products.filter((p) => !p.scenes.length).length;
+    if (!url) { status.textContent = "Chưa có link"; status.style.color = "var(--muted)"; }
+    else if (!products.length) { status.textContent = "● Chưa có ảnh"; status.style.color = "var(--warn)"; }
+    else if (missing) { status.textContent = `● ${missing} ảnh gốc chưa có ảnh review`; status.style.color = "var(--warn)"; }
+    else { status.textContent = `● ${products.length} ảnh gốc · ${reviews} ảnh review → ${reviews} ảnh kết quả`; status.style.color = "var(--ok)"; }
+  };
+  // Clipboard: an image goes to the active row (or becomes a product image when none); text in the link box stays text.
+  view.body.addEventListener("paste", (e) => {
+    const files = imageFiles(e.clipboardData?.files || []);
+    if (!files.length) return;
+    e.preventDefault();
+    attach(files, products.length && active >= 0 ? Math.min(active, products.length - 1) : -1);
+  });
+  rowsBox.addEventListener("dragover", (e) => e.preventDefault());
+  rowsBox.addEventListener("drop", (e) => { e.preventDefault(); attach(e.dataTransfer.files, -1); });
+  urlBox.oninput = () => { active = -1; refresh(); };
   save.onclick = async () => {
     try {
       const url = urlBox.value.trim();
       const others = state.rows.filter((r) => r !== target).map((r) => r.url.trim());
-      const saved_ = await api("draftSave", { root, url, others, group: groups.value || state.group });
+      const entry = normInfo(await api("draftSave", { root, url, others, group: groups.value || state.group }));
       saved = true;
       state.group = groups.value || state.group;
-      const entry = { ...saved_, scenes: list(saved_.scenes) };
       if (target) Object.assign(target, { url, info: entry });
       else state.rows.push({ url, info: entry });
       view.close();
       renderRows();
       updateStatus();
-      ui.flow.scrollTop = ui.flow.scrollHeight * (target ? 0 : 1);
+      if (!target) ui.flow.scrollTop = ui.flow.scrollHeight;
     } catch (e) { fail(e); }
   };
   await refresh();
@@ -456,7 +461,7 @@ function showBulkDialog() {
         if (empty) { empty.url = url; added.push(empty); } else { const row = { url, info: null }; state.rows.push(row); added.push(row); }
       }
       const infos = list(await api("rows", { urls: added.map((r) => r.url) }));
-      added.forEach((r, i) => { r.info = infos[i] ? { ...infos[i], scenes: list(infos[i].scenes) } : null; });
+      added.forEach((r, i) => { r.info = normInfo(infos[i]); });
       view.close();
       renderRows();
       updateStatus();

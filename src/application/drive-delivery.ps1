@@ -2,9 +2,10 @@
 function Get-DeliveryKey($Item) {
     $parts=@($Item.Url)
     $entry=@($script:Config.ManualReferences.entries|Where-Object product_url -eq $Item.Url)
-    if($entry.Count -and $entry[0].product_file){
-        if(-not (Test-Path -LiteralPath $entry[0].product_file) -or (Get-BytesHash ([IO.File]::ReadAllBytes($entry[0].product_file))) -ne $entry[0].product_sha256){throw '[CAUSE:PRODUCT_INPUT] Attached product changed.'}
-        $parts+=@($entry[0].product_sha256)
+    $product=if($Item.PSObject.Properties['Product']){$Item.Product}elseif($entry.Count){@(Get-ManualProducts $entry[0]|Where-Object file)|Select-Object -First 1}
+    if($product -and $product.file){
+        if(-not (Test-Path -LiteralPath $product.file) -or (Get-BytesHash ([IO.File]::ReadAllBytes($product.file))) -ne $product.sha256){throw '[CAUSE:PRODUCT_INPUT] Attached product changed.'}
+        $parts+=@($product.sha256)
     }
     $scene=if($Item.PSObject.Properties['Scene']){$Item.Scene}elseif($entry.Count){@(Get-ManualScenes $entry[0])|Select-Object -First 1}
     if($scene){

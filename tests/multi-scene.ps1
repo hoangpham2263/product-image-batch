@@ -1,4 +1,4 @@
-. (Join-Path $PSScriptRoot 'helpers.ps1')
+﻿. (Join-Path $PSScriptRoot 'helpers.ps1')
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
@@ -21,6 +21,27 @@ try{
     $script:Config=@{ManualReferences=$map}
     $jobs=@(Expand-SceneJobs @([pscustomobject]@{Url=$url;Handle='tee'},[pscustomobject]@{Url=$other;Handle='cap'}))
     Assert ($jobs.Count -eq 3 -and $jobs[0].Scene.sha256 -ne $jobs[1].Scene.sha256 -and -not $jobs[2].PSObject.Properties['Scene']) 'Each scene image must become its own job.'
+
+    # Several product images on one link, each with its own reviews: one job per pair.
+    $c=Join-Path $temp 'c.png';New-TestPng $c 1 1 ([byte[]](0,0,10))
+    $d=Join-Path $temp 'd.png';New-TestPng $d 1 1 ([byte[]](10,10,0))
+    $multi='https://shop.example/products/polo'
+    [void](Save-ManualReference $temp $multi $c Product)
+    [void](Save-ManualReference $temp $multi $a Scene 0)
+    [void](Save-ManualReference $temp $multi $d Product)
+    [void](Save-ManualReference $temp $multi $a Scene 1)
+    [void](Save-ManualReference $temp $multi $b Scene 1)
+    $entry=@((Read-ManualReferenceMap $path).entries|Where-Object product_url -eq $multi)[0]
+    $products=@(Get-ManualProducts $entry)
+    Assert ($products.Count -eq 2 -and @($products[0].scenes).Count -eq 1 -and @($products[1].scenes).Count -eq 2) 'Reviews must stay with the product image they were added to.'
+    Assert ($entry.product_file -eq $products[0].file -and @($entry.scenes).Count -eq 3) 'Older fields must mirror the first product and every review.'
+    $script:Config=@{ManualReferences=(Read-ManualReferenceMap $path)}
+    $pairs=@(Expand-SceneJobs @([pscustomobject]@{Url=$multi;Handle='polo'}))
+    Assert ($pairs.Count -eq 3 -and $pairs[0].Product.sha256 -eq $products[0].sha256 -and $pairs[2].Product.sha256 -eq $products[1].sha256) 'Each product + review pair must become its own job.'
+    Remove-ManualScene $path $multi 0 1
+    Assert (@(@(Get-ManualProducts @((Read-ManualReferenceMap $path).entries|Where-Object product_url -eq $multi)[0])[1].scenes).Count -eq 1) 'Removing a review must only touch its product.'
+    Remove-ManualProduct $path $multi 0
+    Assert (@(Get-ManualProducts @((Read-ManualReferenceMap $path).entries|Where-Object product_url -eq $multi)[0]).Count -eq 1) 'Removing a product image must drop it with its reviews.'
 
     $legacy=Join-Path $temp 'legacy.json'
     '{"schema_version":1,"allow_library_fallback":false,"entries":[{"product_url":"https://shop.example/products/old","file":"x.png","sha256":"'+('a'*64)+'"}]}'|Set-Content $legacy -Encoding UTF8

@@ -74,11 +74,13 @@ function Get-Reference([string]$Url, [string]$ItemId) {
 function Read-ProductInput($Item, [string]$ItemId) {
     Write-Host '  [PRODUCT] Loading reference...' -ForegroundColor Cyan
     $manual=@($script:Config.ManualReferences.entries|Where-Object product_url -eq $Item.Url)
-    if($manual.Count -and $manual[0].product_file){
-        $source=$manual[0].product_file
+    # The product image of this job (one link can hold several), else the link's first one.
+    $attached=if($Item.PSObject.Properties['Product']){$Item.Product}elseif($manual.Count){@(Get-ManualProducts $manual[0]|Where-Object file)|Select-Object -First 1}
+    if($attached -and $attached.file){
+        $source=$attached.file
         if(-not (Test-Path -LiteralPath $source -PathType Leaf)){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thiếu. Hãy gắn lại ảnh.'}
         $bytes=[IO.File]::ReadAllBytes($source)
-        if((Get-BytesHash $bytes) -ine $manual[0].product_sha256){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thay đổi. Hãy gắn lại ảnh.'}
+        if((Get-BytesHash $bytes) -ine $attached.sha256){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thay đổi. Hãy gắn lại ảnh.'}
         $reference=Join-Path $script:Batch.Refs ($ItemId+'-manual-product'+[IO.Path]::GetExtension($source))
         [IO.File]::WriteAllBytes($reference,$bytes)
         Write-Host '  [PRODUCT-MANUAL] Using attached product image; no product URL request.' -ForegroundColor Cyan

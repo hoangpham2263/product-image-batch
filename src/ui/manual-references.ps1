@@ -21,17 +21,16 @@ function Update-ProductQueueRow($Editor,$Row) {
     $Row.BoundUrl=$url;$Row.ImagePath='';Set-FeedbackPreview $Row.Preview ''
     $entry=@((Read-ManualReferenceMap $Editor.MapPath).entries|Where-Object product_url -eq $url)
     $Row.Status.ForeColor=$script:Ui.Muted
-    if($Row.ProductPreview){
-        Set-FeedbackPreview $Row.ProductPreview ''
-        if($entry.Count -and $entry[0].product_file){Set-FeedbackPreview $Row.ProductPreview $entry[0].product_file}
-    }
-    $scenes=@(if($entry.Count){Get-ManualScenes $entry[0]})
-    $index=0
-    if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[Math]::Max(0,[Math]::Min($Row.SceneIndex,$scenes.Count-1));$index=$Row.SceneIndex}
-    if($Row.PSObject.Properties['Thumbs']){Update-SceneThumbs $Editor $Row $scenes $index}
-    if($scenes.Count -and (Test-Path -LiteralPath $scenes[$index].file)){
-        $count=if($scenes.Count -gt 1){"● $($scenes.Count) ảnh"}else{'● Đã có ảnh'}
-        try{Set-FeedbackPreview $Row.Preview $scenes[$index].file;$Row.ImagePath=$scenes[$index].file;$Row.Status.Text=$count;$Row.Status.ForeColor=$script:Ui.Ok}catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
+    $products=@(if($entry.Count){Get-ManualProducts $entry[0]})
+    $scenes=@($products|ForEach-Object{@($_.scenes)})
+    $first=@($products|Where-Object file)+@($scenes)|Select-Object -First 1
+    if($first){
+        try{
+            Set-FeedbackPreview $Row.Preview $first.file;$Row.ImagePath=$first.file
+            if(@($scenes|Where-Object{-not (Test-Path -LiteralPath $_.file)}).Count){throw 'missing'}
+            if(@($products|Where-Object{-not @($_.scenes).Count}).Count){$Row.Status.Text='● Có ảnh gốc chưa có review';$Row.Status.ForeColor=$script:Ui.Warn}
+            else{$Row.Status.Text=if($products.Count -gt 1){"● $($products.Count) mẫu · $($scenes.Count) ảnh"}elseif($scenes.Count -gt 1){"● $($scenes.Count) ảnh"}else{'● Đã có ảnh'};$Row.Status.ForeColor=$script:Ui.Ok}
+        }catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
     }else{$Row.Status.Text=if($url){'● Chưa có ảnh'}else{'Chưa có link'};if($url){$Row.Status.ForeColor=$script:Ui.Warn}}
     if($Editor.OnChanged){& $Editor.OnChanged}
 }
@@ -56,36 +55,9 @@ function Add-RemoveOverlay($Picture,[scriptblock]$OnRemove) {
     $x.Add_Click($OnRemove)
 }
 
-function Select-SceneThumb($Row,[int]$Index) {
-    $Row.SceneIndex=$Index
-    for($i=0;$i -lt $Row.Thumbs.Controls.Count;$i++){$Row.Thumbs.Controls[$i].BackColor=if($i -eq $Index){$script:Ui.Accent}else{$script:Ui.Line};$Row.Thumbs.Controls[$i].Padding=if($i -eq $Index){'3,3,3,3'}else{'1,1,1,1'}}
-    $file=$Row.Thumbs.Controls[$Index].Tag
-    try{Set-FeedbackPreview $Row.Preview $file;$Row.ImagePath=$file}catch{}
-}
-
-function Update-SceneThumbs($Editor,$Row,$Scenes,[int]$Selected) {
-    # Rebuild only when the set of images changed; a click just moves the highlight.
-    $key=(@($Scenes)|ForEach-Object sha256) -join ','
-    if($Row.ThumbKey -ne $key){
-        foreach($old in @($Row.Thumbs.Controls)){if($old.Image){$old.Image.Dispose()};$old.Dispose()}
-        $Row.Thumbs.Controls.Clear()
-        for($i=0;$i -lt @($Scenes).Count;$i++){
-            $thumb=New-Object Windows.Forms.PictureBox -Property @{Size='72,72';SizeMode='Zoom';Margin='0,0,6,0';Cursor='Hand';Tag=$Scenes[$i].file}
-            try{$thumb.Image=New-ThumbnailImage $Scenes[$i].file}catch{}
-            $index=$i
-            $thumb.Add_Click({Select-SceneThumb $Row $index}.GetNewClosure())
-            Add-RemoveOverlay $thumb {Remove-ManualScene $Editor.MapPath $Row.Url.Text.Trim() $index;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row}.GetNewClosure()
-            $Row.Thumbs.Controls.Add($thumb)
-        }
-        $Row.ThumbKey=$key
-    }
-    for($i=0;$i -lt $Row.Thumbs.Controls.Count;$i++){$Row.Thumbs.Controls[$i].BackColor=if($i -eq $Selected){$script:Ui.Accent}else{$script:Ui.Line};$Row.Thumbs.Controls[$i].Padding=if($i -eq $Selected){'3,3,3,3'}else{'1,1,1,1'}}
-}
-
 # Adds one or more scene images to the link; each image produces its own result.
 function Set-ProductQueueReference($Editor,$Row,[string[]]$Source) {
     foreach($path in @($Source|Where-Object{$_})){[void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path)}
-    if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[int]::MaxValue}
     $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
 }
 
@@ -97,88 +69,6 @@ function Add-ProductQueueLinks($Editor,[string]$Text) {
         $empty=@($Editor.Rows|Where-Object{-not $_.Url.Text.Trim()}|Select-Object -First 1)
         if($empty.Count){$empty[0].Url.Text=$url}else{[void](Add-ProductQueueRow $Editor $url)}
     }
-}
-
-function Paste-ProductQueueRow($Editor,$Row) {
-    try{
-        if([Windows.Forms.Clipboard]::ContainsImage()){
-            $uri=$null;if(-not [Uri]::TryCreate($Row.Url.Text.Trim(),[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw 'Dán link hợp lệ vào dòng này trước khi dán ảnh.'}
-            $image=[Windows.Forms.Clipboard]::GetImage();$folder=Join-Path $Editor.Root 'workspace/reference-inputs'
-            New-Item -ItemType Directory -Path $folder -Force|Out-Null;$temporary=Join-Path $folder ('clipboard-'+[Guid]::NewGuid().ToString('N')+'.png')
-            try{$image.Save($temporary,[Drawing.Imaging.ImageFormat]::Png);Set-ProductQueueReference $Editor $Row $temporary}finally{$image.Dispose();if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary}}
-        }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){$files=[Windows.Forms.Clipboard]::GetFileDropList();if($files.Count){Set-ProductQueueReference $Editor $Row @($files)}}
-        elseif([Windows.Forms.Clipboard]::ContainsText()){$value=[Windows.Forms.Clipboard]::GetText();if(($value.Trim() -split '\r?\n').Count -gt 1){throw 'Popup này chỉ nhận một link. Dùng Thêm nhiều link để nhập hàng loạt.'};$Row.Url.Text=$value.Trim()}
-        else{throw 'Clipboard chưa có link hoặc ảnh.'}
-    }catch{$Row.Status.Text=$_.Exception.Message;$Row.Status.ForeColor=[Drawing.Color]::Firebrick}
-}
-
-function New-ProductQueueEditControls($Editor,[string]$Url='') {
-    $card=New-Object Windows.Forms.Panel -Property @{Size='760,570';BackColor=[Drawing.Color]::White;BorderStyle='None';AllowDrop=$true}
-    $box=New-Object Windows.Forms.TextBox -Property @{Name='ProductUrl';Location='20,42';Size='720,28';Anchor='Top,Left,Right'}
-    $status=New-Object Windows.Forms.Label -Property @{Name='ReferenceStatus';Location='20,482';Size='720,30';Anchor='Bottom,Left,Right';AutoEllipsis=$true}
-    $picture=New-Object Windows.Forms.PictureBox -Property @{Name='ReferencePreview';Location='20,112';Size='720,310';SizeMode='Zoom';BackColor=[Drawing.Color]::FromArgb(241,244,240);Anchor='Top,Bottom,Left,Right';AllowDrop=$true;TabStop=$true;BorderStyle='FixedSingle'}
-    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh review · Ctrl+V';Location='20,436';Size='180,32';Anchor='Bottom,Left'}
-    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh review…';Location='212,436';Size='156,32';Anchor='Bottom,Left'}
-    # Every attached scene image is shown as a thumbnail; clicking one previews it above.
-    $picture.Height=230
-    $thumbs=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='SceneThumbs';Location='20,348';Size='720,80';Anchor='Bottom,Left,Right';AutoScroll=$true;WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
-    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;Thumbs=$thumbs;ThumbKey=$null}
-    $card.Controls.AddRange(@($box,$status,$picture,$thumbs,$paste,$choose))
-    Add-RemoveOverlay $picture {Remove-ManualScene $Editor.MapPath $row.Url.Text.Trim() $row.SceneIndex;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure()
-    $box.Add_TextChanged({Update-ProductQueueRow $Editor $row}.GetNewClosure())
-    $key={if($_.Control -and $_.KeyCode -eq [Windows.Forms.Keys]::V){$_.SuppressKeyPress=$true;Paste-ProductQueueRow $Editor $row}}.GetNewClosure()
-    $box.Add_KeyDown($key);$picture.Add_KeyDown($key);$paste.Add_Click({Paste-ProductQueueRow $Editor $row}.GetNewClosure())
-    $picture.Add_Click({[void]$row.Url.Focus()}.GetNewClosure())
-    $picture.Add_Paint({if(-not $picture.Image){[Windows.Forms.TextRenderer]::DrawText($_.Graphics,'Dán / kéo ảnh',$picture.Font,$picture.ClientRectangle,[Drawing.Color]::DimGray,([Windows.Forms.TextFormatFlags]::HorizontalCenter -bor [Windows.Forms.TextFormatFlags]::VerticalCenter))}}.GetNewClosure())
-    $choose.Add_Click({$picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg';Multiselect=$true};try{$picker.InitialDirectory=Get-SourcePhotoDirectory $Editor.LibraryRoot $Editor.SourceGroup;if($picker.ShowDialog() -eq 'OK'){Set-ProductQueueReference $Editor $row $picker.FileNames}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}finally{$picker.Dispose()}}.GetNewClosure())
-    $enter={if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}}
-    $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
-    $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop);$thumbs.Add_DragEnter($enter);$thumbs.Add_DragDrop($drop)
-    $box.Text=$Url;Update-ProductQueueRow $Editor $row
-    return $row
-}
-
-function Add-ProductImageControls($Editor,$Row) {
-    $Row.Card.Size=[Drawing.Size]::new(1040,570)
-    $Row.Url.Width=1000;$Row.Status.Width=1000
-    $Row.Preview.Size=[Drawing.Size]::new(680,230);$Row.Thumbs.Width=680
-    $label=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc (quyết định thiết kế)';Location='720,82';Size='300,26'}
-    $preview=New-Object Windows.Forms.PictureBox -Property @{Name='ProductImagePreview';Location='720,112';Size='300,310';SizeMode='Zoom';BorderStyle='FixedSingle';AllowDrop=$true;TabStop=$true}
-    $Row|Add-Member NoteProperty ProductPreview $preview
-    $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh sản phẩm';Location='720,436';Size='146,32'}
-    $attach={param($path)
-        if(-not $Row.Url.Text.Trim()){$Row.Url.Text='https://local.invalid/products/manual-'+[Guid]::NewGuid().ToString('N')}
-        [void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path Product)
-        $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
-    }.GetNewClosure()
-    $choose.Add_Click({
-        $picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg'}
-        try{if($picker.ShowDialog() -eq 'OK'){& $attach $picker.FileName}}catch{$Row.Status.Text=$_.Exception.Message}finally{$picker.Dispose()}
-    }.GetNewClosure())
-    $preview.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
-    $preview.Add_DragDrop({try{& $attach ($_.Data.GetData([Windows.Forms.DataFormats]::FileDrop)[0])}catch{$Row.Status.Text=$_.Exception.Message}}.GetNewClosure())
-    $pasteProduct={
-            try{
-                if([Windows.Forms.Clipboard]::ContainsImage()){
-                    $image=[Windows.Forms.Clipboard]::GetImage();$path=Join-Path $Editor.Root 'clipboard-product.png'
-                    try{$image.Save($path,[Drawing.Imaging.ImageFormat]::Png);& $attach $path}finally{$image.Dispose();Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue}
-                }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){& $attach ([Windows.Forms.Clipboard]::GetFileDropList()[0])}
-            }catch{$Row.Status.Text=$_.Exception.Message}
-    }.GetNewClosure()
-    $preview.Add_KeyDown({if($_.Control -and $_.KeyCode -eq 'V'){$_.SuppressKeyPress=$true;& $pasteProduct}}.GetNewClosure())
-    $paste=New-Object Windows.Forms.Button -Property @{Name='PasteProductImage';Text='Dán ảnh sản phẩm';Location='874,436';Size='146,32'}
-    $paste.Add_Click($pasteProduct)
-    $Row.Status.Width=680
-    Add-RemoveOverlay $preview {
-        $map=Read-ManualReferenceMap $Editor.MapPath
-        foreach($entry in @($map.entries|Where-Object product_url -eq $Row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('product_file');$entry.PSObject.Properties.Remove('product_sha256')}
-        $map.entries=@($map.entries|Where-Object{@(Get-ManualScenes $_).Count -or $_.product_file})
-        Write-FeedbackJson $Editor.MapPath $map;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
-    }.GetNewClosure()
-    $Row.Card.Controls.AddRange(@($label,$preview,$choose,$paste))
-    $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh review';Location='560,82';Size='140,26'}
-    $Row.Card.Controls.Add($sceneLabel)
-    $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
 }
 
 function Remove-ProductQueueRow($Editor,$Row) {
@@ -216,18 +106,113 @@ function Add-ProductQueueRow($Editor,[string]$Url='') {
     return $row
 }
 
+# Large view of one image; the popup itself keeps small thumbnails only.
+function Show-ImagePreview($Owner,[string]$Path,[string]$Title) {
+    $dialog=New-Object Windows.Forms.Form -Property @{Text=$Title;ClientSize='760,560';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false;MinimizeBox=$false}
+    $picture=New-Object Windows.Forms.PictureBox -Property @{Location='12,12';Size='736,490';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke;Anchor='Top,Bottom,Left,Right'}
+    $close=New-Object Windows.Forms.Button -Property @{Text='Đóng';Location='648,514';Size='100,32';Anchor='Bottom,Right';DialogResult='Cancel'}
+    Set-FlatButton $close
+    $dialog.Controls.AddRange(@($picture,$close));$dialog.CancelButton=$close
+    try{Set-FeedbackPreview $picture $Path;[void]$dialog.ShowDialog($Owner)}finally{Set-FeedbackPreview $picture '';$dialog.Dispose()}
+}
+
+# Image files from a drop or the clipboard (an image is saved to a temporary PNG first).
+function Get-DroppedImages($Data) {
+    if($Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){return @($Data.GetData([Windows.Forms.DataFormats]::FileDrop)|Where-Object{$_ -match '\.(png|jpe?g)$'})}
+    return @()
+}
+
+# Popup rows: one per product image, its review images beside it, then a row to add a product image.
+# Every product + review pair becomes one generated image. Thumbnails are small; a click shows them large.
+function Update-ProductDraftRows($State) {
+    $ui=$script:Ui;$flow=$State.Rows;$url=$State.Url.Text.Trim()
+    foreach($old in @($flow.Controls)){foreach($pic in @($old.Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})){if($pic.Image){$pic.Image.Dispose()}};$old.Dispose()}
+    $flow.Controls.Clear()
+    $entry=@((Read-ManualReferenceMap $State.Editor.MapPath).entries|Where-Object product_url -eq $url)
+    $products=@(if($entry.Count){Get-ManualProducts $entry[0]})
+    $State.Products=$products
+    if($State.Active -ge $products.Count){$State.Active=$products.Count-1}
+    $width=[Math]::Max(600,$flow.ClientSize.Width-24)
+    # Closures get their own copy of the state: GetNewClosure keeps only this block's variables.
+    $newThumb={param($path,$title,$onRemove,$st)
+        $pic=New-Object Windows.Forms.PictureBox -Property @{Size='56,56';SizeMode='Zoom';BorderStyle='FixedSingle';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,6,0';Cursor='Hand';Tag=$path}
+        try{if($path -and (Test-Path -LiteralPath $path)){$pic.Image=New-ThumbnailImage $path 56}}catch{}
+        $pic.Add_Click({if($pic.Image){Show-ImagePreview $st.Dialog $path $title}}.GetNewClosure())
+        Add-RemoveOverlay $pic $onRemove
+        $pic
+    }
+    $newAdd={param([scriptblock]$onPick)
+        $add=New-Object Windows.Forms.Button -Property @{Text='+';Size='56,56';Margin='0,0,6,0';Font=(New-Object Drawing.Font('Segoe UI',14));ForeColor=$ui.Muted}
+        Set-FlatButton $add;$add.Add_Click($onPick);$add
+    }
+    for($i=0;$i -lt $products.Count;$i++){
+        $index=$i;$product=$products[$i]
+        $row=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';Margin='0,0,0,1';WrapContents=$false;AllowDrop=$true;BackColor=$(if($i -eq $State.Active){$ui.Hover}else{[Drawing.Color]::White})}
+        if($product.file){$row.Controls.Add((& $newThumb $product.file "Ảnh gốc #$($i+1)" {Remove-ManualProduct $State.Editor.MapPath $State.Url.Text.Trim() $index;Update-ProductDraftRows $State}.GetNewClosure() $State))}
+        else{$row.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='Ảnh từ link';Size='56,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted;Margin='0,0,6,0'}))}
+        $row.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='→';Size='18,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted;Margin='0,0,6,0'}))
+        $scenes=@($product.scenes)
+        for($k=0;$k -lt $scenes.Count;$k++){
+            $scene=$k
+            $row.Controls.Add((& $newThumb $scenes[$k].file "Ảnh review $($k+1) · ảnh gốc #$($i+1)" {Remove-ManualScene $State.Editor.MapPath $State.Url.Text.Trim() $scene $index;Update-ProductDraftRows $State}.GetNewClosure() $State))
+        }
+        $row.Controls.Add((& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true) $index}.GetNewClosure()))
+        $row.Add_Click({$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$this.BackColor=$script:Ui.Hover}.GetNewClosure())
+        $row.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
+        $row.Add_DragDrop({$State.Active=$index;Add-ProductDraftImages $State (Get-DroppedImages $_.Data) $index}.GetNewClosure())
+        $flow.Controls.Add($row)
+    }
+    $addRow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
+    $addRow.Controls.Add((& $newAdd {Add-ProductDraftImages $State (Select-ImageFiles $true) -1}.GetNewClosure()))
+    $addRow.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='Thêm ảnh gốc';Size='160,56';TextAlign='MiddleLeft';ForeColor=$ui.Muted}))
+    $addRow.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
+    $addRow.Add_DragDrop({Add-ProductDraftImages $State (Get-DroppedImages $_.Data) -1}.GetNewClosure())
+    $flow.Controls.Add($addRow)
+    $reviews=@($products|ForEach-Object{@($_.scenes)}).Count;$missing=@($products|Where-Object{-not @($_.scenes).Count}).Count
+    $status=$State.Status
+    if(-not $url){$status.Text='Chưa có link';$status.ForeColor=$ui.Muted}
+    elseif(-not $products.Count){$status.Text='● Chưa có ảnh';$status.ForeColor=$ui.Warn}
+    elseif($missing){$status.Text="● $missing ảnh gốc chưa có ảnh review";$status.ForeColor=$ui.Warn}
+    else{$status.Text="● $($products.Count) ảnh gốc · $reviews ảnh review → $reviews ảnh kết quả";$status.ForeColor=$ui.Ok}
+}
+
+function Select-ImageFiles([bool]$Multiple) {
+    $picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg';Multiselect=$Multiple}
+    try{if($picker.ShowDialog() -eq 'OK'){return @($picker.FileNames)};return @()}finally{$picker.Dispose()}
+}
+
+# ProductIndex -1 adds product images; otherwise review images for that product image.
+function Add-ProductDraftImages($State,[string[]]$Paths,[int]$ProductIndex) {
+    $Paths=@($Paths|Where-Object{$_})
+    if(-not $Paths.Count){return}
+    try{
+        $url=$State.Url.Text.Trim()
+        if($ProductIndex -lt 0 -and -not $url){$url='https://local.invalid/products/manual-'+[Guid]::NewGuid().ToString('N');$State.Url.Text=$url}
+        $uri=$null;if(-not [Uri]::TryCreate($url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw 'Dán link hợp lệ trước khi thêm ảnh.'}
+        foreach($path in $Paths){[void](Save-ManualReference $State.Editor.Root $url $path $(if($ProductIndex -lt 0){'Product'}else{'Scene'}) $ProductIndex)}
+        if($ProductIndex -lt 0){$State.Active=[int]::MaxValue}
+        Update-ProductDraftRows $State
+    }catch{$State.Status.Text=$_.Exception.Message;$State.Status.ForeColor=$script:Ui.Error}
+}
+
+# Ctrl+V outside the link box: an image goes to the active row (or becomes a product image).
+function Paste-ProductDraftImage($State) {
+    $target=if(@($State.Products).Count -and $State.Active -ge 0){[Math]::Min($State.Active,@($State.Products).Count-1)}else{-1}
+    if([Windows.Forms.Clipboard]::ContainsImage()){
+        $image=[Windows.Forms.Clipboard]::GetImage();$path=Join-Path ([IO.Path]::GetTempPath()) ('clipboard-'+[Guid]::NewGuid().ToString('N')+'.png')
+        try{$image.Save($path,[Drawing.Imaging.ImageFormat]::Png);Add-ProductDraftImages $State @($path) $target}finally{$image.Dispose();Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue}
+    }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){Add-ProductDraftImages $State @([Windows.Forms.Clipboard]::GetFileDropList()) $target}
+}
+
 function Save-ProductQueueDraft($Editor,$State,$Target=$null) {
-    $draft=$State.Row;$url=$draft.Url.Text.Trim();$uri=$null
+    $url=$State.Url.Text.Trim();$uri=$null
     if(-not [Uri]::TryCreate($url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw 'Link sản phẩm không hợp lệ.'}
     foreach($item in $Editor.Rows){if($item -ne $Target -and $item.Url.Text.Trim() -eq $url){throw 'Link này đã có trong danh sách.'}}
     $entry=@((Read-ManualReferenceMap $State.Editor.MapPath).entries|Where-Object product_url -eq $url)
     $map=Read-ManualReferenceMap $Editor.MapPath;$map.entries=@($map.entries|Where-Object product_url -ne $url)
     New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
     Write-FeedbackJson $Editor.MapPath $map
-    if($entry.Count){
-        foreach($scene in @(Get-ManualScenes $entry[0])){[void](Save-ManualReference $Editor.Root $url $scene.file)}
-        if($entry[0].product_file){[void](Save-ManualReference $Editor.Root $url $entry[0].product_file Product)}
-    }
+    if($entry.Count){Copy-ManualEntry $Editor.Root $url $entry[0]}
     if(-not $Target){$Target=Add-ProductQueueRow $Editor $url}else{$Target.Url.Text=$url}
     $Editor.SourceGroup=$State.Editor.SourceGroup
     $map=Read-ManualReferenceMap $Editor.MapPath;$map.preferred_source_group=$Editor.SourceGroup;Write-FeedbackJson $Editor.MapPath $map
@@ -242,27 +227,38 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     New-Item -ItemType Directory -Path (Split-Path $mapPath -Parent) -Force|Out-Null
     Write-FeedbackJson $mapPath (Read-ManualReferenceMap $Editor.MapPath)
     $draftEditor=[pscustomobject]@{Root=$temp;MapPath=$mapPath;OnChanged=$null;LibraryRoot=$Editor.LibraryRoot;SourceGroup=$Editor.SourceGroup;Library=$Editor.Library}
-    $url=if($Target){$Target.Url.Text}else{''}
-    $row=New-ProductQueueEditControls $draftEditor $url
-    Add-ProductImageControls $draftEditor $row
-    $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh review & ảnh sản phẩm gốc';ClientSize='1040,570';MinimumSize='1040,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
-    $row.Card.Dock='Fill'
-    $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)';Location='20,16';AutoSize=$true}
-    $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh:';Location='20,82';Size='110,26'}
-    $groups=New-Object Windows.Forms.ComboBox -Property @{Name='SourcePhotoGroup';Location='132,78';Size='216,28';DropDownStyle='DropDownList'}
+    $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh sản phẩm gốc & ảnh review';ClientSize='760,470';FormBorderStyle='FixedDialog';MinimizeBox=$false;MaximizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false;BackColor=[Drawing.Color]::White;KeyPreview=$true}
+    $urlBox=New-Object Windows.Forms.TextBox -Property @{Name='ProductUrl';Location='20,40';Size='720,28'}
+    $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh:';Location='20,80';Size='70,24'}
+    $groups=New-Object Windows.Forms.ComboBox -Property @{Name='SourcePhotoGroup';Location='92,76';Size='200,28';DropDownStyle='DropDownList'}
     $groupChoices=if($Editor.Library -and $Editor.Library.SelectedIndex -eq 1){Get-SourcePhotoGroups $Editor.LibraryRoot}else{Get-SourceGroupChoices $Editor.Root $Editor.LibraryRoot}
     foreach($group in @($groupChoices)){[void]$groups.Items.Add($group)}
-    $groups.SelectedItem=$Editor.SourceGroup;if($groups.SelectedIndex -lt 0){$groups.SelectedIndex=0}
+    $groups.SelectedItem=$Editor.SourceGroup;if($groups.SelectedIndex -lt 0 -and $groups.Items.Count){$groups.SelectedIndex=0}
     $draftEditor.SourceGroup=[string]$groups.SelectedItem
     $groups.Add_SelectedIndexChanged({$draftEditor.SourceGroup=[string]$groups.SelectedItem}.GetNewClosure())
-    $openFolder=New-Object Windows.Forms.Button -Property @{Name='OpenSourcePhotoFolder';Text='Mở thư mục';Location='360,78';Size='140,28'}
-    $openFolder.Add_Click({try{$folder=Get-SourcePhotoDirectory $draftEditor.LibraryRoot $draftEditor.SourceGroup;Start-Process explorer.exe -ArgumentList ('"'+$folder+'"')}catch{$row.Status.Text=$_.Exception.Message}}.GetNewClosure())
-    $save=New-Object Windows.Forms.Button -Property @{Name='SaveProduct';Text='Lưu sản phẩm';Location='760,526';Size='144,32';Anchor='Bottom,Right'}
-    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='916,526';Size='104,32';Anchor='Bottom,Right';DialogResult='Cancel'}
-    $row.Card.Controls.AddRange(@($label,$hint,$groups,$openFolder,$save,$cancel));$dialog.Controls.Add($row.Card);$dialog.CancelButton=$cancel
-    $state=[pscustomobject]@{Row=$row;Editor=$draftEditor;TempFolder=$temp};$dialog.Tag=$state
-    $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
-    $dialog.Add_Disposed({foreach($thumb in @($row.Thumbs.Controls)){if($thumb.Image){$thumb.Image.Dispose()}};Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
+    $openFolder=New-Object Windows.Forms.Button -Property @{Name='OpenSourcePhotoFolder';Text='Mở thư mục';Location='302,74';Size='120,28'}
+    $rows=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='ProductImageRows';Location='20,140';Size='720,250';FlowDirection='TopDown';WrapContents=$false;AutoScroll=$true;BorderStyle='FixedSingle';BackColor=[Drawing.Color]::White;AllowDrop=$true}
+    $status=New-Object Windows.Forms.Label -Property @{Name='ReferenceStatus';Location='20,398';Size='500,26';AutoEllipsis=$true}
+    $save=New-Object Windows.Forms.Button -Property @{Name='SaveProduct';Text='Lưu sản phẩm';Location='516,428';Size='120,30'}
+    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='646,428';Size='94,30';DialogResult='Cancel'}
+    foreach($b in @($openFolder,$save,$cancel)){Set-FlatButton $b}
+    $dialog.Controls.AddRange(@(
+        (New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm';Location='20,16';AutoSize=$true}),$urlBox,$hint,$groups,$openFolder,
+        (New-Object Windows.Forms.Label -Property @{Text='Ảnh gốc';Location='26,116';Size='80,22';ForeColor=$script:Ui.Muted}),
+        (New-Object Windows.Forms.Label -Property @{Text='Ảnh review của ảnh gốc đó';Location='110,116';Size='300,22';ForeColor=$script:Ui.Muted}),
+        $rows,$status,$save,$cancel))
+    $dialog.CancelButton=$cancel
+    $state=[pscustomobject]@{Editor=$draftEditor;Url=$urlBox;Rows=$rows;Status=$status;Dialog=$dialog;Products=@();Active=-1;TempFolder=$temp}
+    $dialog.Tag=$state
+    $openFolder.Add_Click({try{Open-SystemPath (Get-SourcePhotoDirectory $draftEditor.LibraryRoot $draftEditor.SourceGroup)}catch{$status.Text=$_.Exception.Message}}.GetNewClosure())
+    $urlBox.Add_TextChanged({$state.Active=-1;Update-ProductDraftRows $state}.GetNewClosure())
+    $dialog.Add_KeyDown({if($_.Control -and $_.KeyCode -eq [Windows.Forms.Keys]::V -and -not $urlBox.Focused){$_.SuppressKeyPress=$true;Paste-ProductDraftImage $state}}.GetNewClosure())
+    $rows.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
+    $rows.Add_DragDrop({Add-ProductDraftImages $state (Get-DroppedImages $_.Data) -1}.GetNewClosure())
+    $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$status.Text=$_.Exception.Message;$status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
+    $dialog.Add_Disposed({foreach($r in @($rows.Controls)){foreach($pic in @($r.Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})){if($pic.Image){$pic.Image.Dispose()}}};Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}.GetNewClosure())
+    $urlBox.Text=if($Target){$Target.Url.Text}else{''}
+    Update-ProductDraftRows $state
     return $dialog
 }
 
@@ -300,7 +296,8 @@ function Save-ProductQueueEditor($Editor,[string]$QueuePath,[switch]$RequireRead
     if($RequireReady -and -not $map.allow_library_fallback){
         foreach($url in $urls){$entry=@($map.entries|Where-Object product_url -eq $url)
             $scenes=@(if($entry.Count){Get-ManualScenes $entry[0]})
-            if(-not $scenes.Count){throw "Chưa có ảnh bối cảnh: $url"}
+            if(-not $scenes.Count){throw "Chưa có ảnh review: $url"}
+            if(@(Get-ManualProducts $entry[0]|Where-Object{-not @($_.scenes).Count}).Count){throw "Có ảnh gốc chưa gắn ảnh review: $url"}
             foreach($scene in $scenes){
                 if(-not (Test-Path -LiteralPath $scene.file)){throw "Chưa có ảnh bối cảnh: $url"}
                 if((Get-BytesHash ([IO.File]::ReadAllBytes($scene.file))) -ine $scene.sha256){throw "Ảnh đã thay đổi; hãy gắn lại cho link: $url"}

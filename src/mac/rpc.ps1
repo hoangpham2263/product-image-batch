@@ -22,8 +22,9 @@ $libraryRoot = Join-Path $root 'data/source-photos'
 function Test-HttpUrl([string]$Url) { $uri = $null; [Uri]::TryCreate($Url, [UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in @('http', 'https') }
 function Get-EntryInfo([string]$MapFile, [string]$Url) {
     $entry = @((Read-ManualReferenceMap $MapFile).entries | Where-Object product_url -eq $Url)
-    $scenes = @(if ($entry.Count) { Get-ManualScenes $entry[0] | ForEach-Object { [pscustomobject]@{ file = $_.file; ok = (Test-Path -LiteralPath $_.file) } } })
-    [pscustomobject]@{ url = $Url; scenes = $scenes; product = $(if ($entry.Count -and $entry[0].product_file) { [string]$entry[0].product_file } else { '' }) }
+    $image = { param($file) [pscustomobject]@{ file = [string]$file; ok = [bool]($file -and (Test-Path -LiteralPath $file)) } }
+    $products = @(if ($entry.Count) { Get-ManualProducts $entry[0] | ForEach-Object { [pscustomobject]@{ file = $_.file; ok = (& $image $_.file).ok; scenes = @($_.scenes | ForEach-Object { & $image $_.file }) } } })
+    [pscustomobject]@{ url = $Url; products = $products; scenes = @($products | ForEach-Object { @($_.scenes) }) }
 }
 function Assert-DraftRoot([string]$Path) {
     $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
@@ -58,19 +59,12 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $url = [string]$A.url
             if ($A.role -eq 'Product' -and -not $url) { $url = 'https://local.invalid/products/manual-' + [Guid]::NewGuid().ToString('N') }
             if (-not (Test-HttpUrl $url)) { throw 'Dán link hợp lệ vào dòng này trước khi dán ảnh.' }
-            foreach ($path in @($A.paths)) { [void](Save-ManualReference $A.root $url ([string]$path) $(if ($A.role -eq 'Product') { 'Product' } else { 'Scene' })) }
+            $productIndex = if ($null -ne $A.productIndex) { [int]$A.productIndex } else { -1 }
+            foreach ($path in @($A.paths)) { [void](Save-ManualReference $A.root $url ([string]$path) $(if ($A.role -eq 'Product') { 'Product' } else { 'Scene' }) $productIndex) }
             return $url
         }
-        'draftRemoveScene' { Assert-DraftRoot $A.root; Remove-ManualScene (Join-Path $A.root 'workspace/reference-inputs/references.json') ([string]$A.url) ([int]$A.index); return $true }
-        'draftRemoveProduct' {
-            Assert-DraftRoot $A.root
-            $draftMap = Join-Path $A.root 'workspace/reference-inputs/references.json'
-            $map = Read-ManualReferenceMap $draftMap
-            foreach ($entry in @($map.entries | Where-Object product_url -eq ([string]$A.url))) { $entry.PSObject.Properties.Remove('product_file'); $entry.PSObject.Properties.Remove('product_sha256') }
-            $map.entries = @($map.entries | Where-Object { @(Get-ManualScenes $_).Count -or $_.product_file })
-            Write-FeedbackJson $draftMap $map
-            return $true
-        }
+        'draftRemoveScene' { Assert-DraftRoot $A.root; Remove-ManualScene (Join-Path $A.root 'workspace/reference-inputs/references.json') ([string]$A.url) ([int]$A.index) ([int]$A.productIndex); return $true }
+        'draftRemoveProduct' { Assert-DraftRoot $A.root; Remove-ManualProduct (Join-Path $A.root 'workspace/reference-inputs/references.json') ([string]$A.url) ([int]$A.productIndex); return $true }
         'draftSave' {
             # Same rules as Save-ProductQueueDraft in the Windows window.
             Assert-DraftRoot $A.root
@@ -81,10 +75,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $map = Read-ManualReferenceMap $mapPath; $map.entries = @($map.entries | Where-Object product_url -ne $url)
             New-Item -ItemType Directory -Path (Split-Path $mapPath -Parent) -Force | Out-Null
             Write-FeedbackJson $mapPath $map
-            if ($entry.Count) {
-                foreach ($scene in @(Get-ManualScenes $entry[0])) { [void](Save-ManualReference $root $url $scene.file) }
-                if ($entry[0].product_file) { [void](Save-ManualReference $root $url $entry[0].product_file Product) }
-            }
+            if ($entry.Count) { Copy-ManualEntry $root $url $entry[0] }
             $map = Read-ManualReferenceMap $mapPath; $map.preferred_source_group = [string]$A.group; Write-FeedbackJson $mapPath $map
             Remove-Item -LiteralPath $A.root -Recurse -Force -ErrorAction SilentlyContinue
             return (Get-EntryInfo $mapPath $url)
@@ -104,7 +95,8 @@ function Invoke-Rpc([string]$Cmd, $A) {
                 foreach ($url in $urls) {
                     $entry = @($map.entries | Where-Object product_url -eq $url)
                     $scenes = @(if ($entry.Count) { Get-ManualScenes $entry[0] })
-                    if (-not $scenes.Count) { throw "Chưa có ảnh bối cảnh: $url" }
+                    if (-not $scenes.Count) { throw "Chưa có ảnh review: $url" }
+                    if (@(Get-ManualProducts $entry[0] | Where-Object { -not @($_.scenes).Count }).Count) { throw "Có ảnh gốc chưa gắn ảnh review: $url" }
                     foreach ($scene in $scenes) {
                         if (-not (Test-Path -LiteralPath $scene.file)) { throw "Chưa có ảnh bối cảnh: $url" }
                         if ((Get-BytesHash ([IO.File]::ReadAllBytes($scene.file))) -ine $scene.sha256) { throw "Ảnh đã thay đổi; hãy gắn lại cho link: $url" }

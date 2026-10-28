@@ -1,10 +1,17 @@
 ﻿# Queue locking, runspace lifecycle and batch coordination.
+# One job per product image + review image pair; a product image without reviews is one job that
+# looks in the sample library. A link with a single pair keeps its plain item.
 function Expand-SceneJobs($Items) {
     foreach ($item in $Items) {
         $entry = @($script:Config.ManualReferences.entries | Where-Object product_url -eq $item.Url)
-        $scenes = @(if ($entry.Count) { Get-ManualScenes $entry[0] })
-        if ($scenes.Count -le 1) { $item; continue }
-        foreach ($scene in $scenes) { [pscustomobject]@{ Url = $item.Url; Handle = $item.Handle; Scene = $scene } }
+        $products = @(if ($entry.Count) { Get-ManualProducts $entry[0] })
+        $jobs = @(foreach ($product in $products) {
+                $scenes = @($product.scenes)
+                if (-not $scenes.Count) { [pscustomobject]@{ Url = $item.Url; Handle = $item.Handle; Product = $product } }
+                foreach ($scene in $scenes) { [pscustomobject]@{ Url = $item.Url; Handle = $item.Handle; Product = $product; Scene = $scene } }
+            })
+        if ($products.Count -le 1 -and $jobs.Count -le 1) { $item; continue }
+        $jobs
     }
 }
 

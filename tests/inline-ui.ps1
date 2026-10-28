@@ -24,38 +24,41 @@ try{
     try{
         $draft=$popup.Tag
         $groups=$popup.Controls.Find('SourcePhotoGroup',$true)[0]
-        Assert ($groups.Items.Contains('Áo') -and $groups.Items.Contains('Nội thất')) 'Local photo groups are missing.'
+        Assert ($groups.Items.Contains('Áo') -and $groups.Items.Contains('Nội thất')) 'Photo groups are missing.'
         $groups.SelectedItem='Nội thất'
         Assert ($draft.Editor.SourceGroup -eq 'Nội thất') 'Group selection did not update the draft picker.'
-        Assert ($draft.Row.Url.Text -eq $url -and $draft.Row.Preview.Image) 'Clicking a row must preview the matching URL and image.'
-        $draft.Row.Url.Text='https://example.test/products/cancelled'
-        Assert (-not $draft.Row.Preview.Image) 'Changed URL retained the old reference.'
-        Set-ProductQueueReference $draft.Editor $draft.Row $room
-        [void](Save-ManualReference $draft.Editor.Root $draft.Row.Url.Text $room Product)
-        $draft.Row.BoundUrl=$null;Update-ProductQueueRow $draft.Editor $draft.Row
-        Assert ($draft.Row.ProductPreview.Image) 'Product preview did not load independently.'
+        Assert ($draft.Url.Text -eq $url -and @($draft.Products).Count -eq 1) 'Opening a row must show the matching URL and its images.'
+        $draft.Url.Text='https://example.test/products/cancelled'
+        Assert (-not @($draft.Products).Count) 'Changed URL retained the old images.'
+        # Two product images, each with its own reviews.
+        Add-ProductDraftImages $draft @($room) -1
+        Add-ProductDraftImages $draft @($room) 0
+        $second=Join-Path $testFolder 'second.png';$bitmap=[Drawing.Bitmap]::new(8,8);try{$bitmap.Save($second,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
+        Add-ProductDraftImages $draft @($second) -1
+        Add-ProductDraftImages $draft @($room,$second) 1
+        Assert (@($draft.Products).Count -eq 2 -and @($draft.Products[1].scenes).Count -eq 2 -and $draft.Rows.Controls.Count -eq 3) 'Each product image must keep its own review images in its own row.'
     }finally{$popup.Dispose()}
     Assert ($queueEditor.Rows[0].Url.Text -eq $url -and [IO.File]::ReadAllText($queueEditor.MapPath) -eq $before) 'Cancelling a popup changed the actual URL or map.'
     $popup=New-ProductQueueDialog $queueEditor
     try{
-        $draft=$popup.Tag;$draft.Row.Url.Text=$url
+        $draft=$popup.Tag;$draft.Url.Text=$url
         $popup.Controls.Find('SourcePhotoGroup',$true)[0].SelectedItem='Nội thất'
         $blocked=$false;try{Save-ProductQueueDraft $queueEditor $draft}catch{$blocked=$true}
         Assert $blocked 'Popup accepted a duplicate URL.'
-        $draft.Row.Url.Text='https://example.test/products/new'
-        Set-ProductQueueReference $draft.Editor $draft.Row $room
-        [void](Save-ManualReference $draft.Editor.Root $draft.Row.Url.Text $room Product)
+        $draft.Url.Text='https://example.test/products/new'
+        Add-ProductDraftImages $draft @($room) -1
+        Add-ProductDraftImages $draft @($room) 0
         Save-ProductQueueDraft $queueEditor $draft
     }finally{$popup.Dispose()}
     Assert ($queueEditor.Rows.Count -eq 3 -and (Test-Path -LiteralPath $queueEditor.Rows[2].ImagePath)) 'Saving a new popup did not preserve its snapshot after cleanup.'
     $pair=@((Read-ManualReferenceMap $queueEditor.MapPath).entries|Where-Object product_url -eq 'https://example.test/products/new')[0]
     Assert ((Test-Path $pair.product_file) -and (Test-Path $pair.file) -and $pair.product_file -ne $pair.file) 'Saving a popup lost one of the two input snapshots.'
     Assert ($queueEditor.SourceGroup -eq 'Nội thất' -and (Read-ManualReferenceMap $queueEditor.MapPath).preferred_source_group -eq 'Nội thất') 'Saved group preference was lost.'
-    $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[0]
+    $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[2]
     try{
         $popup.StartPosition='Manual';$popup.Location=[Drawing.Point]::new(-32000,-32000);$popup.Show();$popup.Refresh()
-        Assert ($popup.Tag.Row.Preview.Width -gt 600 -and $popup.Tag.Row.Preview.Height -ge 220 -and $popup.Tag.Row.Thumbs.Height -ge 72) 'Popup must show a large preview and its thumbnail strip.'
-        Assert ($popup.Tag.Row.ProductPreview.Visible -and $popup.Tag.Row.ProductPreview.Left -gt $popup.Tag.Row.Preview.Right) 'Original product input must stay separate and visible beside the review input.'
+        $thumbs=@($popup.Tag.Rows.Controls[0].Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})
+        Assert ($thumbs.Count -eq 2 -and $thumbs[0].Width -le 64) 'Popup rows must show small product and review thumbnails.'
         $bitmap=[Drawing.Bitmap]::new($popup.Width,$popup.Height)
         try{$popup.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save((Join-Path $TestWorkspaceRoot 'product-popup-preview.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     }finally{$popup.Dispose()}
