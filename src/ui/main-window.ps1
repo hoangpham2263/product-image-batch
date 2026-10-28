@@ -109,7 +109,7 @@ function Receive-RunLine([string]$line) {
 
 $form = New-Object Windows.Forms.Form
 $appVersion = try { (Get-Content -LiteralPath (Join-Path $workspace.Root 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { '' }
-$form.Text = ('Product Image Batch ' + $appVersion).Trim()
+$form.Text = ('Product Review Batch ' + $appVersion).Trim()
 $form.Size = New-Object Drawing.Size(1120, 840)
 $form.MinimumSize = New-Object Drawing.Size(1040, 760)
 $form.StartPosition = 'CenterScreen'
@@ -125,7 +125,7 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
     return $card
 }
 $header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
-$title=New-Object Windows.Forms.Label -Property @{Text='Product Image Batch';Location='20,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
+$title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $lblThreadHint=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm → dán link và ảnh trong popup → Lưu → Bắt đầu. Khuyên dùng 1–2 luồng.';Location='22,38';Size='1040,20';ForeColor=$muted;Anchor='Top,Left,Right'}
 $header.Controls.AddRange(@($title,$lblThreadHint))
 

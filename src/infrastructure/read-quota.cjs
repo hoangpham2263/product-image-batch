@@ -73,7 +73,7 @@ function readQuota(command, timeoutMs = 12000) {
         }
       });
       timer = setTimeout(() => finish({ available: false, reason: 'timeout' }), timeoutMs);
-      send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'product_image_batch', title: 'Product Image Batch', version: '1.0.0' } } });
+      send({ id: 1, method: 'initialize', params: { clientInfo: { name: 'product_review_batch', title: 'Product Review Batch', version: '1.0.0' } } });
     } catch { finish({ available: false, reason: 'unavailable' }); }
   });
 }

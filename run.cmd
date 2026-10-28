@@ -4,7 +4,7 @@ cd /d "%~dp0"
 if not exist "%~dp0workspace\output" mkdir "%~dp0workspace\output"
 :menu
 cls
-echo ===== PRODUCT IMAGE BATCH =====
+echo ===== PRODUCT REVIEW BATCH =====
 echo 1. Run pending URLs
 echo 2. Edit urls.txt
 echo 3. Open sample data

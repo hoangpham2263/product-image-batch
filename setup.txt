@@ -23,7 +23,7 @@ CÁC BƯỚC
   6. Mở start-app.cmd, dán link sản phẩm và bấm Bắt đầu. Ảnh mẫu local không bắt buộc.
 
 SHORTCUT
-  File "Product Image Batch.lnk" trỏ tới đường dẫn tuyệt đối của máy cũ. Nếu chép
+  File "Product Review Batch.lnk" trỏ tới đường dẫn tuyệt đối của máy cũ. Nếu chép
   sang máy mới mà bấm không chạy, mở start-app.cmd thay thế (luôn chạy đúng ở mọi đường
   dẫn), hoặc tạo lại shortcut trỏ tới start-app.cmd.
 

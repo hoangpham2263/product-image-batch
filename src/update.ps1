@@ -2,7 +2,7 @@
 # Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
 param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun)
 $ErrorActionPreference = 'Stop'
-$script:Repo = 'hoangpham2263/product-image-batch'
+$script:Repo = 'hoangpham2263/product-review-batch'
 # Local data and lessons the app writes; an update keeps them as they are.
 $script:KeepPaths = @('workspace', '.git', 'AGENTS.md', 'bridge/node_modules')
 
@@ -22,10 +22,10 @@ function Update-App([string]$Root) {
         return
     }
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $headers = @{ 'User-Agent' = 'product-image-batch' }
+    $headers = @{ 'User-Agent' = 'product-review-batch' }
     $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers $headers -TimeoutSec 10
     $latest = $release.tag_name
-    $asset = @($release.assets | Where-Object name -eq 'product-image-batch.zip')
+    $asset = @($release.assets | Where-Object name -eq 'product-review-batch.zip')
     if ($latest -notmatch '^v\d+(\.\d+)*$' -or -not $asset.Count) { return }
     $versionFile = Join-Path $Root 'workspace/version.txt'
     if ((Test-Path -LiteralPath $versionFile) -and (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $latest) { return }

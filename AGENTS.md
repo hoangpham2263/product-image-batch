@@ -1,6 +1,6 @@
 ﻿# Hướng dẫn và bài học của dự án
 
-Áp dụng cho repository Product Image Batch. Đọc trước khi sửa workflow, prompt, giao diện hoặc dữ liệu mẫu. Yêu cầu mới nhất của người dùng có ưu tiên cao nhất; cập nhật quy tắc cũ khi yêu cầu thay đổi, không giữ chỉ dẫn mâu thuẫn.
+Áp dụng cho repository Product Review Batch. Đọc trước khi sửa workflow, prompt, giao diện hoặc dữ liệu mẫu. Yêu cầu mới nhất của người dùng có ưu tiên cao nhất; cập nhật quy tắc cũ khi yêu cầu thay đổi, không giữ chỉ dẫn mâu thuẫn.
 
 ## 1. Workflow hiện tại
 
