@@ -112,9 +112,9 @@
   footer { text-align: center; align-self: end; padding-top: 24px; }
   /* Download (signed out) */
   /* Download on the left, guide on the right; stacked on phones. */
-  .hero { grid-template-columns: 1fr 1.3fr; gap: 0; padding: 0; width: 100%; max-width: 760px; justify-self: center; align-self: center; }
+  .hero { grid-template-columns: 1fr 1.6fr; gap: 0; padding: 0; width: 100%; max-width: 880px; justify-self: center; align-self: center; }
   .get { display: grid; justify-items: center; align-content: center; gap: 12px; padding: 32px 24px; text-align: center; }
-  .guide { display: grid; align-content: center; gap: 12px; padding: 32px 28px; border-left: 1px solid var(--border); }
+  .guide { display: grid; align-content: start; gap: 14px; padding: 28px; border-left: 1px solid var(--border); min-width: 0; }
   @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .guide { border-left: 0; border-top: 1px solid var(--border); } }
   /* Signed out: the download card sits in the middle of the screen. */
   /* Equal rows above and below keep the card at the exact middle of the screen. */
@@ -127,6 +127,10 @@
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
   .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
   .steps .cmd { margin-top: 6px; }
+  .os-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--soft); }
+  .os-tabs button { height: 28px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: 13px; }
+  .os-tabs button:hover { background: none; color: var(--fg); }
+  .os-tabs button.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
@@ -163,18 +167,30 @@
       <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
     </div>
     <div class="guide">
-      <h2>Hướng dẫn</h2>
-      <ol class="steps">
-        <li>Giải nén file zip.</li>
-        <li>Mở app:
-          <ul>
-            <li>Windows: <b>start-app.cmd</b></li>
-            <li>Mac: <b>start-app.command</b>, hoặc cài bằng Terminal để macOS không chặn:
-              <div class="cmd"><code id="macCmd">curl -fsSL https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip -o /tmp/prb.zip &amp;&amp; unzip -oq /tmp/prb.zip -d ~/Applications &amp;&amp; bash ~/Applications/product-review-batch/start-app.command</code><button id="copyMacBtn" type="button">Copy</button></div>
-            </li>
-          </ul>
-        </li>
+      <div class="sec-head">
+        <h2>Hướng dẫn</h2>
+        <div class="os-tabs" role="tablist">
+          <button type="button" data-os="win" class="on">Windows</button>
+          <button type="button" data-os="mac">Mac</button>
+        </div>
+      </div>
+      <ol class="steps" data-guide="win">
+        <li>Bấm <b>Tải về</b>, giải nén file zip.</li>
+        <li>Bấm đúp <b>start-app.cmd</b>.</li>
+        <li>Nếu Windows báo <i>Windows protected your PC</i>: bấm <b>More info</b> → <b>Run anyway</b>.</li>
+        <li>Lần đầu: bấm <b>Kiểm tra ChatGPT</b>, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>.</li>
         <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
+      </ol>
+      <ol class="steps" data-guide="mac" hidden>
+        <li>Mở <b>Terminal</b>, dán lệnh dưới rồi Enter: app tự tải, cài và mở.
+          <div class="cmd"><code id="macCmd">curl -fsSL https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip -o /tmp/prb.zip &amp;&amp; unzip -oq /tmp/prb.zip -d ~/Applications &amp;&amp; bash ~/Applications/product-review-batch/start-app.command</code><button type="button" data-copy="macCmd">Copy</button></div>
+        </li>
+        <li>Lần đầu, nếu được hỏi cài Homebrew hay PowerShell: gõ <b>y</b> và mật khẩu máy.</li>
+        <li>Đã tải zip bằng nút <b>Tải về</b> mà macOS báo <i>Not Opened</i>: vào <b>System Settings → Privacy &amp; Security</b> → <b>Open Anyway</b>, hoặc chạy:
+          <div class="cmd"><code id="macFix">xattr -dr com.apple.quarantine ~/Downloads/product-review-batch</code><button type="button" data-copy="macFix">Copy</button></div>
+        </li>
+        <li>Lần sau mở app: bấm đúp <b>start-app.command</b> trong <b>~/Applications/product-review-batch</b>.</li>
+        <li>Bấm <b>Kiểm tra ChatGPT</b>, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>. Có bản mới thì bấm <b>Cập nhật</b>.</li>
       </ol>
     </div>
   </section>
@@ -608,7 +624,14 @@ document.addEventListener("paste", (e) => {
   e.preventDefault();
   upload(files);
 });
-$("copyMacBtn").onclick = async () => { try { await navigator.clipboard.writeText($("macCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
+// Download guide: one tab per system, opened on the visitor's own.
+function showGuide(os) {
+  for (const b of document.querySelectorAll("[data-os]")) b.classList.toggle("on", b.dataset.os === os);
+  for (const list of document.querySelectorAll("[data-guide]")) list.hidden = list.dataset.guide !== os;
+}
+for (const b of document.querySelectorAll("[data-os]")) b.onclick = () => showGuide(b.dataset.os);
+showGuide(/Mac/i.test(navigator.platform || navigator.userAgent) ? "mac" : "win");
+for (const b of document.querySelectorAll("[data-copy]")) b.onclick = async () => { try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("srcHelpBtn").onclick = () => $("srcHelpDlg").showModal();
 $("copyCmdBtn").onclick = async () => { try { await navigator.clipboard.writeText($("srcCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
