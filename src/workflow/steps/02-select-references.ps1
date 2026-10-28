@@ -134,7 +134,8 @@ function Select-ProductReferences([string]$Reference, [string]$Handle, [string]$
             Write-FeedbackJson (Join-Path $script:Batch.Logs "$ItemId-manual-reference.json") ([ordered]@{product_url=$script:Config.ActiveProductUrl;photo=$photo;sha256=$scene.sha256;role=$role;verdict=$verdict;origin='user_reference'})
             return $photo
         }
-        if(-not $map.allow_library_fallback){throw 'No suitable real scene reference: attach an image for this product URL or explicitly enable library fallback.'}
+        # Review images are always chosen by the user (from the computer or the Drive library).
+        throw 'No suitable real scene reference: attach a review image to this product image.'
     }
     # One review photo supplies both the people and surroundings for each output.
     # The actual product image is a separate input, never counted as a review photo.

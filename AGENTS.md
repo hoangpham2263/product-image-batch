@@ -5,7 +5,7 @@
 ## 1. Workflow hiện tại
 
 1. Nhận URL và ảnh tham khảo gắn riêng cho từng sản phẩm; kiểm tra link trùng, ảnh thiếu và file/hash trước khi gọi AI.
-2. Nếu người dùng gắn ảnh sản phẩm gốc, kiểm tra file/hash rồi dùng trực tiếp, không truy cập web kể cả link chưa public; nếu không có ảnh gốc thì tải từ URL. Nhận diện từ ảnh thực tế. Ảnh bối cảnh là đầu vào riêng, không nhầm với ảnh sản phẩm. Chỉ tự tìm bối cảnh trong kho và kiểm tra FIT khi bật fallback.
+2. Nếu người dùng gắn ảnh sản phẩm gốc, kiểm tra file/hash rồi dùng trực tiếp, không truy cập web kể cả link chưa public; nếu không có ảnh gốc thì tải từ URL. Nhận diện từ ảnh thực tế. Ảnh bối cảnh là đầu vào riêng, không nhầm với ảnh sản phẩm. Ảnh review luôn do người dùng chọn (từ máy hoặc kho Drive); app không tự tìm trong kho.
 3. Lưu snapshot đầu vào và nguồn vào kết quả của lượt đang chạy. Đọc các bài học còn bật, khớp URL hoặc danh mục từ mục Bài học đã lưu bên dưới; áp dụng yêu cầu sửa hiện tại sau cùng.
 4. Tạo một ảnh hoàn chỉnh, kiểm tra PNG đọc được rồi xuất nguyên file AI tạo. Không chấm chất lượng bằng AI sau tạo, không tự sửa hoặc lặp tạo để cải thiện thẩm mỹ.
 5. Viết review mẫu từ nguồn tham khảo đúng danh mục, xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
@@ -51,7 +51,7 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 - Ảnh người dùng gắn được dùng trực tiếp, không chặn vì kích thước tối thiểu hay chấm chất lượng/độ phù hợp. Không thêm lại thông báo “Reference image is too small” hoặc bước xét ảnh trước khi tạo. Giữ đúng cặp ảnh đã chọn và hash đầu vào.
 - Kho dùng tên tiếng Việt có dấu theo nhóm hàng chung như `Áo`, `Nội thất`; không chia theo website, không gọi kho áo là kho cả quần áo. Giữ nhóm khác để dùng về sau. `source_group` là nhóm thư mục; `category` là mã danh mục chi tiết để chọn ảnh và áp dụng bài học.
 - Chuyển kho phải cập nhật đường dẫn, giữ nguồn, hash và lịch sử sử dụng. Kiểm tra inventory thực tế trong catalog, không coi số đếm trong tài liệu là luôn cập nhật.
-- Khi bật fallback, chọn đúng danh mục, góc ghép, độ nét và diện tích thay thế tương đương; phòng bàn nhỏ hoặc bàn tiệc quá dài không mặc nhiên hợp sản phẩm khác. Không kéo dài sản phẩm để lấp đồ cũ. Tránh CGI, collage, ảnh cận hoặc bị che vùng ghép.
+- (Hàm chọn ảnh từ kho cũ chỉ còn cho test, app không gọi.) Khi chọn, đúng danh mục, góc ghép, độ nét và diện tích thay thế tương đương; phòng bàn nhỏ hoặc bàn tiệc quá dài không mặc nhiên hợp sản phẩm khác. Không kéo dài sản phẩm để lấp đồ cũ. Tránh CGI, collage, ảnh cận hoặc bị che vùng ghép.
 - Luân phiên ảnh phù hợp theo lịch sử. Có một ảnh đạt thì dừng tìm, không cần đủ số ảnh tối đa. FIT/NOFIT đã lưu chỉ áp dụng khi khớp cả URL sản phẩm và hash ảnh; FIT chỉ nói về bối cảnh, không xác nhận chất lượng kết quả.
 - Dữ liệu bổ sung cần file thật, nguồn, SHA256, kích thước và ghi nhận kiểm tra. Phân biệt gallery khách hàng, ảnh nhà sản xuất và ảnh review; không gắn nhãn Judge.me cho nguồn khác.
 - Có review chữ không có nghĩa có ảnh phù hợp. Khi cần dùng kho mà không có ảnh đạt, lưu missing-data và giữ URL; không tự tạo phòng thay thế.

@@ -38,13 +38,19 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $urls = @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique })
             $version = try { Get-AppVersion $root } catch { '' }
             return [pscustomobject]@{
-                rows = @($urls | ForEach-Object { Get-EntryInfo $mapPath $_ }); fallback = [bool]$map.allow_library_fallback
-                library = $map.source_library; group = $map.preferred_source_group; drive = [bool](Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json'))
+                rows = @($urls | ForEach-Object { Get-EntryInfo $mapPath $_ }); group = $map.preferred_source_group
+                drive = [bool](Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json'))
                 version = $version; output = $workspace.Output; codex = [bool](Get-Command codex -ErrorAction SilentlyContinue)
             }
         }
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root $libraryRoot }) }
+        'driveSourceFiles' {
+            $drive = Get-DriveConfig $workspace.Root
+            if (-not $drive) { throw 'Đăng nhập Google Drive trước.' }
+            return @(Get-RemoteSourceFiles $drive ([string]$A.group) | ForEach-Object { [pscustomobject]@{ id = $_.id; name = $_.name; url = $_.url } })
+        }
+        'driveSourceSave' { return @(Save-RemoteSourceImages @($A.files) (Join-Path $workspace.Root 'temp/drive-picks')) }
         'sourceDir' { return (Get-SourcePhotoDirectory $libraryRoot ([string]$A.group)) }
         'draftOpen' {
             $temp = Join-Path ([IO.Path]::GetTempPath()) ('product-reference-' + [Guid]::NewGuid().ToString('N'))
@@ -76,7 +82,6 @@ function Invoke-Rpc([string]$Cmd, $A) {
             New-Item -ItemType Directory -Path (Split-Path $mapPath -Parent) -Force | Out-Null
             Write-FeedbackJson $mapPath $map
             if ($entry.Count) { Copy-ManualEntry $root $url $entry[0] }
-            $map = Read-ManualReferenceMap $mapPath; $map.preferred_source_group = [string]$A.group; Write-FeedbackJson $mapPath $map
             Remove-Item -LiteralPath $A.root -Recurse -Force -ErrorAction SilentlyContinue
             return (Get-EntryInfo $mapPath $url)
         }
@@ -88,10 +93,8 @@ function Invoke-Rpc([string]$Cmd, $A) {
             if ($duplicates.Count) { throw "Link bị trùng ở nhiều dòng: $($duplicates[0].Name). Mỗi link chỉ nên có một dòng." }
             $urls = @($all | Select-Object -Unique)
             foreach ($url in $urls) { if (-not (Test-HttpUrl $url)) { throw "Link không hợp lệ: $url" } }
-            $map = Read-ManualReferenceMap $mapPath; $map.allow_library_fallback = [bool]$A.fallback
-            $map.preferred_source_group = [string]$A.group
-            $map.source_library = if ($A.library -eq 'local') { 'local' } else { 'drive' }
-            if ($A.requireReady -and -not $map.allow_library_fallback) {
+            $map = Read-ManualReferenceMap $mapPath; $map.allow_library_fallback = $false
+            if ($A.requireReady) {
                 foreach ($url in $urls) {
                     $entry = @($map.entries | Where-Object product_url -eq $url)
                     $scenes = @(if ($entry.Count) { Get-ManualScenes $entry[0] })

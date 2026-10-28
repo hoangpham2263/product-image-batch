@@ -15,7 +15,7 @@ try{
     $mapPath=Save-ManualReference $temp $url $original
     [void](Save-ManualReference $temp $otherUrl $original)
     $map=Read-ManualReferenceMap $mapPath
-    Assert ($map.entries.Count -eq 2 -and -not $map.allow_library_fallback) 'Mappings or manual-only default lost.'
+    Assert ($map.entries.Count -eq 2) 'Mappings lost.'
     $first=@($map.entries|Where-Object product_url -eq $url)[0]
     [IO.File]::WriteAllText($original,'source changed after attachment')
     Assert ((Get-BytesHash ([IO.File]::ReadAllBytes($first.file))) -eq $first.sha256) 'Attached image did not retain independent bytes.'
@@ -29,11 +29,9 @@ try{
     Assert ($picked.Count -eq 1 -and $picked[0] -eq $first.file -and $script:LibraryCalls -eq 0) 'Manual reference did not bypass random library selection.'
     function Test-ReferencePhoto {throw 'Manually attached photos must not trigger AI suitability QA.'}
     Assert ((Select-ProductReferences 'product.jpg' 'table' 'manual-no-qa' $context) -eq $first.file) 'User-selected photo was not used directly.'
-    $script:Config.ActiveProductUrl='https://example.test/p/unattached';$script:Config.ManualReferences.allow_library_fallback=$false
+    $script:Config.ActiveProductUrl='https://example.test/p/unattached'
     $rejected=$false;try{Select-ProductReferences 'product.jpg' 'table' 'missing-manual' $context|Out-Null}catch{$rejected=$true}
-    Assert ($rejected -and $script:LibraryCalls -eq 0) 'Unattached URL borrowed another product image.'
-    $script:Config.ManualReferences.allow_library_fallback=$true
-    Assert ((Select-ProductReferences 'product.jpg' 'table' 'allowed-fallback' $context) -eq 'library-fallback.jpg') 'Explicit fallback did not work.'
+    Assert ($rejected -and $script:LibraryCalls -eq 0) 'A product image without a review must stop, never pick from the library.'
     $editor=New-ProductQueueEditor $temp
     Set-ProductQueueUrls $editor @($url,$otherUrl)
     $view=New-Object Windows.Forms.Form -Property @{Size='1120,450';ShowInTaskbar=$false;StartPosition='Manual';Location='-32000,-32000'}
@@ -41,7 +39,7 @@ try{
     try{
         Assert ($editor.Rows.Count -eq 2 -and $editor.Rows[0].Url.Text -eq $url) 'Inline GUI lost per-link rows.'
         Assert ($editor.Rows[0].Preview.Image -and $editor.Rows[1].Preview.Image) 'Inline image thumbnails missing.'
-        Assert (-not $editor.Fallback.Checked -and $editor.Rows[0].Preview.AllowDrop) 'Unexpected fallback default or missing inline drop target.'
+        Assert ($editor.Rows[0].Preview.AllowDrop) 'Missing inline drop target.'
         $editor.Rows[0].Url.Text='https://example.test/p/new-link'
         Assert (-not $editor.Rows[0].Preview.Image -and -not $editor.Rows[0].ImagePath) 'Changing a URL carried over the previous product reference.'
         $queue=Join-Path $temp 'urls.txt'
@@ -57,12 +55,10 @@ try{
         $blocked=$false;try{Save-ProductQueueEditor $editor $queue}catch{$blocked=$_.Exception.Message -match [regex]::Escape($url)}
         Assert $blocked 'Duplicate URL rows can overwrite each other reference mapping.'
         $editor.Rows[3].Url.Text=$fourthUrl
-        $editor.Fallback.Checked=$true
+        Set-ProductQueueReference $editor $editor.Rows[1] $first.file
+        Set-ProductQueueReference $editor $editor.Rows[3] $first.file
         Save-ProductQueueEditor $editor $queue -RequireReady
-        Assert (@(Get-Content -LiteralPath $queue).Count -eq 4 -and (Read-ManualReferenceMap $mapPath).allow_library_fallback) 'Inline queue did not persist its URLs/settings.'
-        Assert ((Read-ManualReferenceMap $mapPath).source_library -eq 'drive') 'The library should default to Drive.'
-        $editor.Library.SelectedIndex=1;Save-ProductQueueEditor $editor $queue
-        Assert ((Read-ManualReferenceMap $mapPath).source_library -eq 'local') 'Choosing the local library was not saved.'
+        Assert (@(Get-Content -LiteralPath $queue).Count -eq 4) 'Inline queue did not persist its URLs.'
         $view.Show();$view.Refresh();$editor.Flow.ScrollControlIntoView($editor.Rows[3].Card)
         $editor.Rows[3].Card.Controls.Find('RemoveProduct',$true)[0].PerformClick()
         Assert ($editor.Rows.Count -eq 3 -and $editor.Rows[2].Number.Text -eq '#3') 'Removing an inline row changed the wrong pair or row numbering.'

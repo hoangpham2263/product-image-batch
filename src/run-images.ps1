@@ -28,18 +28,6 @@ foreach ($variableName in @('List', 'SourceDir', 'OutDir')) {
 
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'bootstrap.ps1')
-# Library photos live on Drive: refresh the chosen group before the catalog is read.
-if (-not $LocalOnly -and $ReferenceMapFile -and (Test-Path -LiteralPath $ReferenceMapFile)) {
-    $referenceMap = Read-ManualReferenceMap $ReferenceMapFile
-    $sourceDrive = Get-DriveConfig (Join-Path $ProjectRoot 'workspace')
-    if ($referenceMap.allow_library_fallback -and $referenceMap.source_library -eq 'local') { Write-Host '  [SOURCE] Dùng kho ảnh trên máy.' -ForegroundColor Cyan }
-    elseif ($referenceMap.allow_library_fallback -and $sourceDrive) {
-        try {
-            $sync = Sync-SourceGroup $sourceDrive $SourceDir $referenceMap.preferred_source_group
-            Write-Host "  [SOURCE] $($sync.Group): $($sync.Total) ảnh, tải mới $($sync.Downloaded)." -ForegroundColor Cyan
-        } catch { Write-Warning "Chưa tải được kho ảnh $($referenceMap.preferred_source_group) từ Drive; dùng ảnh đã có trên máy. $($_.Exception.Message)" }
-    }
-}
 $script:Config = New-WorkflowConfiguration $ProjectRoot $SourceDir $MaxTries $PhotosPerImage $Model
 $script:Config.DriveRequired = -not $LocalOnly
 if($LocalOnly){$script:Config.Drive=$null}

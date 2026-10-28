@@ -5,6 +5,26 @@ function Get-RemoteSourceGroups($Drive) {
     return @($result.groups | ForEach-Object { [string]$_.name })
 }
 
+# One Drive group's images (id, name, size, public url) for the "Từ kho Drive" picker.
+function Get-RemoteSourceFiles($Drive, [string]$Group) {
+    # macOS folder names are decomposed Unicode; Drive group names are composed.
+    $name = $Group.Normalize([Text.NormalizationForm]::FormC)
+    $result = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources/$([Uri]::EscapeDataString($name))" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 60
+    return @($result.files)
+}
+
+# Downloads picked Drive images into a local folder and returns their paths, ready to attach.
+function Save-RemoteSourceImages([object[]]$Files, [string]$Folder) {
+    New-Item -ItemType Directory -Force -Path $Folder | Out-Null
+    foreach ($file in @($Files)) {
+        $name = [IO.Path]::GetFileName([string]$file.name)
+        if ($name -notmatch '\.(png|jpe?g)$') { $name += '.jpg' }
+        $path = Join-Path $Folder ([Guid]::NewGuid().ToString('N') + '-' + $name)
+        Invoke-WebRequest -Uri ([string]$file.url) -OutFile $path -UseBasicParsing -TimeoutSec 120
+        $path
+    }
+}
+
 # Groups for the picker: Drive groups (read once per app session) plus folders already on this machine.
 function Get-SourceGroupChoices([string]$ProjectRoot, [string]$LibraryRoot) {
     if ($null -eq $script:RemoteSourceGroups) {
@@ -13,7 +33,7 @@ function Get-SourceGroupChoices([string]$ProjectRoot, [string]$LibraryRoot) {
             if ($drive) { Get-RemoteSourceGroups $drive }
         } catch { Write-Verbose $_ })
     }
-    $local = @(if (Test-Path -LiteralPath $LibraryRoot) { Get-ChildItem -LiteralPath $LibraryRoot -Directory | ForEach-Object Name })
+    $local = @(if (Test-Path -LiteralPath $LibraryRoot) { Get-ChildItem -LiteralPath $LibraryRoot -Directory | ForEach-Object { $_.Name.Normalize([Text.NormalizationForm]::FormC) } })
     if (-not ($script:RemoteSourceGroups + $local).Count) { return @(Get-SourcePhotoGroups $LibraryRoot) }
     return @($script:RemoteSourceGroups + $local | Sort-Object -Unique |
         Sort-Object @{ Expression = { if ($_ -eq 'Áo') { 0 } elseif ($_ -eq 'Nội thất') { 1 } else { 2 } } }, @{ Expression = { $_ } })

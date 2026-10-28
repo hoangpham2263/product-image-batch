@@ -160,11 +160,9 @@ $btnStop=New-Object Windows.Forms.Button -Property @{Text='Dừng';Location='186
 Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
-$lblPer=New-Object Windows.Forms.Label -Property @{Text='Ảnh từ kho/SP:';Location='720,19';Size='110,24';Anchor='Top,Right';ForeColor=$muted}
-$numPer=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=1;Value=1;Location='832,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
 $numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=1;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
-$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblPer,$numPer,$lblThr,$numThr))
+$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblThr,$numThr))
 
 $cardLog=New-Card 'CardLog' 'Tiến trình & thông báo' 20 508 1060 282 'Top,Bottom,Left,Right'
 $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='14,36';Size='1032,8';Anchor='Top,Left,Right';Style='Blocks'}
@@ -174,9 +172,7 @@ $cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog))
 
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 $lblStatus.Anchor='Top,Left'
-$lblPer.Height=$numPer.Height;$lblThr.Height=$numThr.Height
-$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked
-$queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
+$lblThr.Height=$numThr.Height
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
@@ -258,7 +254,7 @@ $timer.Add_Tick({
         }
         $timer.Stop(); $animTimer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
-        $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numPer.Enabled = $true; $numThr.Enabled = $true
+        $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numThr.Enabled = $true
         $btnDrive.Enabled = $true; $btnReview.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
@@ -305,7 +301,7 @@ function Start-GuiBatch {
     $script:runStarted = Get-Date; $script:resultFolder = ''; Update-ReviewButton
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0
     $runArgs = @(New-RunArguments -ScriptPath (Join-Path $srcDir 'run-images.ps1') `
-        -PhotosPerImage ([int]$numPer.Value) -ThrottleLimit ([int]$numThr.Value))
+        -PhotosPerImage 1 -ThrottleLimit ([int]$numThr.Value))
     $referenceMapPath=Join-Path $workspace.Root 'reference-inputs/references.json'
     if(Test-Path -LiteralPath $referenceMapPath){$runArgs+=@('-ReferenceMapFile',('"'+$referenceMapPath+'"'))}
     try { $script:proc = Start-RunProcess -ArgumentList $runArgs -OutputLog $logFile -ErrorLog $errFile }
@@ -315,7 +311,7 @@ function Start-GuiBatch {
         return
     }
     $btnRun.Enabled = $false; $btnStop.Enabled = $true
-    $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numPer.Enabled = $false; $numThr.Enabled = $false
+    $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numThr.Enabled = $false
     $btnDrive.Enabled = $false; $btnReview.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay

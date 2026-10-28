@@ -23,10 +23,6 @@ try{
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[0]
     try{
         $draft=$popup.Tag
-        $groups=$popup.Controls.Find('SourcePhotoGroup',$true)[0]
-        Assert ($groups.Items.Contains('Áo') -and $groups.Items.Contains('Nội thất')) 'Photo groups are missing.'
-        $groups.SelectedItem='Nội thất'
-        Assert ($draft.Editor.SourceGroup -eq 'Nội thất') 'Group selection did not update the draft picker.'
         Assert ($draft.Url.Text -eq $url -and @($draft.Products).Count -eq 1) 'Opening a row must show the matching URL and its images.'
         $draft.Url.Text='https://example.test/products/cancelled'
         Assert (-not @($draft.Products).Count) 'Changed URL retained the old images.'
@@ -42,7 +38,6 @@ try{
     $popup=New-ProductQueueDialog $queueEditor
     try{
         $draft=$popup.Tag;$draft.Url.Text=$url
-        $popup.Controls.Find('SourcePhotoGroup',$true)[0].SelectedItem='Nội thất'
         $blocked=$false;try{Save-ProductQueueDraft $queueEditor $draft}catch{$blocked=$true}
         Assert $blocked 'Popup accepted a duplicate URL.'
         $draft.Url.Text='https://example.test/products/new'
@@ -53,7 +48,6 @@ try{
     Assert ($queueEditor.Rows.Count -eq 3 -and (Test-Path -LiteralPath $queueEditor.Rows[2].ImagePath)) 'Saving a new popup did not preserve its snapshot after cleanup.'
     $pair=@((Read-ManualReferenceMap $queueEditor.MapPath).entries|Where-Object product_url -eq 'https://example.test/products/new')[0]
     Assert ((Test-Path $pair.product_file) -and (Test-Path $pair.file) -and $pair.product_file -ne $pair.file) 'Saving a popup lost one of the two input snapshots.'
-    Assert ($queueEditor.SourceGroup -eq 'Nội thất' -and (Read-ManualReferenceMap $queueEditor.MapPath).preferred_source_group -eq 'Nội thất') 'Saved group preference was lost.'
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[2]
     try{
         $popup.StartPosition='Manual';$popup.Location=[Drawing.Point]::new(-32000,-32000);$popup.Show();$popup.Refresh()
@@ -68,8 +62,8 @@ try{
     $screenshot=Join-Path $TestWorkspaceRoot 'main-inline-preview.png'
     $bitmap=[Drawing.Bitmap]::new($form.Width,$form.Height)
     try{$form.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save($screenshot,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
-    $form.Size=$form.MinimumSize;$queueEditor.Fallback.Checked=$true;$form.Refresh()
-    Assert ($lblStatus.Right -lt $lblPer.Left -and -not $lblProgress.Bounds.IntersectsWith($btnDrive.Bounds)) 'Controls overlap at the minimum window size.'
+    $form.Size=$form.MinimumSize;$form.Refresh()
+    Assert ($lblStatus.Right -lt $lblThr.Left -and -not $lblProgress.Bounds.IntersectsWith($btnDrive.Bounds)) 'Controls overlap at the minimum window size.'
     $sidebar=@($btnSave,$btnOut,$btnReview,$btnSetup,$btnDrive)
     $queueRight=$queueEditor.Panel.PointToScreen([Drawing.Point]::new($queueEditor.Panel.Width,0)).X
     Assert (@($sidebar|Where-Object {$_.PointToScreen([Drawing.Point]::Empty).X -lt $queueRight -or $_.Width -ne $btnSave.Width}).Count -eq 0) 'Action buttons must form a separate right column.'
