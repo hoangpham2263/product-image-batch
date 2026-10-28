@@ -4,7 +4,7 @@ $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
 $tempDir = Join-Path $TestWorkspaceRoot ('product-context-test-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempDir | Out-Null
-$script:Config = @{ PhotosPerImage = 2; ProductContexts = @(Get-ProductContexts (Join-Path $root 'data/product-contexts.json')); ReviewStyles = @(); StyleExample = '' }
+$script:Config = @{ PhotosPerImage = 2; ProductContexts = @(Get-ProductContexts (Join-Path $root 'data/product-contexts.json')); ReviewStyles = @() }
 $script:Batch = @{ Dir = $tempDir; Images = $tempDir; Logs = $tempDir; Refs = (Join-Path $tempDir "refs") }
 $script:Config.SourceDir = $tempDir
 $script:Config.WritingStyle = Get-WritingStyle (Join-Path $root 'data/writing-style.json')

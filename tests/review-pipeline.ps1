@@ -27,9 +27,6 @@ try {
     $fixture.source_categories = @('polo-shirts', 'outdoor-sports')
     $fixtureContexts.profiles = @($fixture) + @($fixtureContexts.profiles)
     $fixtureContexts | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $tempRoot 'data/product-contexts.json') -Encoding UTF8
-    $styleDir = Join-Path $tempRoot 'data/image-style'
-    New-Item -ItemType Directory -Path $styleDir | Out-Null
-    'photography example' | Set-Content (Join-Path $styleDir 'example.png')
     'original one' | Set-Content (Join-Path $sources 'one.png')
     'stock two' | Set-Content (Join-Path $stock 'two.png')
     'mixed flat lay' | Set-Content (Join-Path $mixed 'flat.png')

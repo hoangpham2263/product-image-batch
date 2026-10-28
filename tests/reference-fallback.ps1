@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
 function Assert($Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
-$script:Config = @{ PhotosPerImage = 2; StyleExample = ''; WritingStyle = [pscustomobject]@{ scene_rules = @() }; AgentInstructionsPath=(Join-Path $root 'AGENTS.md') }
+$script:Config = @{ PhotosPerImage = 2; WritingStyle = [pscustomobject]@{ scene_rules = @() }; AgentInstructionsPath=(Join-Path $root 'AGENTS.md') }
 $script:Batch = @{ Images = $TestWorkspaceRoot; Logs = $TestWorkspaceRoot }
 # One verified real setting is sufficient when an optional second scene is absent.
 $context = [pscustomobject]@{ product = 'apron'; presentation = 'worn'; setting = 'cafe'; source_categories = @('aprons'); details = 'black apron'; branding = 'preserve logo'; reject = 'golf' }

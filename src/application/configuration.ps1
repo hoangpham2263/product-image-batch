@@ -9,7 +9,6 @@
         SourceDir = $SourceDir; MaxTries = $MaxTries; Model = $Model; PhotosPerImage = $PhotosPerImage
         ReviewStyles = @(Get-ReviewStyleProfiles (Join-Path $ProjectRoot 'data/review-style.json'))
         ReviewSamples = @(Get-ReviewSamples (Join-Path $ProjectRoot 'data/review-samples.jsonl') $contexts $allPhotos)
-        StyleExample = Join-Path $ProjectRoot 'data/image-style/example.png'
         ProductContexts = $contexts
         SourceCatalog = $catalog
         AgentInstructionsPath = Join-Path $ProjectRoot 'AGENTS.md'

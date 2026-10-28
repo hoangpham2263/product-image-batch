@@ -25,7 +25,6 @@ try{
     Assert ((Test-Path $product.Reference) -and $product.Reference -ne $photo) 'Manual product was not snapshotted.'
     $scene=@(Select-ProductReferences $product.Reference $item.Handle '001-draft' $product.Context)
     Assert ($scene.Count -eq 1 -and $scene[0] -eq $script:Config.ManualReferences.entries[0].file) 'Product and scene roles were confused.'
-    $script:Config.StyleExample=$review
     $request=New-ProductImageRequest $product.Reference '001-draft' $product.Context $scene ([Collections.ArrayList]::new())
     Assert ($request.Images.Count -eq 2 -and $request.Images[0] -eq $scene[0] -and $request.Images[1] -eq $product.Reference) 'Review, product and style inputs were mixed.'
     Assert ($request.Prompt -match 'If no person is visible' -and $request.Prompt -match 'Image 2 is the PRODUCT reference') 'Flat review photos must not require another person reference.'

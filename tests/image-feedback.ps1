@@ -52,7 +52,7 @@ try {
     # A correction reuses the saved inputs, even when the original source later changes.
     [IO.File]::WriteAllText((Join-Path $refs '01-scene.png'),'changed original')
     $feedback=Read-ImageFeedback $path
-    $script:Config=@{Feedback=$feedback;FeedbackRoot=(Join-Path $temp 'workspace/feedback');SourceDir=$temp;StyleExample='';WritingStyle=[pscustomobject]@{scene_rules=@()}}
+    $script:Config=@{Feedback=$feedback;FeedbackRoot=(Join-Path $temp 'workspace/feedback');SourceDir=$temp;WritingStyle=[pscustomobject]@{scene_rules=@()}}
     $script:Batch=New-Batch (Join-Path $temp 'revisions')
     function Read-ProductInput {throw 'Correction must not download new product inputs.'}
     function Select-ProductReferences {throw 'Correction must not randomly choose a different room.'}

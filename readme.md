@@ -140,7 +140,7 @@ CLI có `-LocalOnly` cho kiểm thử hoặc chủ đích chỉ xuất local; đ
 | Đường dẫn | Nội dung |
 |---|---|
 | src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
-| data/ | Dữ liệu base trên Git: `source-photos/catalog.json` (ảnh tải từ Drive theo nhóm), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
+| data/ | Dữ liệu base trên Git: `source-photos/catalog.json` (ảnh tải từ Drive theo nhóm), names.txt, *.json quy tắc, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
 | bridge/ | Server local nối workflow với extension |
 | extension/ | Tạo ảnh qua tab ChatGPT / Google Flow |
 | worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |

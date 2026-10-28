@@ -83,7 +83,6 @@ Data ownership
   data/source-photos/ catalog.json and categorized reusable photos (read-only).
   data/names.txt      Reusable author sample pool.
   data/*.json         Product contexts and editorial rules.
-  data/image-style/   Camera/framing example only.
   data/review-samples.jsonl Extracted review text, rating and source for the
                       101 reviews summarized in review-style.json. Not read at runtime.
   workspace/output/<batch>/     Everything from one run: images/, refs/, logs/, loox_import.csv.
