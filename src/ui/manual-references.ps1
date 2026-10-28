@@ -1,15 +1,15 @@
 ﻿# Inline product cards keep the URL and its chosen reference together.
 $script:Ui=@{
-    Ink=[Drawing.Color]::FromArgb(15,23,42); Muted=[Drawing.Color]::FromArgb(100,116,139); Line=[Drawing.Color]::FromArgb(226,232,240)
-    Accent=[Drawing.Color]::FromArgb(37,99,235); AccentDark=[Drawing.Color]::FromArgb(29,78,216); Surface=[Drawing.Color]::White
-    Page=[Drawing.Color]::FromArgb(248,250,252); Hover=[Drawing.Color]::FromArgb(241,245,249)
-    Ok=[Drawing.Color]::FromArgb(22,163,74); Warn=[Drawing.Color]::FromArgb(194,65,12); Error=[Drawing.Color]::FromArgb(220,38,38)
+    Ink=[Drawing.Color]::FromArgb(30,30,30); Muted=[Drawing.Color]::FromArgb(96,96,96); Line=[Drawing.Color]::FromArgb(172,172,172)
+    Accent=[Drawing.Color]::FromArgb(40,140,80); AccentDark=[Drawing.Color]::FromArgb(32,118,66); Surface=[Drawing.Color]::White
+    Page=[Drawing.SystemColors]::Control; Hover=[Drawing.Color]::FromArgb(230,238,248)
+    Ok=[Drawing.Color]::DarkGreen; Warn=[Drawing.Color]::FromArgb(176,96,0); Error=[Drawing.Color]::Firebrick
 }
 # Native look like the earlier version: system buttons, only the main action is green.
 function Set-FlatButton($Button,[switch]$Primary) {
     $ui=$script:Ui
     if($Primary){$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Accent;$Button.ForeColor=[Drawing.Color]::White;$Button.FlatAppearance.BorderSize=0;$Button.FlatAppearance.MouseOverBackColor=$ui.AccentDark}
-    else{$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Surface;$Button.ForeColor=$ui.Ink;$Button.FlatAppearance.BorderColor=$ui.Line;$Button.FlatAppearance.MouseOverBackColor=$ui.Hover}
+    else{$Button.FlatStyle='Standard';$Button.UseVisualStyleBackColor=$true}
 }
 function Get-ProductQueueUrls($Editor) {
     @($Editor.Rows|ForEach-Object{$_.Url.Text.Trim()}|Where-Object{$_}|Select-Object -Unique)

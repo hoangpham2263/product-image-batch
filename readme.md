@@ -9,7 +9,7 @@
 
 App là cửa sổ Windows. Trên macOS chạy lõi xử lý bằng dòng lệnh với PowerShell 7 (`brew install --cask powershell` hoặc `dotnet tool install --global PowerShell`) và Codex CLI đã đăng nhập. Ảnh trên Drive được quản lý ở trang web (GitHub Pages). Máy mới xem [setup.txt](setup.txt).
 
-Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xoá** ở khung Thông báo chỉ dọn thông báo.
+Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xóa thông báo** chỉ dọn khung thông báo, giữ nguyên kết quả và file chẩn đoán.
 
 Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. Nếu dịch vụ chưa trả số liệu, app báo chưa lấy được; tài khoản API chưa hỗ trợ xem số dư. Phần trăm Codex không quy đổi thành số ảnh còn tạo được.
 
