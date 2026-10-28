@@ -5,14 +5,11 @@ import { readFile, writeFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
-import { fileURLToPath } from "node:url";
-import { createApp } from "./app.mjs";
 
 export const PORT = Number(process.env.BRIDGE_PORT || 8765);
 const MIME = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
 
-export function createBridge({ fetchImpl = fetch, root = fileURLToPath(new URL("..", import.meta.url)) } = {}) {
-  const app = createApp(root);
+export function createBridge({ fetchImpl = fetch } = {}) {
   let extension = null;
   const pending = new Map();
 
@@ -20,10 +17,7 @@ export function createBridge({ fetchImpl = fetch, root = fileURLToPath(new URL("
     const send = (status, body) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8" }); res.end(JSON.stringify(body)); };
     try {
       if (req.method === "GET" && req.url === "/status") return send(200, { extension: !!extension });
-      if (req.method !== "POST" || req.url !== "/generate") {
-        if ((await app(req, res)) === false) send(404, { error: "not found" });
-        return;
-      }
+      if (req.method !== "POST" || req.url !== "/generate") return send(404, { error: "not found" });
       let raw = "";
       for await (const chunk of req) raw += chunk;
       const job = JSON.parse(raw);
@@ -79,5 +73,5 @@ export function createBridge({ fetchImpl = fetch, root = fileURLToPath(new URL("
 }
 
 if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("server.mjs")) {
-  createBridge().listen(PORT, "127.0.0.1", () => console.log(`Product Image Batch: http://127.0.0.1:${PORT}`));
+  createBridge().listen(PORT, "127.0.0.1", () => console.log(`Bridge ready on http://127.0.0.1:${PORT}`));
 }

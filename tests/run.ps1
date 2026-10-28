@@ -2,14 +2,16 @@
 param([string[]]$Name = @('workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-feedback', 'manual-references', 'review-writing', 'review-pipeline', 'browser-backend', 'drive-storage'))
 $ErrorActionPreference = 'Stop'
 $onWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
-# WinForms suites test the Windows desktop window; macOS uses the web app (web/).
+# WinForms suites test the Windows desktop window and are skipped on macOS.
 $windowsOnly = @('gui-launch', 'ui-status', 'inline-ui', 'image-feedback', 'manual-references')
 if ($onWindows) {
     # Prefer the Windows PowerShell modules even when launched from PowerShell 7.
     $env:PSModulePath = (Join-Path $PSHOME 'Modules') + [IO.Path]::PathSeparator + $env:PSModulePath
     $runner = 'powershell.exe'
 } else {
-    $runner = (Get-Process -Id $PID).Path
+    # pwsh installed as a dotnet tool runs inside dotnet, so prefer the pwsh command over the process path.
+    $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+    $runner = if ($pwsh) { $pwsh.Source } else { (Get-Process -Id $PID).Path }
     $Name = @($Name | Where-Object { $_ -notin $windowsOnly })
 }
 $project = Split-Path $PSScriptRoot -Parent

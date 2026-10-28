@@ -8,6 +8,27 @@ function Get-DriveConfig([string]$WorkspaceRoot) {
     return @{ ApiUrl = ([string]$config.apiUrl).TrimEnd('/'); AdminKey = [string]$config.adminKey }
 }
 
+$script:DriveApiUrl = 'https://product-images-api.hoangpham2263.workers.dev'
+
+# Log in once per machine: the admin password is checked with the Worker, then saved only in workspace/drive.json.
+function Connect-DriveAccount([string]$WorkspaceRoot, [string]$Password, [scriptblock]$Probe = {
+        param($url, $key)
+        try { (Invoke-WebRequest -Uri $url -Headers @{ 'x-admin-key' = $key } -UseBasicParsing -TimeoutSec 30).StatusCode }
+        catch { if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 } }
+    }) {
+    if (-not $Password) { throw 'Nhập mật khẩu.' }
+    $status = & $Probe "$script:DriveApiUrl/api/images" $Password
+    if ($status -eq 401) { throw 'Sai mật khẩu.' }
+    if ($status -ne 200) { throw "Không kết nối được máy chủ Drive ($status)." }
+    New-Item -ItemType Directory -Force -Path $WorkspaceRoot | Out-Null
+    $json = @{ apiUrl = $script:DriveApiUrl; adminKey = $Password } | ConvertTo-Json -Compress
+    [IO.File]::WriteAllText((Join-Path $WorkspaceRoot 'drive.json'), $json, [Text.UTF8Encoding]::new($false))
+}
+
+function Disconnect-DriveAccount([string]$WorkspaceRoot) {
+    Remove-Item -LiteralPath (Join-Path $WorkspaceRoot 'drive.json') -Force -ErrorAction SilentlyContinue
+}
+
 # Upload one PNG and return its public link for the CSV.
 function Publish-ImageToDrive([string]$Path, [string]$BatchId, [string]$Product) {
     $drive = $script:Config.Drive

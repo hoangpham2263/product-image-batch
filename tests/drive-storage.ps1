@@ -20,5 +20,13 @@ try{
         [pscustomobject]@{url='https://api.test/img/abc.png'}
     }
     Assert ((Publish-ImageToDrive $image 'b 1' 'tee') -eq 'https://api.test/img/abc.png') 'Drive link was not returned.'
+    $login=Join-Path $temp 'login'
+    $probe={ param($url,$key) if ($key -eq 'right') { 200 } else { 401 } }
+    try { Connect-DriveAccount $login 'wrong' $probe; Assert $false 'Wrong password was accepted.' } catch { Assert ($_.Exception.Message -eq 'Sai mật khẩu.') $_.Exception.Message }
+    Assert (-not (Test-Path (Join-Path $login 'drive.json'))) 'drive.json written for a wrong password.'
+    Connect-DriveAccount $login 'right' $probe
+    Assert ((Get-DriveConfig $login).AdminKey -eq 'right') 'Login did not save drive.json.'
+    Disconnect-DriveAccount $login
+    Assert ($null -eq (Get-DriveConfig $login)) 'Logout did not remove drive.json.'
     Write-Host 'PASS: Drive config is optional, uploads carry the admin key and return the public link.'
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}

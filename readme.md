@@ -4,12 +4,10 @@
 
 | | Mở app | Chạy test |
 |---|---|---|
-| Windows | `start-app.cmd` (cửa sổ Windows) hoặc `start-web.cmd` (giao diện web) | `test.cmd` |
-| macOS | nhấp đúp `start-app.command` (giao diện web) | `./test.sh` |
+| Windows | `start-app.cmd` | `test.cmd` |
+| macOS | dòng lệnh: `pwsh src/run-images.ps1` | `./test.sh` |
 
-Giao diện web chạy tại `http://127.0.0.1:8765` (chỉ trên máy), dùng chung cho cả hai hệ điều hành: danh sách link bên trái, gắn ảnh tham khảo cho từng link trong hộp thoại (dán, kéo thả hoặc chọn file), Bắt đầu/Dừng, tiến độ và ảnh kết quả. Máy mới xem [setup.txt](setup.txt).
-
-**macOS cần:** Node.js, PowerShell 7 (`brew install --cask powershell` hoặc `dotnet tool install --global PowerShell`) và Codex CLI đã đăng nhập. Lần đầu `start-app.command` tự cài `bridge/`.
+App là cửa sổ Windows. Trên macOS chạy lõi xử lý bằng dòng lệnh với PowerShell 7 (`brew install --cask powershell` hoặc `dotnet tool install --global PowerShell`) và Codex CLI đã đăng nhập. Ảnh trên Drive được quản lý ở trang web (GitHub Pages). Máy mới xem [setup.txt](setup.txt).
 
 Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra ChatGPT** kiểm tra cài đặt, đăng nhập và hạn mức Codex còn lại kèm giờ đặt lại (GMT+7); **Xóa thông báo** chỉ dọn khung thông báo, giữ nguyên kết quả và file chẩn đoán.
 
@@ -118,7 +116,7 @@ Cài một lần:
 
 1. Google Cloud Console: thêm redirect URI `https://product-images-api.hoangpham2263.workers.dev/oauth/callback` vào OAuth client đang dùng cho memories.
 2. Trong `worker/`: `npx wrangler kv namespace create STORE`, dán id vào `wrangler.toml`, rồi `npx wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_PASSWORD` và `npx wrangler deploy`.
-3. Tạo `workspace/drive.json` (không lên Git): `{ "apiUrl": "https://product-images-api.hoangpham2263.workers.dev", "adminKey": "<ADMIN_PASSWORD>" }`.
+3. Trong app, bấm **Google Drive** và nhập mật khẩu quản lý (mỗi máy một lần). App kiểm tra mật khẩu rồi lưu vào `workspace/drive.json` (không lên Git).
 4. Mở trang quản lý `docs/index.html` (GitHub Pages: Settings → Pages → `main` / `docs`), nhập mật khẩu, bấm **Kết nối Drive**.
 
 Có `drive.json` thì mỗi ảnh được upload sau khi tạo và cột `photo_url` trong CSV là link Drive; upload lỗi thì giữ đường dẫn local. Trang quản lý: lọc theo batch/trạng thái, duyệt, loại, copy link, xoá và tải danh sách link.
@@ -129,7 +127,7 @@ Có `drive.json` thì mỗi ảnh được upload sau khi tạo và cột `photo
 |---|---|
 | src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
 | data/ | Dữ liệu base trên Git: `source-photos/` (+ catalog.json), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
-| web/, bridge/ | Giao diện web (macOS/Windows) và server local; cầu nối tới extension |
+| bridge/ | Server local nối workflow với extension |
 | extension/ | Tạo ảnh qua tab ChatGPT / Google Flow |
 | worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |
 | tests/ | Kiểm thử offline, chạy bằng test.cmd |

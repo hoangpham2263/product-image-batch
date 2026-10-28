@@ -4,11 +4,13 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'progress.ps1')
 . (Join-Path $PSScriptRoot 'help.ps1')
+. (Join-Path $PSScriptRoot 'drive-login.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
 . (Join-Path $srcDir 'application/workspace.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
+. (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
 . (Join-Path $srcDir 'application/agent-lessons.ps1')
@@ -130,13 +132,16 @@ $cardList.Controls.Add($queueEditor.Panel)
 
 $cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
 $btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,36';Size='196,36'}
-$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,82';Size='196,36'}
-$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,128';Size='196,36'}
-$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,174';Size='196,36'}
-$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,220';Size='196,36'}
-$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,266';Size='196,36'}
-foreach ($b in @($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnHelp,$btnClear)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnHelp,$btnClear))
+$btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,78';Size='196,36'}
+$btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,120';Size='196,36'}
+$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,162';Size='196,36'}
+$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,204';Size='196,36'}
+$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,246';Size='196,36'}
+$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,288';Size='196,36'}
+foreach ($b in @($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
+function Update-DriveButton { $btnDrive.Text = if (Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json')) { 'Google Drive ✓' } else { 'Google Drive' } }
+Update-DriveButton
 
 $cardRun=New-Card 'CardRun' '' 20 434 1060 62 'Top,Left,Right'
 $btnRun=New-Object Windows.Forms.Button -Property @{Text='Bắt đầu';Location='14,11';Size='160,40'}
@@ -162,6 +167,7 @@ $lblPer.Height=$numPer.Height;$lblThr.Height=$numThr.Height
 $lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked
 $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
 $btnHelp.Add_Click({ Show-AppHelp $form })
+$btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnClear.Add_Click({ $txtLog.Clear() })
 $btnFeedback.Add_Click({
     if ($script:proc) { return }
