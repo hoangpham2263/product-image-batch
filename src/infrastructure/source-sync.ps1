@@ -1,4 +1,4 @@
-# Source library on Google Drive (Worker /api/sources): one Drive folder per group. A run downloads
+﻿# Source library on Google Drive (Worker /api/sources): one Drive folder per group. A run downloads
 # only the chosen group into data/source-photos/<group>/ and fetches only new or changed files (md5).
 function Get-RemoteSourceGroups($Drive) {
     $result = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 15

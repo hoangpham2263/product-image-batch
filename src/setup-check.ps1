@@ -12,7 +12,7 @@ $engine = Get-Command codex -ErrorAction SilentlyContinue
 $checks.Add([pscustomobject]@{
     Ok = [bool]$engine
     Message = $(if ($engine) { 'Công cụ xử lý: đã cài đặt.' } else { 'Chưa cài công cụ xử lý.' })
-    Action = 'Làm theo phần cài đặt trong setup.txt, sau đó mở lại ứng dụng.'
+    Action = 'Bấm Cài Codex, hoặc chạy setup.cmd (Windows) / setup.command (Mac) để cài đủ.'
 })
 $loggedIn = $false
 $apiKey = $false
@@ -32,7 +32,7 @@ if ($engine) {
 $checks.Add([pscustomobject]@{
     Ok = $loggedIn
     Message = $(if ($apiKey) { 'Tài khoản: đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'ChatGPT: đã đăng nhập.' } else { 'ChatGPT: chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.' })
-    Action = 'Đăng nhập ChatGPT qua Codex theo setup.txt rồi kiểm tra lại.'
+    Action = 'Bấm Đăng nhập Codex rồi đăng nhập ChatGPT trong trình duyệt.'
 })
 . (Join-Path $PSScriptRoot 'infrastructure/quota.ps1')
 $quotaAvailable = $false
@@ -52,6 +52,8 @@ $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
 $report = [pscustomobject]@{
     Ready = $ready
     QuotaAvailable = $quotaAvailable
+    # The app turns its check button into this step: install, login or nothing left.
+    NextAction = $(if (-not $engine) { 'install' } elseif (-not $loggedIn) { 'login' } else { '' })
     Checks = $checks.ToArray()
     Summary = $(if (-not $ready) { 'Vui lòng xử lý các mục trên trước khi bắt đầu.' } elseif ($apiKey) { 'Đã kiểm tra cài đặt và tài khoản API.' } elseif ($quotaAvailable) { 'Đã kiểm tra đăng nhập và hạn mức Codex. Hạn mức tạo ảnh không được thống kê riêng.' } else { 'Đã kiểm tra cài đặt và đăng nhập. Chưa xác định được hạn mức còn lại.' })
 }

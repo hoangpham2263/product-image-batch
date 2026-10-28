@@ -20,6 +20,10 @@ foreach ($file in @(Get-ChildItem (Join-Path $project 'src'), $PSScriptRoot -Rec
     $tokens = $null; $parseErrors = $null
     [void][Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
     if ($parseErrors) { throw ($parseErrors | Out-String) }
+    # Windows PowerShell 5.1 reads a file without a BOM as ANSI and garbles Vietnamese text.
+    $bytes = [IO.File]::ReadAllBytes($file.FullName)
+    $hasBom = $bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF
+    if (-not $hasBom -and @($bytes | Where-Object { $_ -gt 127 }).Count) { throw "Save as UTF-8 with BOM: $($file.FullName)" }
 }
 foreach ($testName in $Name) {
     if ($testName -notmatch '^[a-z][a-z0-9-]+$' -or $testName -eq 'run') { throw "Invalid test name: $testName" }

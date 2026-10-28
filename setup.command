@@ -1,0 +1,38 @@
+#!/bin/bash
+# One-time install on macOS: Homebrew, Node.js, PowerShell 7, Codex CLI, ChatGPT sign-in and the
+# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra ChatGPT.
+cd "$(dirname "$0")" || exit 1
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.dotnet/tools:$PATH"
+step() { printf '\n== %s\n' "$1"; }
+
+step "Homebrew"
+if ! command -v brew >/dev/null; then
+  read -r -p "Chưa có Homebrew (dùng để cài Node.js và PowerShell). Cài bây giờ? (y/n) " answer
+  [ "$answer" = "y" ] || { echo "Cài Homebrew theo https://brew.sh rồi chạy lại setup.command."; exit 1; }
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || exit 1
+  eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
+fi
+brew --version | head -1
+
+step "Node.js"
+command -v node >/dev/null || brew install node || exit 1
+echo "Node.js $(node --version)"
+
+step "PowerShell 7"
+command -v pwsh >/dev/null || brew install --cask powershell || exit 1
+pwsh --version
+
+step "Codex"
+command -v codex >/dev/null || npm install -g @openai/codex || exit 1
+codex --version
+
+step "Đăng nhập ChatGPT"
+if codex login status 2>&1 | grep -qi "logged in"; then echo "Đã đăng nhập."; else codex login; fi
+
+step "Cầu nối trình duyệt"
+[ -f bridge/package.json ] && (cd bridge && npm install --silent) && echo "Đã cài."
+
+step "Kiểm tra"
+pwsh -NoProfile -File src/setup-check.ps1
+echo
+read -r -p "Xong. Mở app bằng start-app.command. Nhấn Enter để đóng."

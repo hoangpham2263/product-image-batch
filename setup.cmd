@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-if exist "%~dp0bridge\package.json" (pushd "%~dp0bridge" && call npm install --silent && popd)
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0src\setup-check.ps1"
+rem Installs whatever is missing (Node.js, Codex, sign-in, bridge), then runs the readiness check.
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0src\setup-install.ps1"
 echo.
 pause

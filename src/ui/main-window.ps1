@@ -3,7 +3,6 @@ param([switch]$BuildOnly)
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'progress.ps1')
-. (Join-Path $PSScriptRoot 'help.ps1')
 . (Join-Path $PSScriptRoot 'drive-login.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
@@ -147,10 +146,9 @@ $btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất fi
 $btnFeedback=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ảnh / Làm lại';Location='14,147';Size='196,32'}
 $btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,184';Size='196,32'}
 $btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,221';Size='196,32'}
-$btnHelp=New-Object Windows.Forms.Button -Property @{Text='Hướng dẫn';Location='14,258';Size='196,32'}
-$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,295';Size='196,32'}
-foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnHelp,$btnClear))
+$btnClear=New-Object Windows.Forms.Button -Property @{Text='Xóa thông báo';Location='14,258';Size='196,32'}
+foreach ($b in @($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnClear)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnFeedback,$btnSetup,$btnDrive,$btnClear))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
 function Update-ReviewButton {
     $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
@@ -183,7 +181,6 @@ $lblStatus.Anchor='Top,Left'
 $lblPer.Height=$numPer.Height;$lblThr.Height=$numThr.Height
 $lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked
 $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.Checked;$numPer.Visible=$queueEditor.Fallback.Checked})
-$btnHelp.Add_Click({ Show-AppHelp $form })
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnClear.Add_Click({ $txtLog.Clear() })
 $btnUpdate.Add_Click({
@@ -213,7 +210,42 @@ $btnOut.Add_Click({
     $target = if ($script:resultFolder -and (Test-Path -LiteralPath $script:resultFolder)) { $script:resultFolder } else { $workspace.Output }
     Open-Path $target
 })
+# Kiểm tra ChatGPT turns into Cài Codex / Đăng nhập Codex when the check finds that step missing.
+$script:setupAction = ''
+function Set-SetupButton([string]$Action) {
+    $script:setupAction = $Action
+    switch ($Action) {
+        'install' { $btnSetup.Text = 'Cài Codex'; Set-FlatButton $btnSetup -Primary }
+        'login' { $btnSetup.Text = 'Đăng nhập Codex'; Set-FlatButton $btnSetup -Primary }
+        default { $btnSetup.Text = 'Kiểm tra ChatGPT'; Set-FlatButton $btnSetup }
+    }
+}
+function Update-CodexPath {
+    # npm installs into a folder Windows adds to PATH only for new processes.
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+# Runs a setup step in its own console window (npm progress, the Codex sign-in link), then checks again.
+$script:setupProc = $null
+$setupTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 1000 }
+$setupTimer.Add_Tick({
+    if (-not $script:setupProc -or -not $script:setupProc.HasExited) { return }
+    $setupTimer.Stop(); $script:setupProc.Dispose(); $script:setupProc = $null
+    Update-CodexPath; $btnSetup.Enabled = $true; Set-SetupButton ''; $btnSetup.PerformClick()
+})
+function Start-SetupStep([string]$Command, [string]$Message) {
+    Append-Log $Message
+    $btnSetup.Enabled = $false
+    $script:setupProc = Start-Process cmd.exe -ArgumentList @('/c', $Command) -PassThru
+    $setupTimer.Start()
+}
 $btnSetup.Add_Click({
+    if ($script:setupAction -eq 'install') {
+        Update-CodexPath
+        if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { Append-Log 'Chưa có Node.js. Chạy setup.cmd trong thư mục app để cài đủ Node.js và Codex.'; return }
+        Start-SetupStep 'npm install -g @openai/codex' 'Đang cài Codex trong cửa sổ mới; xong app tự kiểm tra lại.'
+        return
+    }
+    if ($script:setupAction -eq 'login') { Start-SetupStep 'codex login' 'Đăng nhập ChatGPT trong trình duyệt vừa mở; xong app tự kiểm tra lại.'; return }
     $btnSetup.Enabled = $false; $form.Cursor = 'WaitCursor'
     $txtLog.Clear(); Append-Log 'Đang kiểm tra ChatGPT...'
     $outFile = Join-Path $workspace.Logs "image-batch-setup-$PID.log"
@@ -227,11 +259,13 @@ $btnSetup.Add_Click({
             if (-not $check.Ok -and $check.Action) { Append-Log $check.Action }
         }
         Append-Log $report.Summary
+        Set-SetupButton $report.NextAction
     } catch {
         Append-Log 'Chưa kiểm tra được ChatGPT. Vui lòng thử lại hoặc xem setup.txt.'
     } finally { $form.Cursor = 'Default'; $btnSetup.Enabled = $true }
 })
 $queueEditor.OnChanged={ Update-Status }
+if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { Set-SetupButton 'install' }
 
 $logFile = Join-Path $workspace.Logs "image-batch-gui-$PID.log"
 $errFile = Join-Path $workspace.Logs "image-batch-gui-$PID.err.log"

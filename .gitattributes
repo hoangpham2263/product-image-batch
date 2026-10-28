@@ -7,3 +7,4 @@
 /test.cmd export-ignore
 /.gitattributes export-ignore
 /tools export-ignore
+*.command text eol=lf
