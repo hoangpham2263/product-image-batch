@@ -171,7 +171,10 @@ return out`;
     const [cmd, args] = step === "install" ? [npm, ["install", "-g", "@openai/codex"]] : [codex || "codex", ["login"]];
     execFile(cmd, args, { cwd: root, timeout: 15 * 60000, env: toolEnv }, (err, stdout, stderr) => {
       if (err) return send(res, 500, { error: (String(stderr || stdout).trim().split("\n").pop() || err.message).slice(0, 300) });
-      send(res, 200, { ok: true });
+      // Cài also installs the browser bridge, as setup-install.ps1 does on Windows.
+      const bridge = join(root, "bridge");
+      if (step !== "install" || !npm || !existsSync(join(bridge, "package.json"))) return send(res, 200, { ok: true });
+      execFile(npm, ["install", "--silent"], { cwd: bridge, timeout: 10 * 60000, env: toolEnv }, () => send(res, 200, { ok: true }));
     });
     return;
   }

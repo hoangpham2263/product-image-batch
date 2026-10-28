@@ -363,7 +363,7 @@ function showDrivePicker() {
         const r = await api("sourceSync", { group: groups.value });
         await load();
         count.textContent = `Đã đồng bộ: ${r.Total} ảnh (tải mới ${r.Downloaded}, xoá ${r.Removed}).`;
-      } catch (e) { count.textContent = e.message; }
+      } catch { await load(); count.textContent = "Chưa đồng bộ được. Kiểm tra mạng và mật khẩu app rồi thử lại."; }
       finally { sync.disabled = false; groups.disabled = false; bar.hidden = true; }
     };
     groups.onchange = load;
@@ -869,7 +869,7 @@ function wire() {
       const r = await api("sendLogs");
       if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}`); }
       else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được; file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
-    } catch (e) { ui.btnLogs.textContent = "Gửi log"; appendLog(e.message); }
+    } catch { ui.btnLogs.textContent = "Gửi log"; appendLog("Chưa tạo được file log."); }
     setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);
   };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });

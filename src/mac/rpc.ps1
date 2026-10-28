@@ -70,7 +70,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             Assert-DraftRoot $A.root
             $url = [string]$A.url
             if ($A.role -eq 'Product' -and -not $url) { $url = 'https://local.invalid/products/manual-' + [Guid]::NewGuid().ToString('N') }
-            if (-not (Test-HttpUrl $url)) { throw 'Dán link hợp lệ vào dòng này trước khi dán ảnh.' }
+            if (-not (Test-HttpUrl $url)) { throw 'Dán link hợp lệ trước khi thêm ảnh.' }
             $productIndex = if ($null -ne $A.productIndex) { [int]$A.productIndex } else { -1 }
             foreach ($path in @($A.paths)) { [void](Save-ManualReference $A.root $url ([string]$path) $(if ($A.role -eq 'Product') { 'Product' } else { 'Scene' }) $productIndex) }
             return $url
