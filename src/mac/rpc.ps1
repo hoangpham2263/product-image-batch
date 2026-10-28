@@ -36,7 +36,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'state' {
             $map = Read-ManualReferenceMap $mapPath
             $urls = @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique })
-            $version = try { (Get-Content -LiteralPath (Join-Path $workspace.Root 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { '' }
+            $version = try { Get-AppVersion $root } catch { '' }
             return [pscustomobject]@{
                 rows = @($urls | ForEach-Object { Get-EntryInfo $mapPath $_ }); fallback = [bool]$map.allow_library_fallback
                 library = $map.source_library; group = $map.preferred_source_group; drive = [bool](Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json'))

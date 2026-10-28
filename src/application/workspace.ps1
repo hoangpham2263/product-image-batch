@@ -15,3 +15,14 @@ function Initialize-ProjectWorkspace([string]$ProjectRoot) {
     $env:TMP = $paths.Temp
     return $paths
 }
+
+# Installed release (workspace/version.txt, written by the updater); a git checkout shows its latest tag.
+function Get-AppVersion([string]$ProjectRoot) {
+    $file = Join-Path $ProjectRoot 'workspace/version.txt'
+    if (Test-Path -LiteralPath $file) { return (Get-Content -LiteralPath $file -Raw).Trim() }
+    if ((Test-Path -LiteralPath (Join-Path $ProjectRoot '.git')) -and (Get-Command git -ErrorAction SilentlyContinue)) {
+        $tag = git -C $ProjectRoot describe --tags --abbrev=0 2>$null
+        if ($tag) { return [string]$tag }
+    }
+    return ''
+}

@@ -105,7 +105,7 @@ function Receive-RunLine([string]$line) {
 }
 
 $form = New-Object Windows.Forms.Form
-$appVersion = try { (Get-Content -LiteralPath (Join-Path $workspace.Root 'version.txt') -Raw -ErrorAction Stop).Trim() } catch { '' }
+$appVersion = try { Get-AppVersion $root } catch { '' }
 $form.Text = ('Product Review Batch ' + $appVersion).Trim()
 $form.Size = New-Object Drawing.Size(1120, 840)
 $form.MinimumSize = New-Object Drawing.Size(1040, 760)
@@ -125,7 +125,8 @@ $header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColo
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,20';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,18';Size='100,28';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
-$header.Controls.AddRange(@($title,$btnUpdate))
+$lblVersion=New-Object Windows.Forms.Label -Property @{Text=$appVersion;Location=(New-Object Drawing.Point((20+$title.PreferredWidth+6),27));AutoSize=$true;ForeColor=$muted}
+$header.Controls.AddRange(@($title,$lblVersion,$btnUpdate))
 
 $cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh đi kèm' 20 78 820 344 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root

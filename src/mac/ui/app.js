@@ -168,6 +168,8 @@ function buildMain() {
   const header = at(el("div", "panel"), 0, 0, null, 64, { right: 0 });
   header.append(at(label("Product Review Batch", ""), 20, 20, null, 24));
   header.firstChild.style.fontSize = "17.33px";
+  ui.version = at(label("", "muted"), 20, 26, null, 20);
+  header.append(ui.version);
   ui.btnUpdate = at(button("Cập nhật"), null, 18, 100, 28, { right: 24, left: false });
   header.append(ui.btnUpdate);
 
@@ -281,6 +283,8 @@ async function loadState() {
   Object.assign(state, await api("state"));
   state.rows = list(state.rows).map((info) => ({ url: info.url, info: normInfo(info) }));
   document.title = ("Product Review Batch " + (state.version || "")).trim();
+  ui.version.textContent = state.version || "";
+  ui.version.style.left = 20 + ui.client.querySelector(".panel .label").offsetWidth + 6 + "px";
   ui.fallback.input.checked = state.fallback;
   ui.library.value = state.library === "local" ? "local" : "drive";
   ui.library.disabled = !state.fallback;
