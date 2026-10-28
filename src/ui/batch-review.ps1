@@ -63,7 +63,8 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
         }
         if($batches.Items.Count -and $batches.SelectedIndex -lt 0){$batches.SelectedIndex=0}
     }
-    & $view.Refresh
+    if(-not $batches.Items.Count){$status.Text='Chưa có lần chạy nào để duyệt. Lần chạy tạo ra ảnh sẽ hiện ở đây.'}
+    else{& $view.Refresh}
     return $view
 }
 

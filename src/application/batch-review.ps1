@@ -1,5 +1,6 @@
 # Human check of every result before the final CSV: decisions live in <batch>/review.json.
 function Save-BatchResults($Rows, [string]$BatchDir) {
+    if (-not $BatchDir) { return }
     $json = ConvertTo-Json -InputObject @($Rows) -Depth 5
     [IO.File]::WriteAllText((Join-Path $BatchDir 'results.json'), $json, [Text.UTF8Encoding]::new($false))
 }

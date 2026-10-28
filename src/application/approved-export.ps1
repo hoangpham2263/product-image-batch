@@ -59,6 +59,7 @@ function Export-ApprovedProduct([string]$ProjectRoot, [string]$ImagePath, [strin
     $row=Complete-DriveDelivery $row
     Assert-PublicPhotoDelivery $row
     Save-Csv @($row) $script:Batch.Csv
+    Save-BatchResults @($row) $script:Batch.Dir
     Write-Lines $script:Batch.CompletedUrls @($item.Url)
     if($row.delivery_key){Remove-CompletedDeliveryCache $item.Url $row.delivery_key}
     Write-Host "  [OK] [ITEM 1] $($request.Output)"

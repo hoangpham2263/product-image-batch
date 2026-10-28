@@ -3,6 +3,7 @@ function Save-ProductCheckpoint($Results, $Result, $Completed, $Item, [string]$L
     Assert-PublicPhotoDelivery $Result
     $Results.Add($Result)
     Save-Csv $Results.ToArray() $script:Batch.Csv
+    Save-BatchResults $Results.ToArray() $script:Batch.Dir
     if (-not $UrlDone) { return }
     $Completed.Add($Item.Url)
     Write-Lines $script:Batch.CompletedUrls $Completed.ToArray()

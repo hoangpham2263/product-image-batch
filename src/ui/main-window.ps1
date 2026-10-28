@@ -263,11 +263,15 @@ $timer.Add_Tick({
         elseif ($null -ne $exitCode -and $exitCode -eq 0 -and -not $script:hadFailure) {
             $lblStatus.Text = '✔ Hoàn tất'; $lblStatus.ForeColor = $ui.Ok
             if ($script:activeFeedbackFile) { Append-Log 'Đã có ảnh làm lại. Bấm Kiểm tra ảnh / Làm lại để đối chiếu; chỉ đánh dấu đã đúng sau khi bạn xem ảnh.' }
-            else { Append-Log 'Xong. Duyệt từng ảnh rồi bấm Xuất file cuối.'; if ($script:resultFolder -and (Test-Path -LiteralPath (Join-Path $script:resultFolder 'results.json'))) { $form.BeginInvoke([Action]{ Show-BatchReviewDialog $form $workspace.Output $script:resultFolder }) | Out-Null } }
+            else { Append-Log 'Xong. Duyệt từng ảnh rồi bấm Xuất file cuối.' }
         }
         else {
             $lblStatus.Text = '! Cần thử lại'; $lblStatus.ForeColor = $ui.Warn
             Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.'
+        }
+        # Every finished image is checked before the final file, even when some links failed.
+        if (-not $script:runStopped -and $script:resultFolder -and (Test-Path -LiteralPath (Join-Path $script:resultFolder 'results.json'))) {
+            Show-BatchReviewDialog $form $workspace.Output $script:resultFolder
         }
     }
 })
