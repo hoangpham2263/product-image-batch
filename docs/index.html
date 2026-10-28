@@ -287,7 +287,7 @@ function renderSources() {
   $("group").hidden = !state.groups.length;
   $("uploadBtn").disabled = !state.group;
   $("srcEmpty").hidden = files.length > 0;
-  $("srcEmpty").textContent = state.groups.length ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên hoặc kéo thả ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
+  $("srcEmpty").textContent = state.groups.length ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
   $("deleteGroupBtn").hidden = !state.group || files.length > 0;
   $("srcMore").hidden = files.length <= state.shown;
   $("srcGrid").replaceChildren(...files.slice(0, state.shown).map((f, i) => tile(f.url, f.name, `${Math.round(f.size / 1024)} KB`, () => openViewer("sources", i))));
@@ -481,6 +481,15 @@ $("uploadInput").onchange = () => { upload($("uploadInput").files); $("uploadInp
 $("sources").addEventListener("dragover", (e) => { e.preventDefault(); $("sources").classList.add("drop-on"); });
 $("sources").addEventListener("dragleave", () => $("sources").classList.remove("drop-on"));
 $("sources").addEventListener("drop", (e) => { e.preventDefault(); $("sources").classList.remove("drop-on"); upload(e.dataTransfer.files); });
+// Paste (Ctrl/Cmd+V) on the Nguồn ảnh tab uploads clipboard images to the current group.
+document.addEventListener("paste", (e) => {
+  if ($("sources").hidden || document.querySelector("dialog[open]")) return;
+  const stamp = Date.now();
+  const files = [...(e.clipboardData?.files || [])].map((f, i) => new File([f], `anh-dan-${stamp}-${i + 1}.${f.type.split("/")[1] || "png"}`, { type: f.type }));
+  if (!files.length) return;
+  e.preventDefault();
+  upload(files);
+});
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
 document.querySelector("[data-close-group]").onclick = () => $("groupDlg").close();
 $("groupForm").addEventListener("submit", async (event) => {
