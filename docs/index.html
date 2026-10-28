@@ -126,7 +126,6 @@
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
   .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
-  .steps .cmd { margin-top: 6px; }
   .os-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--soft); }
   .os-tabs button { height: 28px; padding: 0 12px; border: 0; background: none; color: var(--muted); font-size: 13px; }
   .os-tabs button:hover { background: none; color: var(--fg); }
@@ -182,14 +181,10 @@
         <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
       </ol>
       <ol class="steps" data-guide="mac" hidden>
-        <li>Mở <b>Terminal</b> (bấm <b>Cmd + Space</b>, gõ <i>Terminal</i>, Enter), dán lệnh dưới rồi Enter: app tự tải, cài và mở.
-          <div class="cmd"><code id="macCmd">curl -fsSL https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip -o /tmp/prb.zip &amp;&amp; unzip -oq /tmp/prb.zip -d ~/Applications &amp;&amp; bash ~/Applications/product-review-batch/start-app.command</code><button type="button" data-copy="macCmd">Copy</button></div>
-        </li>
+        <li>Bấm <b>Tải về</b>, giải nén file zip.</li>
+        <li>Bấm đúp <b>start-app.command</b>.</li>
+        <li>Nếu macOS báo <i>Not Opened</i>: bấm <b>Done</b>, vào <b>System Settings → Privacy &amp; Security</b>, kéo xuống bấm <b>Open Anyway</b>, rồi bấm đúp lại.</li>
         <li>Lần đầu, nếu được hỏi cài Homebrew hay PowerShell: gõ <b>y</b> và mật khẩu máy.</li>
-        <li>Đã tải zip bằng nút <b>Tải về</b> mà macOS báo <i>Not Opened</i>: vào <b>System Settings → Privacy &amp; Security</b> → <b>Open Anyway</b>, hoặc chạy:
-          <div class="cmd"><code id="macFix">xattr -dr com.apple.quarantine ~/Downloads/product-review-batch</code><button type="button" data-copy="macFix">Copy</button></div>
-        </li>
-        <li>Lần sau mở app: bấm đúp <b>start-app.command</b> trong <b>~/Applications/product-review-batch</b>.</li>
         <li>Bấm <b>Kiểm tra ChatGPT</b>, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>. Có bản mới thì bấm <b>Cập nhật</b>.</li>
       </ol>
     </div>
@@ -631,7 +626,6 @@ function showGuide(os) {
 }
 for (const b of document.querySelectorAll("[data-os]")) b.onclick = () => showGuide(b.dataset.os);
 showGuide(/Mac/i.test(navigator.platform || navigator.userAgent) ? "mac" : "win");
-for (const b of document.querySelectorAll("[data-copy]")) b.onclick = async () => { try { await navigator.clipboard.writeText($(b.dataset.copy).textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("srcHelpBtn").onclick = () => $("srcHelpDlg").showModal();
 $("copyCmdBtn").onclick = async () => { try { await navigator.clipboard.writeText($("srcCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
