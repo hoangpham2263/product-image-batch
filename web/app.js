@@ -293,6 +293,23 @@ $("optionsBtn").onclick = () => $("optionsDlg").showModal();
 $("optionsDlg").addEventListener("close", async () => { saveOptions(); await saveQueue(state.urls.map((u) => u.url)); });
 $("helpBtn").onclick = () => $("helpDlg").showModal();
 $("openBtn").onclick = () => api("/api/open", { method: "POST", body: "{}" });
+function showDrive(connected) {
+  $("driveBtn").textContent = connected ? "Google Drive ✓" : "Google Drive";
+  $("driveStatus").textContent = connected ? "Đã đăng nhập. Ảnh tạo xong sẽ tự tải lên Drive." : "Đăng nhập một lần trên máy này để tải ảnh lên Drive.";
+  $("drivePass").hidden = $("driveSubmit").hidden = connected;
+  $("driveLogout").hidden = !connected;
+}
+$("driveBtn").onclick = () => { $("driveError").hidden = true; $("drivePass").value = ""; $("driveDlg").showModal(); };
+$("driveDlg").querySelector("[data-close]").onclick = () => $("driveDlg").close();
+$("driveForm").onsubmit = async (e) => {
+  e.preventDefault();
+  $("driveError").hidden = true;
+  try {
+    await api("/api/drive", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: $("drivePass").value }) });
+    showDrive(true); $("driveDlg").close(); toast("Đã đăng nhập Google Drive.");
+  } catch (err) { $("driveError").textContent = err.message; $("driveError").hidden = false; }
+};
+$("driveLogout").onclick = async () => { await api("/api/drive", { method: "DELETE" }); showDrive(false); };
 $("clearBtn").onclick = () => $("messages").replaceChildren();
 $("setupBtn").onclick = async () => {
   $("setupList").replaceChildren(Object.assign(document.createElement("li"), { textContent: "Đang kiểm tra…" }));
@@ -326,4 +343,5 @@ $("stopBtn").onclick = () => api("/api/stop", { method: "POST" }).then(() => mes
 loadOptions();
 api("/api/state").then(apply).catch((e) => toast(e.message));
 loadResults().catch(() => {});
+api("/api/drive").then((d) => showDrive(d.connected)).catch(() => {});
 listen();

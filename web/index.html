@@ -30,6 +30,7 @@
       <button id="addBtn" class="primary" type="button">+ Thêm</button>
       <button id="optionsBtn" type="button">Tuỳ chọn</button>
       <button id="setupBtn" type="button">Kiểm tra ChatGPT</button>
+      <button id="driveBtn" type="button">Google Drive</button>
       <button id="openBtn" type="button">Mở kết quả</button>
     </aside>
   </div>
@@ -116,6 +117,19 @@
     <div class="dlg-head"><strong>Kiểm tra ChatGPT</strong><button class="icon" value="cancel" aria-label="Đóng">✕</button></div>
     <ul id="setupList" class="checks"></ul>
     <p id="setupSummary" class="muted small"></p>
+  </form>
+</dialog>
+
+<dialog id="driveDlg" class="dlg">
+  <form class="dlg-box" id="driveForm">
+    <div class="dlg-head"><strong>Google Drive</strong><button class="icon" type="button" data-close aria-label="Đóng">✕</button></div>
+    <p id="driveStatus" class="muted small"></p>
+    <input id="drivePass" type="password" placeholder="Mật khẩu quản lý" autocomplete="current-password" />
+    <p id="driveError" class="small danger" hidden></p>
+    <div class="actions">
+      <button id="driveLogout" type="button" class="link danger" hidden>Đăng xuất</button>
+      <button id="driveSubmit" class="primary" type="submit">Đăng nhập</button>
+    </div>
   </form>
 </dialog>
 

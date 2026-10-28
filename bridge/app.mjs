@@ -3,7 +3,7 @@
 import { spawn, execFile } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { extname, join, resolve, sep } from "node:path";
 
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
@@ -11,8 +11,9 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
   ".csv": "text/csv; charset=utf-8", ".json": "application/json; charset=utf-8", ".txt": "text/plain; charset=utf-8", ".ico": "image/x-icon" };
 const IMAGE_TYPES = { "image/png": ".png", "image/jpeg": ".jpg" };
 const BACKENDS = ["codex", "chatgpt", "flow"];
+const DRIVE_API = "https://product-images-api.hoangpham2263.workers.dev";
 
-export function createApp(root, { spawnImpl = spawn, platform = process.platform } = {}) {
+export function createApp(root, { spawnImpl = spawn, platform = process.platform, fetchImpl = fetch } = {}) {
   const paths = {
     web: join(root, "web"),
     workspace: join(root, "workspace"),
@@ -21,6 +22,7 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
     refs: join(root, "workspace", "reference-inputs"),
     map: join(root, "workspace", "reference-inputs", "references.json"),
     photos: join(root, "data", "source-photos"),
+    drive: join(root, "workspace", "drive.json"),
   };
   const run = { process: null, lines: [], exitCode: null, startedAt: null, listeners: new Set() };
 
@@ -213,6 +215,28 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
         run.listeners.add(res);
         req.on("close", () => run.listeners.delete(res));
         return;
+      }
+
+      // Drive login: the admin password is checked against the Worker, then kept only in workspace/drive.json.
+      if (path === "/api/drive" && req.method === "GET") {
+        const config = existsSync(paths.drive) ? JSON.parse((await readFile(paths.drive, "utf8")).replace(/^\uFEFF/, "")) : null;
+        return send(res, 200, { connected: !!config?.adminKey, apiUrl: config?.apiUrl || DRIVE_API });
+      }
+      if (path === "/api/drive" && req.method === "POST") {
+        const { password } = JSON.parse((await readBody(req)).toString("utf8") || "{}");
+        if (!password) return send(res, 400, { error: "Nhập mật khẩu." });
+        let check;
+        try { check = await fetchImpl(`${DRIVE_API}/api/images`, { headers: { "x-admin-key": password } }); }
+        catch { return send(res, 502, { error: "Không kết nối được máy chủ Drive." }); }
+        if (check.status === 401) return send(res, 401, { error: "Sai mật khẩu." });
+        if (!check.ok) return send(res, 502, { error: `Máy chủ Drive lỗi (${check.status}).` });
+        await mkdir(paths.workspace, { recursive: true });
+        await writeFile(paths.drive, JSON.stringify({ apiUrl: DRIVE_API, adminKey: password }));
+        return send(res, 200, { connected: true });
+      }
+      if (path === "/api/drive" && req.method === "DELETE") {
+        await rm(paths.drive, { force: true });
+        return send(res, 200, { connected: false });
       }
 
       if (path === "/api/batches" && req.method === "GET") return send(res, 200, await batches());

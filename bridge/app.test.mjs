@@ -84,3 +84,19 @@ test("output files cannot escape the output folder", async () => {
   assert.equal((await fetch(`${base}/output/..%2F..%2Fetc%2Fpasswd`)).status, 404);
   server.close();
 });
+
+test("drive login checks the password with the Worker before saving drive.json", async () => {
+  const root = await mkdtemp(join(tmpdir(), "pib-drive-"));
+  const fetchImpl = async (_url, init) => ({ status: init.headers["x-admin-key"] === "right" ? 200 : 401, ok: init.headers["x-admin-key"] === "right" });
+  const app = createApp(root, { fetchImpl });
+  const server = createServer(async (req, res) => { if ((await app(req, res)) === false) { res.writeHead(404); res.end(); } });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await json(base, "/api/drive", { method: "POST", body: JSON.stringify({ password: "wrong" }) })).status, 401);
+  assert.equal((await json(base, "/api/drive")).body.connected, false);
+  assert.equal((await json(base, "/api/drive", { method: "POST", body: JSON.stringify({ password: "right" }) })).status, 200);
+  assert.equal(JSON.parse(await readFile(join(root, "workspace", "drive.json"), "utf8")).adminKey, "right");
+  await json(base, "/api/drive", { method: "DELETE" });
+  assert.equal((await json(base, "/api/drive")).body.connected, false);
+  server.close();
+});
