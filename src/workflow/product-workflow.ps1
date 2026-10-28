@@ -48,7 +48,7 @@ function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
     }
     if ($reply -match '(?im)^BRAND:\s*(.+)$' -and $Matches[1].Trim() -notmatch '^(?i)none$') { [void]$Brands.Add($Matches[1].Trim()) }
     $body = New-Review $Item.Url $Item.Handle $request.Output $ItemId $product.Context
-    # Uploads are serialized by the coordinator; local paths never stand in for failed uploads.
+    # Local paths never stand in for failed uploads.
     $row=[pscustomobject][ordered]@{
         product_handle = $Item.Handle
         rating = ''

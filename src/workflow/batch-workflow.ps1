@@ -19,7 +19,15 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
         foreach ($moduleFile in $ModuleFiles) { . $moduleFile }
         $script:Config = [Management.Automation.PSSerializer]::Deserialize($ConfigSnapshot)
         $script:Batch = $Batch
-        Invoke-ProductItem $Item $ItemId $Brands
+        $rows = @(Invoke-ProductItem $Item $ItemId $Brands)
+        # Upload right after this image is done, in parallel with other threads.
+        # A failed upload leaves photo_url empty; the coordinator then retries it.
+        $row = @($rows | Where-Object { $_ -and $_.PSObject.Properties['photo_path'] })[-1]
+        if ($row -and $script:Config.Drive -and $row.photo_url -notmatch '^https://') {
+            try { $row = Complete-DriveDelivery $row }
+            catch { Write-Warning "Upload Drive sẽ thử lại sau: $($_.Exception.Message)" }
+        }
+        $rows
     }
 
     # Lock the queue for the whole run. Finished URLs are checkpointed after every item.

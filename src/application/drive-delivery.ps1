@@ -66,7 +66,7 @@ function Assert-PublicPhotoDelivery($Row) {
     if(-not [Uri]::TryCreate([string]$Row.photo_url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -ne 'https' -or -not $uri.Host){throw '[CAUSE:DRIVE_UPLOAD] Image has no public HTTPS link; CSV not exported.'}
 }
 
-# Called by the coordinator, never by parallel image workers.
+# Called by each image worker right after generation, and again by the coordinator for retries.
 function Complete-DriveDelivery($Row,[int]$Index=0) {
     if(-not $script:Config.Drive){
         if($script:Config.DriveRequired){throw '[CAUSE:DRIVE_CONFIG] Log in to Google Drive before creating images.'}

@@ -49,18 +49,12 @@ function Publish-ImageToDrive([string]$Path, [string]$BatchId, [string]$Product)
     $query = 'batch={0}&name={1}&product={2}' -f [Uri]::EscapeDataString($BatchId), [Uri]::EscapeDataString([IO.Path]::GetFileName($Path)), [Uri]::EscapeDataString($Product)
     $bytes=[IO.File]::ReadAllBytes($Path)
     for($attempt=1;$attempt -le 3;$attempt++){
-        # Avoid concurrent writes to the Worker's shared image index.
-        if($script:DriveUploadCompletedAt){
-            $delay=1200-([DateTime]::UtcNow-$script:DriveUploadCompletedAt).TotalMilliseconds
-            if($delay -gt 0){Start-Sleep -Milliseconds ([int][Math]::Ceiling($delay))}
-        }
         $tag=if($script:DriveUploadIndex){"  (#$script:DriveUploadIndex)"}else{''}
         Write-Host "  [DRIVE-UPLOAD] $attempt/3$tag" -ForegroundColor Cyan
         try{
             $result=Invoke-RestMethod -Uri "$($drive.ApiUrl)/api/images?$query" -Method Post -ContentType 'image/png' -Headers @{'x-admin-key'=$drive.AdminKey} -Body $bytes -TimeoutSec 120
             $uri=$null
             if(-not [Uri]::TryCreate([string]$result.url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -ne 'https' -or -not $uri.Host){throw '[CAUSE:DRIVE_UPLOAD] Máy chủ không trả link ảnh HTTPS công khai.'}
-            $script:DriveUploadCompletedAt=[DateTime]::UtcNow
             return [string]$result.url
         }catch{
             $code=0
