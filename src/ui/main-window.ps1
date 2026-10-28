@@ -23,6 +23,7 @@ $script:proc = $null
 $script:resultFolder = ''
 $script:currentIndex = 0
 $script:itemStages = @{}
+$script:jobRows = @()
 
 $script:activeFeedbackFile = ''
 
@@ -67,10 +68,11 @@ function Update-RunDisplay {
     $time = '{0:00}:{1:00}' -f [int][Math]::Floor($elapsed.TotalMinutes), $elapsed.Seconds
     $activity = @($script:itemStages.GetEnumerator() | Where-Object { $_.Value -notin @('Đã xong', 'Chưa hoàn tất') } | Sort-Object Name | ForEach-Object { "SP $($_.Key): $($_.Value)" })
     if ($script:runStage -eq 'Đang lưu kết quả' -or -not $activity.Count) { $activity = @($script:runStage) }
-    $lblProgress.Text = "$($script:runDone)/$($script:runTotal) sản phẩm đã xong  •  $($activity -join '  |  ')  •  $time"
+    $lblProgress.Text = "$($script:runDone)/$($script:runTotal) ảnh đã xong  •  $($activity -join '  |  ')  •  $time"
     # Show each product's live stage on its own row (rows follow queue order, stage index is 1-based).
+    # Jobs map to queue rows (a link with several images runs several jobs on one row).
     foreach ($entry in $script:itemStages.GetEnumerator()) {
-        $i = [int]$entry.Key - 1
+        $i = if ($script:jobRows.Count -ge [int]$entry.Key) { $script:jobRows[[int]$entry.Key - 1] - 1 } else { [int]$entry.Key - 1 }
         if ($i -ge 0 -and $i -lt $queueEditor.Rows.Count) {
             $status = $queueEditor.Rows[$i].Status
             $done = $entry.Value -eq 'Đã xong'
@@ -86,6 +88,7 @@ function Receive-RunLine([string]$line) {
     switch ($event.Kind) {
         'Start' { $script:runTotal = $event.Total; $bar.Maximum = [Math]::Max(1, $event.Total) }
         'Output' { $script:resultFolder = $event.Path }
+        'Rows' { $script:jobRows = $event.Rows }
         'Item' { $script:currentIndex = $event.Index; $script:itemStages[$event.Index] = $event.Stage }
         'Stage' { $script:itemStages[$event.Index] = $event.Stage; $script:runStage = $event.Stage }
         'Retry' { $script:itemStages[$event.Index] = $event.Stage }
@@ -245,7 +248,7 @@ $timer.Add_Tick({
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
         Load-Urls
         $elapsed = (Get-Date) - $script:runStarted
-        $lblProgress.Text = "Đã xong $($script:runDone)/$($script:runTotal) sản phẩm • $([int][Math]::Floor($elapsed.TotalMinutes)) phút $($elapsed.Seconds) giây"
+        $lblProgress.Text = "Đã xong $($script:runDone)/$($script:runTotal) ảnh • $([int][Math]::Floor($elapsed.TotalMinutes)) phút $($elapsed.Seconds) giây"
         if ($script:runStopped) {
             if ($script:activeFeedbackFile) { Set-ImageFeedbackStatus $script:activeFeedbackFile stopped $script:resultFolder }
             $lblStatus.Text = 'Đã dừng'; $lblStatus.ForeColor = $ui.Muted; Append-Log 'Đã dừng. Các link chưa hoàn tất được giữ lại.'
@@ -282,7 +285,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
     $script:lineBuffers = @{ out = ''; err = '' }
     $script:activeFeedbackFile = $FeedbackFile
     $script:runTotal = if ($FeedbackFile -or $ApprovedImage) { 1 } else { Count-Urls }; $script:runDone = 0; $script:currentIndex = 0
-    $script:itemStages = @{}; $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
+    $script:itemStages = @{}; $script:jobRows = @(); $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
 
     $script:runStarted = Get-Date; $script:resultFolder = ''
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0

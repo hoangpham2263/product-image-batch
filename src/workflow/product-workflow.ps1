@@ -1,6 +1,7 @@
 ﻿# One product: steps 1-5. BatchWorkflow runs steps 6-7 after workers finish.
 function Invoke-ProductItem($Item, [string]$ItemId, $Brands) {
     $script:Config.ActiveProductUrl = $Item.Url
+    $script:Config.ActiveScene = if ($Item.PSObject.Properties['Scene']) { $Item.Scene } else { $null }
     if ($script:Config.Feedback) {
         $feedback = $script:Config.Feedback
         if ($Item.Url -ne $feedback.Record.product_url) { throw 'Feedback URL mismatch.' }

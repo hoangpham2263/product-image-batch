@@ -25,14 +25,21 @@ function Update-ProductQueueRow($Editor,$Row) {
         Set-FeedbackPreview $Row.ProductPreview ''
         if($entry.Count -and $entry[0].product_file){Set-FeedbackPreview $Row.ProductPreview $entry[0].product_file}
     }
-    if($entry.Count -and $entry[0].file -and (Test-Path -LiteralPath $entry[0].file)){
-        try{Set-FeedbackPreview $Row.Preview $entry[0].file;$Row.ImagePath=$entry[0].file;$Row.Status.Text='● Đã có ảnh';$Row.Status.ForeColor=$script:Ui.Ok}catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
+    $scenes=if($entry.Count){@(Get-ManualScenes $entry[0])}else{@()}
+    $index=0
+    if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[Math]::Max(0,[Math]::Min($Row.SceneIndex,$scenes.Count-1));$index=$Row.SceneIndex}
+    if($Row.PSObject.Properties['SceneCount']){$Row.SceneCount.Text=if($scenes.Count){"Ảnh $($index+1)/$($scenes.Count)"}else{''}}
+    if($scenes.Count -and (Test-Path -LiteralPath $scenes[$index].file)){
+        $count=if($scenes.Count -gt 1){"● $($scenes.Count) ảnh"}else{'● Đã có ảnh'}
+        try{Set-FeedbackPreview $Row.Preview $scenes[$index].file;$Row.ImagePath=$scenes[$index].file;$Row.Status.Text=$count;$Row.Status.ForeColor=$script:Ui.Ok}catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
     }else{$Row.Status.Text=if($url){'● Chưa có ảnh'}else{'Chưa có link'};if($url){$Row.Status.ForeColor=$script:Ui.Warn}}
     if($Editor.OnChanged){& $Editor.OnChanged}
 }
 
-function Set-ProductQueueReference($Editor,$Row,[string]$Source) {
-    [void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $Source)
+# Adds one or more scene images to the link; each image produces its own result.
+function Set-ProductQueueReference($Editor,$Row,[string[]]$Source) {
+    foreach($path in @($Source|Where-Object{$_})){[void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path)}
+    if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[int]::MaxValue}
     $Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
 }
 
@@ -53,7 +60,7 @@ function Paste-ProductQueueRow($Editor,$Row) {
             $image=[Windows.Forms.Clipboard]::GetImage();$folder=Join-Path $Editor.Root 'workspace/reference-inputs'
             New-Item -ItemType Directory -Path $folder -Force|Out-Null;$temporary=Join-Path $folder ('clipboard-'+[Guid]::NewGuid().ToString('N')+'.png')
             try{$image.Save($temporary,[Drawing.Imaging.ImageFormat]::Png);Set-ProductQueueReference $Editor $Row $temporary}finally{$image.Dispose();if(Test-Path -LiteralPath $temporary){Remove-Item -LiteralPath $temporary}}
-        }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){$files=[Windows.Forms.Clipboard]::GetFileDropList();if($files.Count){Set-ProductQueueReference $Editor $Row $files[0]}}
+        }elseif([Windows.Forms.Clipboard]::ContainsFileDropList()){$files=[Windows.Forms.Clipboard]::GetFileDropList();if($files.Count){Set-ProductQueueReference $Editor $Row @($files)}}
         elseif([Windows.Forms.Clipboard]::ContainsText()){$value=[Windows.Forms.Clipboard]::GetText();if(($value.Trim() -split '\r?\n').Count -gt 1){throw 'Popup này chỉ nhận một link. Dùng Thêm nhiều link để nhập hàng loạt.'};$Row.Url.Text=$value.Trim()}
         else{throw 'Clipboard chưa có link hoặc ảnh.'}
     }catch{$Row.Status.Text=$_.Exception.Message;$Row.Status.ForeColor=[Drawing.Color]::Firebrick}
@@ -66,24 +73,26 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $picture=New-Object Windows.Forms.PictureBox -Property @{Name='ReferencePreview';Location='20,112';Size='720,310';SizeMode='Zoom';BackColor=[Drawing.Color]::FromArgb(241,244,240);Anchor='Top,Bottom,Left,Right';AllowDrop=$true;TabStop=$true;BorderStyle='FixedSingle'}
     $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh · Ctrl+V';Location='20,436';Size='164,32';Anchor='Bottom,Left'}
     $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh…';Location='196,436';Size='120,32';Anchor='Bottom,Left'}
-    $clear=New-Object Windows.Forms.Button -Property @{Name='ClearReference';Text='Bỏ ảnh';Location='328,436';Size='100,32';Anchor='Bottom,Left'}
-    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null}
-    $card.Controls.AddRange(@($box,$status,$picture,$paste,$choose,$clear))
+    $clear=New-Object Windows.Forms.Button -Property @{Name='ClearReference';Text='Bỏ ảnh này';Location='328,436';Size='110,32';Anchor='Bottom,Left'}
+    $prev=New-Object Windows.Forms.Button -Property @{Name='PreviousScene';Text='‹';Location='450,436';Size='36,32';Anchor='Bottom,Left'}
+    $next=New-Object Windows.Forms.Button -Property @{Name='NextScene';Text='›';Location='490,436';Size='36,32';Anchor='Bottom,Left'}
+    $count=New-Object Windows.Forms.Label -Property @{Name='SceneCount';Location='534,442';Size='110,24';Anchor='Bottom,Left';ForeColor=$script:Ui.Muted}
+    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;SceneCount=$count}
+    $card.Controls.AddRange(@($box,$status,$picture,$paste,$choose,$clear,$prev,$next,$count))
+    $prev.Add_Click({if($row.SceneIndex -gt 0){$row.SceneIndex--};$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure())
+    $next.Add_Click({$row.SceneIndex++;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure())
     $box.Add_TextChanged({Update-ProductQueueRow $Editor $row}.GetNewClosure())
     $key={if($_.Control -and $_.KeyCode -eq [Windows.Forms.Keys]::V){$_.SuppressKeyPress=$true;Paste-ProductQueueRow $Editor $row}}.GetNewClosure()
     $box.Add_KeyDown($key);$picture.Add_KeyDown($key);$paste.Add_Click({Paste-ProductQueueRow $Editor $row}.GetNewClosure())
     $picture.Add_Click({[void]$row.Url.Focus()}.GetNewClosure())
     $picture.Add_Paint({if(-not $picture.Image){[Windows.Forms.TextRenderer]::DrawText($_.Graphics,'Dán / kéo ảnh',$picture.Font,$picture.ClientRectangle,[Drawing.Color]::DimGray,([Windows.Forms.TextFormatFlags]::HorizontalCenter -bor [Windows.Forms.TextFormatFlags]::VerticalCenter))}}.GetNewClosure())
-    $choose.Add_Click({$picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg'};try{$picker.InitialDirectory=Get-SourcePhotoDirectory $Editor.LibraryRoot $Editor.SourceGroup;if($picker.ShowDialog() -eq 'OK'){Set-ProductQueueReference $Editor $row $picker.FileName}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}finally{$picker.Dispose()}}.GetNewClosure())
+    $choose.Add_Click({$picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg';Multiselect=$true};try{$picker.InitialDirectory=Get-SourcePhotoDirectory $Editor.LibraryRoot $Editor.SourceGroup;if($picker.ShowDialog() -eq 'OK'){Set-ProductQueueReference $Editor $row $picker.FileNames}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}finally{$picker.Dispose()}}.GetNewClosure())
     $enter={if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}}
-    $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row $files[0]}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
+    $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
     $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop)
     $clear.Add_Click({
-        $map=Read-ManualReferenceMap $Editor.MapPath
-        foreach($entry in @($map.entries|Where-Object product_url -eq $row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('file');$entry.PSObject.Properties.Remove('sha256')}
-        $map.entries=@($map.entries|Where-Object{$_.file -or $_.product_file})
-        New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
-        Write-FeedbackJson $Editor.MapPath $map;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row
+        Remove-ManualScene $Editor.MapPath $row.Url.Text.Trim() $row.SceneIndex
+        $row.BoundUrl=$null;Update-ProductQueueRow $Editor $row
     }.GetNewClosure())
     $box.Text=$Url;Update-ProductQueueRow $Editor $row
     return $row
@@ -124,7 +133,7 @@ function Add-ProductImageControls($Editor,$Row) {
     $clear.Add_Click({
         $map=Read-ManualReferenceMap $Editor.MapPath
         foreach($entry in @($map.entries|Where-Object product_url -eq $Row.Url.Text.Trim())){$entry.PSObject.Properties.Remove('product_file');$entry.PSObject.Properties.Remove('product_sha256')}
-        $map.entries=@($map.entries|Where-Object{$_.file -or $_.product_file})
+        $map.entries=@($map.entries|Where-Object{@(Get-ManualScenes $_).Count -or $_.product_file})
         Write-FeedbackJson $Editor.MapPath $map;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row
     }.GetNewClosure())
     $Row.Card.Controls.AddRange(@($label,$preview,$choose,$clear,$paste))
@@ -162,7 +171,7 @@ function Add-ProductQueueRow($Editor,[string]$Url='') {
     $hoverOff={if(-not $card.ClientRectangle.Contains($card.PointToClient([Windows.Forms.Cursor]::Position))){$card.BackColor=$script:Ui.Surface;$box.BackColor=$script:Ui.Surface;$card.Invalidate()}}.GetNewClosure()
     foreach($control in @($card,$box,$number,$picture,$status)){$control.Add_MouseEnter($hoverOn);$control.Add_MouseLeave($hoverOff)}
     $picture.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}})
-    $picture.Add_DragDrop({try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row $files[0]}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
+    $picture.Add_DragDrop({try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
     $remove.Add_Click({Remove-ProductQueueRow $Editor $row}.GetNewClosure())
     $box.Text=$Url;Update-ProductQueueRow $Editor $row
     return $row
@@ -177,7 +186,7 @@ function Save-ProductQueueDraft($Editor,$State,$Target=$null) {
     New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null
     Write-FeedbackJson $Editor.MapPath $map
     if($entry.Count){
-        if($entry[0].file){[void](Save-ManualReference $Editor.Root $url $entry[0].file)}
+        foreach($scene in @(Get-ManualScenes $entry[0])){[void](Save-ManualReference $Editor.Root $url $scene.file)}
         if($entry[0].product_file){[void](Save-ManualReference $Editor.Root $url $entry[0].product_file Product)}
     }
     if(-not $Target){$Target=Add-ProductQueueRow $Editor $url}else{$Target.Url.Text=$url}
@@ -243,14 +252,18 @@ function Set-ProductQueueUrls($Editor,[string[]]$Urls) {
 function Save-ProductQueueEditor($Editor,[string]$QueuePath,[switch]$RequireReady) {
     $urls=@(Get-ProductQueueUrls $Editor)
     $duplicates=@($Editor.Rows|ForEach-Object{$_.Url.Text.Trim()}|Where-Object{$_}|Group-Object|Where-Object Count -gt 1)
-    if($duplicates.Count){throw "Link bị trùng ở nhiều dòng: $($duplicates[0].Name). Mỗi link chỉ giữ một ảnh đi kèm."}
+    if($duplicates.Count){throw "Link bị trùng ở nhiều dòng: $($duplicates[0].Name). Mỗi link chỉ nên có một dòng."}
     foreach($url in $urls){$uri=$null;if(-not [Uri]::TryCreate($url,[UriKind]::Absolute,[ref]$uri) -or $uri.Scheme -notin @('http','https')){throw "Link không hợp lệ: $url"}}
     $map=Read-ManualReferenceMap $Editor.MapPath;$map.allow_library_fallback=$Editor.Fallback.Checked
     $map.preferred_source_group=$Editor.SourceGroup
     if($RequireReady -and -not $map.allow_library_fallback){
         foreach($url in $urls){$entry=@($map.entries|Where-Object product_url -eq $url)
-            if(-not $entry.Count -or -not $entry[0].file -or -not (Test-Path -LiteralPath $entry[0].file)){throw "Chưa có ảnh bối cảnh: $url"}
-            if((Get-BytesHash ([IO.File]::ReadAllBytes($entry[0].file))) -ine $entry[0].sha256){throw "Ảnh đã thay đổi; hãy gắn lại cho link: $url"}
+            $scenes=if($entry.Count){@(Get-ManualScenes $entry[0])}else{@()}
+            if(-not $scenes.Count){throw "Chưa có ảnh bối cảnh: $url"}
+            foreach($scene in $scenes){
+                if(-not (Test-Path -LiteralPath $scene.file)){throw "Chưa có ảnh bối cảnh: $url"}
+                if((Get-BytesHash ([IO.File]::ReadAllBytes($scene.file))) -ine $scene.sha256){throw "Ảnh đã thay đổi; hãy gắn lại cho link: $url"}
+            }
         }
     }
     New-Item -ItemType Directory -Path (Split-Path $Editor.MapPath -Parent) -Force|Out-Null

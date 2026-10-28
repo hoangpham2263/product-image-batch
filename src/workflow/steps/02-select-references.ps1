@@ -123,13 +123,14 @@ function Select-ProductReferences([string]$Reference, [string]$Handle, [string]$
     if($script:Config.ManualReferences){
         $map=$script:Config.ManualReferences
         $entry=@($map.entries|Where-Object product_url -eq $script:Config.ActiveProductUrl)
-        if($entry.Count -and $entry[0].file){
-            $photo=$entry[0].file
-            if(-not (Test-Path -LiteralPath $photo) -or (Get-BytesHash ([IO.File]::ReadAllBytes($photo))) -ine $entry[0].sha256){throw 'No suitable real scene reference: user-selected image is missing or changed. Attach it again.'}
+        $scene=if($script:Config.ActiveScene){$script:Config.ActiveScene}elseif($entry.Count){@(Get-ManualScenes $entry[0])[0]}
+        if($scene){
+            $photo=$scene.file
+            if(-not (Test-Path -LiteralPath $photo) -or (Get-BytesHash ([IO.File]::ReadAllBytes($photo))) -ine $scene.sha256){throw 'No suitable real scene reference: user-selected image is missing or changed. Attach it again.'}
             $role=if($Context.presentation -and $Context.presentation -ne 'worn'){'Scene'}else{'Subject'}
             Write-Host '  [MANUAL-REFERENCE] Using the image attached to this product URL; user performs visual review.' -ForegroundColor Cyan
             $verdict='USER_SELECTED'
-            Write-FeedbackJson (Join-Path $script:Batch.Logs "$ItemId-manual-reference.json") ([ordered]@{product_url=$script:Config.ActiveProductUrl;photo=$photo;sha256=$entry[0].sha256;role=$role;verdict=$verdict;origin='user_reference'})
+            Write-FeedbackJson (Join-Path $script:Batch.Logs "$ItemId-manual-reference.json") ([ordered]@{product_url=$script:Config.ActiveProductUrl;photo=$photo;sha256=$scene.sha256;role=$role;verdict=$verdict;origin='user_reference'})
             return $photo
         }
         if(-not $map.allow_library_fallback){throw 'No suitable real scene reference: attach an image for this product URL or explicitly enable library fallback.'}

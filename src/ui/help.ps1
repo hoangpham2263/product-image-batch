@@ -14,7 +14,7 @@
         TabStop = $false
     }
     $content = @'
-1. Thêm sản phẩm: dán link, gắn ảnh bối cảnh (và ảnh sản phẩm nếu web chưa public), bấm Lưu.
+1. Thêm sản phẩm: dán link, gắn một hoặc nhiều ảnh bối cảnh (mỗi ảnh ra một ảnh kết quả), bấm Lưu.
 2. Chọn số ảnh mẫu và số luồng (khuyên dùng 1–2 luồng).
 3. Bấm Bắt đầu. Xong thì bấm Mở kết quả để lấy ảnh và CSV.
 4. Ảnh chưa đúng: bấm Kiểm tra ảnh / Làm lại, ghi chỗ sai rồi Lưu và làm lại.

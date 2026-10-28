@@ -2,13 +2,15 @@
 function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     $line = ($Line -replace '\x1b\[[0-9;]*m', '').Trim()
     if (-not $line) { return }
-    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = '' }
+    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = ''; Rows = @() }
     if ($line -match '\(#(\d+)\)\s*$') { $event.Index = [int]$Matches[1] }
     if ($line -match '^Starting: (\d+) URLs') {
         $event.Kind = 'Start'; $event.Total = [int]$Matches[1]
-        $event.Text = "Bắt đầu $($event.Total) sản phẩm."
+        $event.Text = "Bắt đầu tạo $($event.Total) ảnh."
     } elseif ($line -match '^\[(\d+)/(\d+)\] ') {
         $event.Kind = 'Item'; $event.Index = [int]$Matches[1]; $event.Total = [int]$Matches[2]; $event.Stage = 'Đang chuẩn bị'
+    } elseif ($line -match '^Rows: ([\d,]+)$') {
+        $event.Kind = 'Rows'; $event.Rows = @($Matches[1] -split ',' | ForEach-Object { [int]$_ })
     } elseif ($line -match '^Batch:\s*(.+)') {
         $event.Kind = 'Output'; $event.Path = $Matches[1].Trim()
     } elseif ($line -match '^Missing data: (\d+)') {
@@ -105,7 +107,7 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         }
     } elseif ($line -match '^Done: (\d+)/(\d+) exported in (\d+)s') {
         $event.Kind = 'Summary'; $event.Done = [int]$Matches[1]; $event.Total = [int]$Matches[2]; $event.Seconds = [int]$Matches[3]
-        $event.Text = "Xong $($event.Done)/$($event.Total) sản phẩm."
+        $event.Text = "Xong $($event.Done)/$($event.Total) ảnh."
     } elseif ($line -match '^WARNING: Invalid') {
         $event.Kind = 'Warning'; $event.Text = 'Có link không hợp lệ.'
     } elseif ($line -match '^No product URLs') {

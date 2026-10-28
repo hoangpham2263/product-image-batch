@@ -1,4 +1,13 @@
 ﻿# Queue locking, runspace lifecycle and batch coordination.
+function Expand-SceneJobs($Items) {
+    foreach ($item in $Items) {
+        $entry = @($script:Config.ManualReferences.entries | Where-Object product_url -eq $item.Url)
+        $scenes = if ($entry.Count) { @(Get-ManualScenes $entry[0]) } else { @() }
+        if ($scenes.Count -le 1) { $item; continue }
+        foreach ($scene in $scenes) { [pscustomobject]@{ Url = $item.Url; Handle = $item.Handle; Scene = $scene } }
+    }
+}
+
 function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutDir, [int]$ThrottleLimit, [string[]]$ModuleFiles) {
     $script:Batch = @{}
     # Workers get independent objects; context enrichment must not mutate shared samples.
@@ -19,8 +28,11 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
     $pool = $null
     try {
         $queue = Read-UrlQueue $List
-        $urls = @($queue.Items)
-        if (-not $urls) { Write-Host "No product URLs to process. Add one URL per line to $List"; return }
+        if (-not @($queue.Items).Count) { Write-Host "No product URLs to process. Add one URL per line to $List"; return }
+        # One job per attached scene image, so a link with several images yields several results.
+        $urls = @(Expand-SceneJobs @($queue.Items))
+        $jobsPerUrl = @{}
+        foreach ($item in $urls) { $jobsPerUrl[$item.Url] = 1 + [int]$jobsPerUrl[$item.Url] }
 
         $started = Get-Date
         $script:Batch = New-Batch $OutDir
@@ -31,6 +43,9 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
         Save-Csv $results.ToArray() $script:Batch.Csv
         $threads = [Math]::Min($ThrottleLimit, $urls.Count)
         Write-Host "Starting: $($urls.Count) URLs" -ForegroundColor Cyan
+        $rows = @(); $rowOf = @{}
+        foreach ($item in $urls) { if (-not $rowOf.ContainsKey($item.Url)) { $rowOf[$item.Url] = $rowOf.Count + 1 }; $rows += $rowOf[$item.Url] }
+        Write-Host "Rows: $($rows -join ',')" -ForegroundColor DarkGray
         Write-Host "Batch: $($script:Batch.Dir)" -ForegroundColor DarkGray
         Write-Host "Threads: $threads" -ForegroundColor DarkGray
 
@@ -79,7 +94,9 @@ function Invoke-BatchWorkflow([string]$ProjectRoot, [string]$List, [string]$OutD
                 } finally { $job.PS.Dispose() }
 
                 # Commit outside the per-item catch: stop on storage errors to avoid consuming more input.
-                Save-ProductCheckpoint $results $result $completed $job.Item $List
+                # A link leaves the queue only after every one of its images succeeded.
+                $jobsPerUrl[$job.Item.Url]--
+                Save-ProductCheckpoint $results $result $completed $job.Item $List ($jobsPerUrl[$job.Item.Url] -le 0)
                 Write-Host "  [OK] [ITEM $($job.Index)] $($result.photo_path -replace '/', '\')$(& $tag $job)" -ForegroundColor Green
             }
             if ($pending -gt 0) { Start-Sleep -Milliseconds 400 }
