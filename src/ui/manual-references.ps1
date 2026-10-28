@@ -162,7 +162,10 @@ function Update-ProductDraftRows($State) {
         foreach($b in @($fromComputer,$fromDrive)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
         $fromComputer.Text='+ Máy';$fromDrive.Text='+ Drive'
         $row.Controls.AddRange(@($fromComputer,$fromDrive))
-        $row.Add_Click({$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$this.BackColor=$script:Ui.Hover}.GetNewClosure())
+        # The row under the pointer (or clicked) receives pasted images.
+        $select={$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$row.BackColor=$script:Ui.Hover}.GetNewClosure()
+        $row.Add_Click($select);$row.Add_MouseEnter($select)
+        foreach($child in @($row.Controls)){$child.Add_MouseEnter($select)}
         $row.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
         $row.Add_DragDrop({$State.Active=$index;Add-ProductDraftImages $State (Get-DroppedImages $_.Data) $index}.GetNewClosure())
         $flow.Controls.Add($row)
@@ -170,6 +173,8 @@ function Update-ProductDraftRows($State) {
     $addRow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
     $addRow.Controls.Add((& $newAdd {Add-ProductDraftImages $State (Select-ImageFiles $true) -1}.GetNewClosure()))
     $addRow.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='Thêm ảnh gốc';Size='160,56';TextAlign='MiddleLeft';ForeColor=$ui.Muted}))
+    $toProduct={$State.Active=-1;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White}}.GetNewClosure()
+    $addRow.Add_MouseEnter($toProduct);foreach($child in @($addRow.Controls)){$child.Add_MouseEnter($toProduct)}
     $addRow.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
     $addRow.Add_DragDrop({Add-ProductDraftImages $State (Get-DroppedImages $_.Data) -1}.GetNewClosure())
     $flow.Controls.Add($addRow)
@@ -258,33 +263,34 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     return $dialog
 }
 
-# "Từ kho Drive": a grid of one Drive group's images; click to tick, Thêm downloads the ticked ones.
+# "Từ kho Drive": the group's images already on this machine; Đồng bộ brings it up to date with Drive
+# (new or changed files only, deleted ones removed), so picking never downloads or duplicates.
 function Show-DriveSourcePicker($Owner,$Editor) {
-    $drive=Get-DriveConfig (Join-Path $Editor.ProjectRoot 'workspace')
-    if(-not $drive){[void][Windows.Forms.MessageBox]::Show($Owner,'Đăng nhập Google Drive trước (nút Google Drive).','Kho Drive');return @()}
     $ui=$script:Ui
+    $libraryRoot=Join-Path $Editor.ProjectRoot 'data/source-photos'
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Chọn ảnh review từ kho Drive';ClientSize='760,540';FormBorderStyle='FixedDialog';MinimizeBox=$false;MaximizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,16';Size='220,28';DropDownStyle='DropDownList'}
-    $count=New-Object Windows.Forms.Label -Property @{Location='252,20';Size='300,24';ForeColor=$ui.Muted}
-    $grid=New-Object Windows.Forms.FlowLayoutPanel -Property @{Location='20,52';Size='720,424';AutoScroll=$true;BorderStyle='FixedSingle';BackColor=[Drawing.Color]::White;Padding='6,6,6,6'}
+    $sync=New-Object Windows.Forms.Button -Property @{Text='Đồng bộ';Location='250,14';Size='100,30'}
+    $count=New-Object Windows.Forms.Label -Property @{Location='362,20';Size='380,24';ForeColor=$ui.Muted;AutoEllipsis=$true}
+    $grid=New-Object Windows.Forms.FlowLayoutPanel -Property @{Location='20,52';Size='720,420';AutoScroll=$true;BorderStyle='FixedSingle';BackColor=[Drawing.Color]::White;Padding='6,6,6,6'}
+    $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='20,480';Size='400,8';Style='Marquee';MarqueeAnimationSpeed=30;Visible=$false}
     $add=New-Object Windows.Forms.Button -Property @{Text='Thêm';Location='536,490';Size='110,32';Enabled=$false}
     $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='656,490';Size='84,32';DialogResult='Cancel'}
-    Set-FlatButton $add -Primary;Set-FlatButton $cancel
-    $dialog.Controls.AddRange(@($groups,$count,$grid,$add,$cancel));$dialog.CancelButton=$cancel
-    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@()}
-    $refreshCount={$count.Text="Đã chọn $($state.Picked.Count) / $(@($state.Files).Count) ảnh";$add.Enabled=$state.Picked.Count -gt 0}.GetNewClosure()
-    # Thumbnails load in the background, 120 at a time.
+    Set-FlatButton $add -Primary;Set-FlatButton $sync;Set-FlatButton $cancel
+    $dialog.Controls.AddRange(@($groups,$sync,$count,$grid,$bar,$add,$cancel));$dialog.CancelButton=$cancel
+    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null}
+    $refreshCount={$count.Text=if(@($state.Files).Count){"Đã chọn $($state.Picked.Count) / $(@($state.Files).Count) ảnh"}else{'Nhóm chưa có trên máy. Bấm Đồng bộ để tải đủ ảnh.'};$add.Enabled=$state.Picked.Count -gt 0}.GetNewClosure()
     $showMore={
         foreach($old in @($grid.Controls|Where-Object Name -eq 'More')){$grid.Controls.Remove($old);$old.Dispose()}
         $end=[Math]::Min(@($state.Files).Count,$state.Shown+120)
         for($i=$state.Shown;$i -lt $end;$i++){
-            $file=$state.Files[$i]
-            $tile=New-Object Windows.Forms.PictureBox -Property @{Size='100,100';SizeMode='Zoom';Margin='3,3,3,3';Padding='3,3,3,3';BackColor=[Drawing.Color]::WhiteSmoke;Cursor='Hand';Tag=$file}
-            $tile.LoadAsync([string]$file.url)
+            $path=$state.Files[$i]
+            $tile=New-Object Windows.Forms.PictureBox -Property @{Size='100,100';SizeMode='Zoom';Margin='3,3,3,3';Padding='3,3,3,3';BackColor=[Drawing.Color]::WhiteSmoke;Cursor='Hand';Tag=$path}
+            try{$tile.Image=New-ThumbnailImage $path 94}catch{}
             $tile.Add_Click({
-                $f=$this.Tag
-                if($state.Picked.Contains($f.id)){$state.Picked.Remove($f.id);$this.BackColor=[Drawing.Color]::WhiteSmoke}
-                else{$state.Picked[$f.id]=$f;$this.BackColor=$script:Ui.Accent}
+                $p=$this.Tag
+                if($state.Picked.Contains($p)){$state.Picked.Remove($p);$this.BackColor=[Drawing.Color]::WhiteSmoke}
+                else{$state.Picked[$p]=$true;$this.BackColor=$script:Ui.Accent}
                 & $refreshCount
             }.GetNewClosure())
             $grid.Controls.Add($tile)
@@ -293,26 +299,40 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if($end -lt @($state.Files).Count){$more=New-Object Windows.Forms.Button -Property @{Name='More';Text='Xem thêm';Size='100,100';Margin='3,3,3,3'};Set-FlatButton $more;$more.Add_Click({& $showMore}.GetNewClosure());$grid.Controls.Add($more)}
     }
     $load={
-        $dialog.Cursor='WaitCursor'
         foreach($old in @($grid.Controls)){if($old -is [Windows.Forms.PictureBox] -and $old.Image){$old.Image.Dispose()};$old.Dispose()}
         $grid.Controls.Clear();$state.Picked.Clear();$state.Shown=0
-        try{$state.Files=@(Get-RemoteSourceFiles $drive ([string]$groups.SelectedItem))}catch{$state.Files=@();$count.Text=$_.Exception.Message}
+        $state.Files=@(Get-LocalSourceFiles $libraryRoot ([string]$groups.SelectedItem))
         & $showMore;& $refreshCount
-        $dialog.Cursor='Default'
     }.GetNewClosure()
     $showMore=$showMore.GetNewClosure()
-    $groups.Add_SelectedIndexChanged($load)
-    $add.Add_Click({
-        $dialog.Cursor='WaitCursor';$add.Enabled=$false;$count.Text='Đang tải ảnh đã chọn…';$dialog.Refresh()
-        try{$state.Paths=@(Save-RemoteSourceImages @($state.Picked.Values) (Join-Path $Editor.ProjectRoot 'workspace/temp/drive-picks'));$Editor.SourceGroup=[string]$groups.SelectedItem;$dialog.DialogResult='OK';$dialog.Close()}
-        catch{$count.Text=$_.Exception.Message;$add.Enabled=$true}
-        finally{$dialog.Cursor='Default'}
+    # Sync runs in its own process so the bar keeps moving.
+    $out=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.out";$err=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.err"
+    $timer=New-Object Windows.Forms.Timer -Property @{Interval=400}
+    $timer.Add_Tick({
+        if(-not $state.Proc.HasExited){return}
+        $timer.Stop();$state.Proc.WaitForExit();$code=$state.Proc.ExitCode;$state.Proc.Dispose();$state.Proc=$null
+        $bar.Visible=$false;$sync.Enabled=$true;$groups.Enabled=$true
+        & $load
+        $text=try{(Get-Content -LiteralPath $out -Raw -ErrorAction Stop).Trim()}catch{''}
+        if($code -eq 0 -and $text -match '^(\d+)\|(\d+)\|(\d+)$'){$count.Text="Đã đồng bộ: $($Matches[1]) ảnh (tải mới $($Matches[2]), xoá $($Matches[3]))."}
+        else{$count.Text='Chưa đồng bộ được. Kiểm tra mạng và mật khẩu app rồi thử lại.'}
     }.GetNewClosure())
+    $sync.Add_Click({
+        if(-not (Get-DriveConfig (Join-Path $Editor.ProjectRoot 'workspace'))){$count.Text='Đăng nhập mật khẩu app trước (Kiểm tra cấu hình).';return}
+        $sync.Enabled=$false;$groups.Enabled=$false;$bar.Visible=$true;$count.Text="Đang đồng bộ nhóm $($groups.SelectedItem)…"
+        $state.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.ProjectRoot 'src\sync-source.ps1')+'"'),'-Group',('"'+[string]$groups.SelectedItem+'"'))
+        [void]$state.Proc.Handle
+        $timer.Start()
+    }.GetNewClosure())
+    $groups.Add_SelectedIndexChanged($load)
+    $add.Add_Click({$state.Paths=@($state.Picked.Keys);$Editor.SourceGroup=[string]$groups.SelectedItem;$dialog.DialogResult='OK';$dialog.Close()}.GetNewClosure())
+    $dialog.Add_FormClosing({if($state.Proc){$_.Cancel=$true}}.GetNewClosure())
     $dialog.Add_Shown({
-        try{foreach($g in @(Get-RemoteSourceGroups $drive)){[void]$groups.Items.Add($g)}}catch{$count.Text=$_.Exception.Message}
+        foreach($g in @(Get-SourceGroupChoices $Editor.ProjectRoot $libraryRoot)){[void]$groups.Items.Add($g)}
         if($groups.Items.Contains($Editor.SourceGroup)){$groups.SelectedItem=$Editor.SourceGroup}elseif($groups.Items.Count){$groups.SelectedIndex=0}
     }.GetNewClosure())
-    try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}finally{foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose()}
+    try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
+    finally{$timer.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
 }
 
 

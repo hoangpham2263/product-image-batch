@@ -55,7 +55,9 @@ function Save-Urls([switch]$RequireReady) {
     Save-ProductQueueEditor $queueEditor $urlFile -RequireReady:$RequireReady
 }
 function Load-Urls {
-    if (Test-Path $urlFile) { Set-ProductQueueUrls $queueEditor @(Get-Content $urlFile -Encoding UTF8 | Where-Object { $_.Trim() }) }
+    $script:loadingUrls = $true
+    try { if (Test-Path $urlFile) { Set-ProductQueueUrls $queueEditor @(Get-Content $urlFile -Encoding UTF8 | Where-Object { $_.Trim() }) } }
+    finally { $script:loadingUrls = $false }
     Update-Status
 }
 # Only explicit user messages are written here. Pipeline output goes through Receive-RunLine.
@@ -123,13 +125,12 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
     return $card
 }
 $header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
-$title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,20';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
-$btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,18';Size='100,28';Anchor='Top,Right'}
+$title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,19';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
+$btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
-$lblVersion=New-Object Windows.Forms.Label -Property @{Text=$appVersion;Location=(New-Object Drawing.Point((20+$title.PreferredWidth+6),27));AutoSize=$true;ForeColor=$muted}
-$header.Controls.AddRange(@($title,$lblVersion,$btnUpdate))
+$header.Controls.AddRange(@($title,$btnUpdate))
 
-$cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh đi kèm' 20 78 820 344 'Top,Left,Right'
+$cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh' 20 78 820 344 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root
 $queueEditor.Panel.Location=[Drawing.Point]::new(14,36)
 $queueEditor.Panel.Size=[Drawing.Size]::new(792,296)
@@ -138,21 +139,19 @@ $queueEditor.Flow.BackColor=$ui.Surface;$queueEditor.Flow.BorderStyle='FixedSing
 $cardList.Controls.Add($queueEditor.Panel)
 
 $cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
-$btnSave=New-Object Windows.Forms.Button -Property @{Text='Lưu danh sách';Location='14,36';Size='196,32'}
+# In the order they are used: review the results, open them, then setup and support.
+$btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất file';Location='14,36';Size='196,32'}
 $btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,73';Size='196,32'}
-$btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất file';Location='14,110';Size='196,32'}
-$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra ChatGPT';Location='14,147';Size='196,32'}
-$btnDrive=New-Object Windows.Forms.Button -Property @{Text='Google Drive';Location='14,184';Size='196,32'}
-foreach ($b in @($btnSave,$btnOut,$btnReview,$btnSetup,$btnDrive)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnSave,$btnOut,$btnReview,$btnSetup,$btnDrive))
+$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra cấu hình';Location='14,110';Size='196,32'}
+$btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi log';Location='14,147';Size='196,32'}
+foreach ($b in @($btnReview,$btnOut,$btnSetup,$btnLogs)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnSetup,$btnLogs))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
 function Update-ReviewButton {
     $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
     if ($pending -gt 0) { $btnReview.Text = "Duyệt & xuất file ($pending)"; Set-FlatButton $btnReview -Primary }
     else { $btnReview.Text = 'Duyệt & xuất file'; Set-FlatButton $btnReview }
 }
-function Update-DriveButton { $btnDrive.Text = if (Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json')) { 'Google Drive ✓' } else { 'Google Drive' } }
-Update-DriveButton
 
 $cardRun=New-Card 'CardRun' '' 20 434 1060 62 'Top,Left,Right'
 $btnRun=New-Object Windows.Forms.Button -Property @{Text='Bắt đầu';Location='14,11';Size='160,40'}
@@ -173,7 +172,6 @@ $cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog))
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 $lblStatus.Anchor='Top,Left'
 $lblThr.Height=$numThr.Height
-$btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
     if (Show-UpdateDialog $form $root $workspace.Logs $appVersion) {
@@ -183,7 +181,6 @@ $btnUpdate.Add_Click({
 })
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 
-$btnSave.Add_Click({try{Save-Urls;Update-Status;Append-Log 'Đã lưu danh sách link và ảnh đi kèm.'}catch{Append-Log $_.Exception.Message}})
 $btnOut.Add_Click({
     $target = if ($script:resultFolder -and (Test-Path -LiteralPath $script:resultFolder)) { $script:resultFolder } else { $workspace.Output }
     Open-Path $target
@@ -210,10 +207,11 @@ $btnSetup.Add_Click({
         # Installs whatever is missing (Node.js, Codex, sign-in, browser bridge).
         'install' { Start-SetupStep 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-install.ps1') + '"')) }
         'login' { Start-SetupStep 'cmd.exe' @('/c', 'codex login') }
-        'drive' { [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton; $btnSetup.PerformClick() }
+        'drive' { [void](Show-DriveLogin $form $workspace.Root); $btnSetup.PerformClick() }
     }
 })
-$queueEditor.OnChanged={ Update-Status }
+# The list saves itself on every change; Bắt đầu checks that every link is ready.
+$queueEditor.OnChanged={ Update-Status; if (-not $script:loadingUrls) { try { Save-Urls } catch { Write-Verbose $_ } } }
 
 $logFile = Join-Path $workspace.Logs "image-batch-gui-$PID.log"
 $errFile = Join-Path $workspace.Logs "image-batch-gui-$PID.err.log"
@@ -254,10 +252,12 @@ $timer.Add_Tick({
         }
         $timer.Stop(); $animTimer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
-        $btnSave.Enabled = $true; $btnSetup.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numThr.Enabled = $true
-        $btnDrive.Enabled = $true; $btnReview.Enabled = $true
+        $btnSetup.Enabled = $true; $btnLogs.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numThr.Enabled = $true
+        $btnReview.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
+        # Finished links leave the queue during the run; their images go too, so the list starts clean.
+        Remove-ManualEntriesExcept $queueEditor.MapPath @(if (Test-Path $urlFile) { Get-Content $urlFile -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } })
         Load-Urls
         $elapsed = (Get-Date) - $script:runStarted
         $lblProgress.Text = "Đã xong $($script:runDone)/$($script:runTotal) ảnh • $([int][Math]::Floor($elapsed.TotalMinutes)) phút $($elapsed.Seconds) giây"
@@ -311,8 +311,8 @@ function Start-GuiBatch {
         return
     }
     $btnRun.Enabled = $false; $btnStop.Enabled = $true
-    $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numThr.Enabled = $false
-    $btnDrive.Enabled = $false; $btnReview.Enabled = $false
+    $btnSetup.Enabled = $false; $btnLogs.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numThr.Enabled = $false
+    $btnReview.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay
     $timer.Start(); $animTimer.Start()

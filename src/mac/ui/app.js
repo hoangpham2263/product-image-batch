@@ -166,16 +166,14 @@ function buildMain() {
   const c = ui.client;
   // Header (Dock Top, 64).
   const header = at(el("div", "panel"), 0, 0, null, 64, { right: 0 });
-  header.append(at(label("Product Review Batch", ""), 20, 20, null, 24));
+  header.append(at(label("Product Review Batch", ""), 20, 19, null, 26));
   header.firstChild.style.fontSize = "17.33px";
-  ui.version = at(label("", "muted"), 20, 26, null, 20);
-  header.append(ui.version);
-  ui.btnUpdate = at(button("Cập nhật"), null, 18, 100, 28, { right: 24, left: false });
+  ui.btnUpdate = at(button("Cập nhật"), null, 16, 100, 32, { right: 24, left: false });
   header.append(ui.btnUpdate);
 
-  // Link sản phẩm & ảnh đi kèm (20,78 820x344, Top/Left/Right).
+  // Link sản phẩm & ảnh (20,78 820x344, Top/Left/Right).
   const cardList = at(el("div", "card"), 20, 78, null, 344, { right: 264 });
-  cardList.append(at(label("Link sản phẩm & ảnh đi kèm"), 14, 10, null, 20));
+  cardList.append(at(label("Link sản phẩm & ảnh"), 14, 10, null, 20));
   const editor = at(el("div", "panel"), 14, 36, null, 296, { right: 14 });
   ui.btnAdd = at(button("+ Thêm sản phẩm", true), 0, 0, 160, 34);
   ui.btnBulk = at(button("Thêm nhiều link"), 172, 0, 150, 34);
@@ -187,7 +185,8 @@ function buildMain() {
   // Thao tác (856,78 224x344, Top/Right).
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
-  const names = [["btnSave", "Lưu danh sách"], ["btnOut", "Mở kết quả"], ["btnReview", "Duyệt & xuất file"], ["btnSetup", "Kiểm tra ChatGPT"], ["btnDrive", "Google Drive"]];
+  // In the order they are used: review the results, open them, then setup and support.
+  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi log"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -255,7 +254,7 @@ function renderRows() {
     url.style.lineHeight = "20px";
     card.append(at(label("#" + (i + 1), "muted"), 10, 19, 40, 22), url, status, pic, open, remove);
     card.onclick = (e) => { if (!run.active && e.target !== remove) showProductDialog(row); };
-    remove.onclick = (e) => { e.stopPropagation(); if (run.active) return; state.rows.splice(state.rows.indexOf(row), 1); renderRows(); updateStatus(); };
+    remove.onclick = (e) => { e.stopPropagation(); if (run.active) return; state.rows.splice(state.rows.indexOf(row), 1); renderRows(); updateStatus(); persist(); };
     // Drop images straight onto the row thumbnail.
     pic.addEventListener("dragover", (e) => e.preventDefault());
     pic.addEventListener("drop", async (e) => {
@@ -277,13 +276,12 @@ async function loadState() {
   Object.assign(state, await api("state"));
   state.rows = list(state.rows).map((info) => ({ url: info.url, info: normInfo(info) }));
   document.title = ("Product Review Batch " + (state.version || "")).trim();
-  ui.version.textContent = state.version || "";
-  ui.version.style.left = 20 + ui.client.querySelector(".panel .label").offsetWidth + 6 + "px";
-  ui.btnDrive.textContent = state.drive ? "Google Drive ✓" : "Google Drive";
   renderRows();
   updateStatus();
 }
 
+// The list saves itself on every change; Bắt đầu checks that every link is ready.
+function persist() { saveQueue(false).catch(() => {}); }
 async function saveQueue(requireReady = false) {
   return api("queueSave", { urls: state.rows.map((r) => r.url), requireReady });
 }
@@ -307,32 +305,35 @@ function showImagePreview(path, title) {
   close.focus();
 }
 
-// "Từ kho Drive": one Drive group's images; click to tick, Thêm downloads the ticked ones (paths for the draft).
+// "Từ kho Drive": the group's images already on this Mac; Đồng bộ brings it up to date with Drive
+// (new or changed files only, deleted ones removed), so picking never downloads or duplicates.
 function showDrivePicker() {
   return new Promise((resolve) => {
-    if (!state.drive) { messageBox("Đăng nhập Google Drive trước (nút Google Drive).", "Kho Drive"); return resolve([]); }
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     const groups = at(combo(), 20, 16, 220, 24);
-    const count = at(label("", "muted"), 252, 18, 300, 24);
-    const grid = at(el("div", "flow"), 20, 52, 720, 424);
+    const sync = at(button("Đồng bộ"), 250, 14, 100, 28);
+    const count = at(label("", "muted"), 362, 18, 380, 24);
+    const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
+    bar.append(el("span"));
+    bar.hidden = true;
+    const grid = at(el("div", "flow"), 20, 52, 720, 420);
     Object.assign(grid.style, { background: "#fff", border: "1px solid #000", display: "flex", flexWrap: "wrap", alignContent: "flex-start", gap: "6px", padding: "6px" });
     const add = at(button("Thêm", true), 536, 490, 110, 32), cancel = at(button("Hủy"), 656, 490, 84, 32);
     add.disabled = true;
-    view.body.append(groups, count, grid, add, cancel);
+    view.body.append(groups, sync, count, grid, bar, add, cancel);
     let files = [], shown = 0, result = [];
-    const picked = new Map();
+    const picked = new Set();
     view.onClose = () => resolve(result);
     cancel.onclick = view.close;
-    const refreshCount = () => { count.textContent = `Đã chọn ${picked.size} / ${files.length} ảnh`; add.disabled = !picked.size; };
+    const refreshCount = () => { count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh` : "Nhóm chưa có trên máy. Bấm Đồng bộ để tải đủ ảnh."; add.disabled = !picked.size; };
     const showMore = () => {
       grid.querySelector(".more")?.remove();
-      for (const f of files.slice(shown, shown + 120)) {
+      for (const path of files.slice(shown, shown + 120)) {
         const tile = el("div", "", { style: { width: "100px", height: "100px", padding: "3px", background: "var(--smoke)", cursor: "pointer", flex: "none" } });
-        const img = el("img", "", { loading: "lazy", src: f.url, style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } });
-        tile.append(img);
+        tile.append(el("img", "", { loading: "lazy", src: `/file?path=${encodeURIComponent(path)}`, style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } }));
         tile.onclick = () => {
-          if (picked.has(f.id)) { picked.delete(f.id); tile.style.background = "var(--smoke)"; }
-          else { picked.set(f.id, f); tile.style.background = "var(--accent)"; }
+          if (picked.has(path)) { picked.delete(path); tile.style.background = "var(--smoke)"; }
+          else { picked.add(path); tile.style.background = "var(--accent)"; }
           refreshCount();
         };
         grid.append(tile);
@@ -346,19 +347,21 @@ function showDrivePicker() {
     };
     const load = async () => {
       grid.replaceChildren(); picked.clear(); shown = 0;
-      count.textContent = "Đang tải…";
-      try { files = list(await api("driveSourceFiles", { group: groups.value })); } catch (e) { files = []; count.textContent = e.message; return; }
+      files = list(await api("sourceLocalFiles", { group: groups.value }).catch(() => []));
       showMore(); refreshCount();
     };
-    groups.onchange = load;
-    add.onclick = async () => {
-      add.disabled = true; count.textContent = "Đang tải ảnh đã chọn…";
+    sync.onclick = async () => {
+      if (!state.drive) return messageBox("Đăng nhập mật khẩu app trước (Kiểm tra cấu hình).", "Kho Drive");
+      sync.disabled = true; groups.disabled = true; bar.hidden = false; count.textContent = `Đang đồng bộ nhóm ${groups.value}…`;
       try {
-        result = list(await api("driveSourceSave", { files: [...picked.values()].map((f) => ({ url: f.url, name: f.name })) }));
-        state.group = groups.value;
-        view.close();
-      } catch (e) { count.textContent = e.message; add.disabled = false; }
+        const r = await api("sourceSync", { group: groups.value });
+        await load();
+        count.textContent = `Đã đồng bộ: ${r.Total} ảnh (tải mới ${r.Downloaded}, xoá ${r.Removed}).`;
+      } catch (e) { count.textContent = e.message; }
+      finally { sync.disabled = false; groups.disabled = false; bar.hidden = true; }
     };
+    groups.onchange = load;
+    add.onclick = () => { result = [...picked]; state.group = groups.value; view.close(); };
     api("groups", { local: false }).then((g) => {
       g = list(g);
       groups.setItems(g);
@@ -442,13 +445,17 @@ async function showProductDialog(target = null) {
         await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
       }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await Promise.all(imageFiles(await pickFiles("image/png,image/jpeg", true)).map(upload)), i); }),
         addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }));
-      row.addEventListener("click", () => { if (active !== i) { active = i; for (const [n, r] of [...rowsBox.children].entries()) r.style.background = n === i ? "var(--hover)" : ""; } });
+      // The row under the pointer receives pasted images.
+      const select = () => { if (active !== i) { active = i; for (const [n, r] of [...rowsBox.children].entries()) r.style.background = n === i ? "var(--hover)" : ""; } };
+      row.addEventListener("click", select);
+      row.addEventListener("mouseenter", select);
       row.addEventListener("dragover", (e) => e.preventDefault());
       row.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); active = i; attach(e.dataTransfer.files, i); });
       return row;
     });
     const addRow = el("div", "", { style: { display: "flex", alignItems: "center", gap: "8px", padding: "6px" } });
     addRow.append(addTile("+", async () => attach(await pickFiles("image/png,image/jpeg", true), -1)), el("div", "label muted", { text: "Thêm ảnh gốc", style: { position: "static" } }));
+    addRow.addEventListener("mouseenter", () => { active = -1; for (const r of rowsBox.children) r.style.background = ""; });
     addRow.addEventListener("dragover", (e) => e.preventDefault());
     addRow.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); attach(e.dataTransfer.files, -1); });
     rowsBox.replaceChildren(...rows, addRow);
@@ -480,6 +487,7 @@ async function showProductDialog(target = null) {
       view.close();
       renderRows();
       updateStatus();
+      persist();
       if (!target) ui.flow.scrollTop = ui.flow.scrollHeight;
     } catch (e) { fail(e); }
   };
@@ -513,6 +521,7 @@ function showBulkDialog() {
       added.forEach((r, i) => { r.info = normInfo(infos[i]); });
       view.close();
       renderRows();
+      persist();
       updateStatus();
     } catch (e) { status.textContent = e.message; }
   };
@@ -573,9 +582,16 @@ async function showReviewDialog() {
     refresh();
   };
   batches.onchange = load;
+  // Export shows its progress on the button itself; no extra message windows.
   exportBtn.onclick = async () => {
-    try { const path = await api("reviewExport", { batch }); await messageBox(`Đã xuất: ${path}`, "Xong"); api("revealPath", { path }); }
-    catch (e) { messageBox(e.message, "Chưa xuất được"); }
+    exportBtn.disabled = true; exportBtn.textContent = "Đang xuất…";
+    try {
+      await api("reviewExport", { batch });
+      exportBtn.textContent = "✓ Đã xuất";
+      const option = batches.selectedOptions[0];
+      if (option && !option.textContent.endsWith("đã xuất")) option.textContent += "  • đã xuất";
+      setTimeout(() => { exportBtn.textContent = "Xuất file Loox"; refresh(); }, 2000);
+    } catch (e) { status.textContent = e.message; exportBtn.textContent = "Xuất file Loox"; refresh(); }
   };
   const all = list(await api("reviewBatches"));
   batches.setItems(all.map((x) => x.path), all.map((x) => x.label));
@@ -719,14 +735,14 @@ function showDriveDialog() {
     pass.onkeydown = (e) => { if (e.key === "Enter") login(); };
     pass.focus();
   }
-  return new Promise((resolve) => { view.onClose = async () => { Object.assign(state, { drive: (await api("state")).drive }); ui.btnDrive.textContent = state.drive ? "Google Drive ✓" : "Google Drive"; resolve(); }; });
+  return new Promise((resolve) => { view.onClose = async () => { Object.assign(state, { drive: (await api("state")).drive }); resolve(); }; });
 }
 
 // ----- run (Start-GuiBatch, timer ticks) -----
 function setRunning(on) {
   run.active = on;
   ui.btnRun.disabled = on; ui.btnStop.disabled = !on;
-  for (const b of [ui.btnSave, ui.btnSetup, ui.btnDrive, ui.btnReview, ui.btnAdd, ui.btnBulk]) b.disabled = on;
+  for (const b of [ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnAdd, ui.btnBulk]) b.disabled = on;
   ui.numThr.enabled = !on;
   ui.flow.style.pointerEvents = on ? "none" : "";
 }
@@ -799,6 +815,8 @@ async function finish(r) {
   setRunning(false);
   setBar(run.done, Math.max(1, run.total));
   for (const row of state.rows) row.stage = null;
+  // Finished links leave the queue during the run; their images go too, so the list starts clean.
+  await api("pruneMap").catch(() => {});
   await loadState();
   const elapsed = Math.floor((Date.now() - run.started) / 1000);
   ui.lblProgress.textContent = `Đã xong ${run.done}/${run.total} ảnh • ${Math.floor(elapsed / 60)} phút ${elapsed % 60} giây`;
@@ -819,8 +837,6 @@ setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) 
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
-  ui.btnDrive.onclick = showDriveDialog;
-  ui.btnSave.onclick = async () => { try { await saveQueue(); updateStatus(); appendLog("Đã lưu danh sách link và ảnh đi kèm."); } catch (e) { appendLog(e.message); } };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
   ui.btnSetup.onclick = showSetupDialog;

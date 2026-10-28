@@ -97,10 +97,20 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
     $batches.Add_SelectedIndexChanged($load)
     $flow.Add_ClientSizeChanged({foreach($row in @($flow.Controls)){$row.Width=[Math]::Max(840,$flow.ClientSize.Width-28)}}.GetNewClosure())
     $dialog.Add_Disposed({Clear-BatchReviewRows $flow}.GetNewClosure())
+    # Export shows its progress on the button itself; no extra message windows.
+    $exportReset=New-Object Windows.Forms.Timer -Property @{Interval=2000}
+    $exportReset.Add_Tick({$exportReset.Stop();$export.Text='Xuất file Loox';& $view.Refresh}.GetNewClosure())
     $export.Add_Click({
-        try{$path=Export-ReviewedCsv $view.BatchDir;[void][Windows.Forms.MessageBox]::Show($dialog,"Đã xuất: $path",'Xong');Start-Process explorer.exe -ArgumentList ('/select,"'+$path+'"')}
-        catch{[void][Windows.Forms.MessageBox]::Show($dialog,$_.Exception.Message,'Chưa xuất được')}
+        $export.Enabled=$false;$export.Text='Đang xuất…';$dialog.Cursor='WaitCursor';$dialog.Refresh()
+        try{
+            [void](Export-ReviewedCsv $view.BatchDir)
+            $export.Text='✓ Đã xuất'
+            $item=$batches.SelectedItem;if($item -and $item.Label -notlike '*đã xuất'){$item.Label+='  • đã xuất';$batches.Items[$batches.SelectedIndex]=$item}
+            $exportReset.Start()
+        }catch{$status.Text=$_.Exception.Message;$export.Text='Xuất file Loox';& $view.Refresh}
+        finally{$dialog.Cursor='Default'}
     }.GetNewClosure())
+    $dialog.Add_Disposed({$exportReset.Dispose()}.GetNewClosure())
     if(Test-Path -LiteralPath $OutputRoot){
         foreach($dir in @(Get-ChildItem -LiteralPath $OutputRoot -Directory|Where-Object{Test-Path -LiteralPath (Join-Path $_.FullName 'results.json')}|Sort-Object Name -Descending|Select-Object -First 30)){
             $label=$dir.Name+$(if(Test-Path -LiteralPath (Join-Path $dir.FullName 'loox_import.csv')){'  • đã xuất'}else{''})

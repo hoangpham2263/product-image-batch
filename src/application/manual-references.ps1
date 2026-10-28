@@ -136,3 +136,14 @@ function Copy-ManualEntry([string]$ProjectRoot,[string]$Url,$Entry) {
         foreach($scene in @($product.scenes)){[void](Save-ManualReference $ProjectRoot $Url $scene.file Scene $target)}
     }
 }
+
+# After a run the queue keeps only unfinished links; drop the images of every link no longer queued
+# so the list starts clean.
+function Remove-ManualEntriesExcept([string]$MapPath,[string[]]$Urls) {
+    if(-not (Test-Path -LiteralPath $MapPath)){return}
+    $map=Read-ManualReferenceMap $MapPath
+    $keep=@($map.entries|Where-Object{$_.product_url -in @($Urls)})
+    if($keep.Count -eq @($map.entries).Count){return}
+    $map.entries=$keep
+    Write-FeedbackJson $MapPath $map
+}

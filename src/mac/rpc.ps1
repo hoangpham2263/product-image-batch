@@ -45,12 +45,12 @@ function Invoke-Rpc([string]$Cmd, $A) {
         }
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root $libraryRoot }) }
-        'driveSourceFiles' {
+        'sourceLocalFiles' { return @(Get-LocalSourceFiles $libraryRoot ([string]$A.group)) }
+        'sourceSync' {
             $drive = Get-DriveConfig $workspace.Root
             if (-not $drive) { throw 'Đăng nhập Google Drive trước.' }
-            return @(Get-RemoteSourceFiles $drive ([string]$A.group) | ForEach-Object { [pscustomobject]@{ id = $_.id; name = $_.name; url = $_.url } })
+            return (Sync-SourceGroup $drive $libraryRoot ([string]$A.group))
         }
-        'driveSourceSave' { return @(Save-RemoteSourceImages @($A.files) (Join-Path $workspace.Root 'temp/drive-picks')) }
         'sourceDir' { return (Get-SourcePhotoDirectory $libraryRoot ([string]$A.group)) }
         'draftOpen' {
             $temp = Join-Path ([IO.Path]::GetTempPath()) ('product-reference-' + [Guid]::NewGuid().ToString('N'))
@@ -111,6 +111,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             [IO.File]::WriteAllLines($workspace.Queue, [string[]]$urls, [Text.UTF8Encoding]::new($true))
             return $urls.Count
         }
+        'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         'parseLinks' {
             $urls = @(([string]$A.text) -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique)
             foreach ($url in $urls) { if (-not (Test-HttpUrl $url)) { throw "Link không hợp lệ: $url" } }
