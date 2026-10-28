@@ -17,7 +17,7 @@ function Connect-DriveAccount([string]$WorkspaceRoot, [string]$Password, [script
         catch { if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 } }
     }) {
     if (-not $Password) { throw 'Nhập mật khẩu.' }
-    $status = & $Probe "$script:DriveApiUrl/api/images" $Password
+    $status = & $Probe "$script:DriveApiUrl/api/app-check" $Password
     if ($status -eq 401) { throw 'Sai mật khẩu.' }
     if ($status -ne 200) { throw "Không kết nối được máy chủ Drive ($status)." }
     New-Item -ItemType Directory -Force -Path $WorkspaceRoot | Out-Null
@@ -36,7 +36,7 @@ function Assert-DriveReady {
     try{
         $status=Invoke-RestMethod -Uri "$($drive.ApiUrl)/api/status" -Headers @{'x-admin-key'=$drive.AdminKey} -TimeoutSec 30
         if(-not $status.connected){throw '[CAUSE:DRIVE_CONFIG] Google Drive chưa được kết nối trên máy chủ.'}
-        Invoke-RestMethod -Uri "$($drive.ApiUrl)/api/images" -Headers @{'x-admin-key'=$drive.AdminKey} -TimeoutSec 30|Out-Null
+        Invoke-RestMethod -Uri "$($drive.ApiUrl)/api/app-check" -Headers @{'x-admin-key'=$drive.AdminKey} -TimeoutSec 30|Out-Null
     }catch{
         if($_.Exception.Message -match '\[CAUSE:DRIVE_CONFIG\]'){throw}
         throw '[CAUSE:DRIVE_CONFIG] Chưa kiểm tra được Drive. Đăng nhập lại hoặc kiểm tra kết nối trước khi chạy.'

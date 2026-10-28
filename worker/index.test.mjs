@@ -7,7 +7,7 @@ function setup() {
   const kv = new Map([["refresh_token", "r"]]);
   const meta = new Map();
   const env = {
-    ADMIN_PASSWORD: "secret", GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "s",
+    ADMIN_PASSWORD: "secret", APP_PASSWORD: "app-pass", GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "s",
     STORE: {
       get: async (k, type) => (kv.has(k) ? (type === "json" ? JSON.parse(kv.get(k)) : kv.get(k)) : null),
       put: async (k, v, opts) => { kv.set(k, v); if (opts?.metadata) meta.set(k, opts.metadata); },
@@ -99,7 +99,7 @@ test("wrong passwords never lock an address; existing lock records do not block 
   for (let n = 0; n < 8; n++) {
     const denied = await call("/api/images", { headers: { ...headers, "x-admin-key": "wrong" } });
     assert.equal(denied.status, 401);
-    assert.equal((await denied.json()).error, "Sai mật khẩu quản lý.");
+    assert.equal((await denied.json()).error, "Sai mật khẩu.");
   }
   assert.equal((await call("/api/images", { headers: { ...headers, "x-admin-key": "secret" } })).status, 200);
   assert.equal((await call("/oauth/start?key=wrong", { headers })).status, 401);
@@ -159,4 +159,26 @@ test("support logs: upload a zip, list it, download it, delete it", async () => 
   assert.equal(file.headers.get("content-type"), "application/zip");
   assert.equal((await call(`/api/logs/${created.id}`, { method: "DELETE", headers: admin })).status, 200);
   assert.deepEqual((await (await call("/api/logs", { headers: admin })).json()).logs, []);
+});
+
+test("the app password reaches only the app's calls; the admin password reaches everything", async () => {
+  const { call } = setup();
+  const app = { "x-admin-key": "app-pass" }, admin = { "x-admin-key": "secret" };
+  assert.equal((await call("/api/app-check", { headers: app })).status, 200);
+  assert.equal((await call("/api/images?batch=b&name=a.png", { method: "POST", headers: app, body: "x" })).status, 201);
+  assert.equal((await call("/api/logs?name=a.zip", { method: "POST", headers: app, body: "zip" })).status, 201);
+  assert.equal((await call("/api/sources", { headers: app })).status, 200);
+  for (const [path, init] of [["/api/images", {}], ["/api/logs", {}], ["/api/sources", { method: "POST", body: "{}" }]]) {
+    assert.equal((await call(path, { ...init, headers: app })).status, 403, `app password must not reach ${init.method || "GET"} ${path}`);
+  }
+  assert.equal((await call("/api/images", { headers: admin })).status, 200);
+  assert.equal((await call("/api/app-check", { headers: { "x-admin-key": "wrong" } })).status, 401);
+});
+
+test("the app password sends at most 10 logs a day from one address", async () => {
+  const { call } = setup();
+  const headers = { "x-admin-key": "app-pass", "cf-connecting-ip": "198.51.100.7" };
+  for (let n = 0; n < 10; n++) assert.equal((await call(`/api/logs?name=l${n}.zip`, { method: "POST", headers, body: "zip" })).status, 201);
+  assert.equal((await call("/api/logs?name=l10.zip", { method: "POST", headers, body: "zip" })).status, 429);
+  assert.equal((await call("/api/logs?name=admin.zip", { method: "POST", headers: { "x-admin-key": "secret", "cf-connecting-ip": "198.51.100.7" }, body: "zip" })).status, 201);
 });

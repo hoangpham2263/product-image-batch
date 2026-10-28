@@ -20,6 +20,7 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/manual-references.ps1')
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
+. (Join-Path $srcDir 'application/support-logs.ps1')
 . (Join-Path $PSScriptRoot 'image-feedback.ps1')
 . (Join-Path $PSScriptRoot 'manual-references.ps1')
 . (Join-Path $PSScriptRoot 'batch-review.ps1')
@@ -227,6 +228,10 @@ $logsTimer.Add_Tick({
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
+    $wait = Get-SupportLogWait $root
+    if ($wait -gt 0) { Append-Log "Vừa gửi log; gửi lại được sau $([Math]::Ceiling($wait / 60)) phút."; return }
+    $question = "Gửi log cho admin để kiểm tra lỗi?`r`n`r`nChỉ nên gửi khi app gặp lỗi. File không chứa mật khẩu, ảnh hay danh sách sản phẩm."
+    if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
     [void]$script:logsProc.Handle
@@ -292,6 +297,7 @@ $timer.Add_Tick({
         else {
             $lblStatus.Text = '! Cần thử lại'; $lblStatus.ForeColor = $ui.Warn
             Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.'
+            Append-Log 'Nếu lỗi lặp lại, bấm Gửi log để admin kiểm tra.'
         }
         Update-ReviewButton
     }

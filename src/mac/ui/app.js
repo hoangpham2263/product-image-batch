@@ -827,6 +827,7 @@ async function finish(r) {
   } else {
     setStatus("! Cần thử lại", "var(--warn)");
     appendLog("Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.");
+    appendLog("Nếu lỗi lặp lại, bấm Gửi log để admin kiểm tra.");
   }
   updateReviewButton();
 }
@@ -839,6 +840,10 @@ function wire() {
   ui.btnBulk.onclick = showBulkDialog;
   // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
   ui.btnLogs.onclick = async () => {
+    const wait = await api("logWait").catch(() => 0);
+    if (wait > 0) return appendLog(`Vừa gửi log; gửi lại được sau ${Math.ceil(wait / 60)} phút.`);
+    const question = "Gửi log cho admin để kiểm tra lỗi?\n\nChỉ nên gửi khi app gặp lỗi. File không chứa mật khẩu, ảnh hay danh sách sản phẩm.";
+    if ((await messageBox(question, "Gửi log", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
     try {
       const r = await api("sendLogs");

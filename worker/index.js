@@ -28,6 +28,19 @@ export function sameKey(a = "", b = "") {
   return diff === 0;
 }
 const isAdmin = (req, env) => !!env.ADMIN_PASSWORD && sameKey(req.headers.get("x-admin-key") || "", env.ADMIN_PASSWORD);
+// Two passwords: ADMIN_PASSWORD signs in to the management page; APP_PASSWORD is typed into the desktop
+// app and only reaches what the app needs, so sharing the app never exposes the management page.
+const keyRole = (req, env) => {
+  if (isAdmin(req, env)) return "admin";
+  const key = req.headers.get("x-admin-key") || "";
+  return env.APP_PASSWORD && sameKey(key, env.APP_PASSWORD) ? "app" : "";
+};
+export function appAllowed(method, path) {
+  return (method === "GET" && path === "/api/app-check")
+    || (method === "POST" && path === "/api/images")
+    || (method === "GET" && /^\/api\/sources(\/[^/]+)?$/.test(path))
+    || (method === "POST" && path === "/api/logs");
+}
 
 // Batch ids and file names come from the local app; keep them to safe characters.
 export const cleanName = (value, fallback) => String(value || "").replace(/[^\w.-]/g, "_").replace(/^\.+/, "").slice(0, 120) || fallback;
@@ -149,13 +162,21 @@ const sourceFile = (origin, f) => ({ id: f.id, name: f.name, size: Number(f.size
 // "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
 const LOGS_FOLDER = "Logs";
 const logsRoot = async (env) => folder(env, LOGS_FOLDER, await folder(env, FOLDER_NAME));
-async function handleLogs(req, env, url, id) {
+async function handleLogs(req, env, url, id, role) {
   const root = await logsRoot(env);
   if (!id && req.method === "GET") {
     const files = await listChildren(env, root);
     return json({ logs: files.map((f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), createdAt: f.createdTime })).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) }, 200, { "cache-control": "no-store" });
   }
   if (!id && req.method === "POST") {
+    // The app password may send at most 10 logs a day from one address, so a stuck button cannot flood Drive.
+    if (role === "app") {
+      const day = new Date().toISOString().slice(0, 10);
+      const key = `logs:${req.headers.get("cf-connecting-ip") || "unknown"}:${day}`;
+      const sent = Number(await env.STORE.get(key)) || 0;
+      if (sent >= 10) return json({ error: "Đã gửi đủ 10 log hôm nay. Thử lại ngày mai." }, 429);
+      await env.STORE.put(key, String(sent + 1), { expirationTtl: 2 * 86400 });
+    }
     const bytes = await req.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > 50 * 1024 * 1024) return json({ error: "File log rỗng hoặc quá 50MB." }, 400);
     const name = cleanFileName(url.searchParams.get("name")) || `log-${Date.now()}.zip`;
@@ -296,9 +317,12 @@ async function handle(req, env, ctx) {
     return json({ connected: !!(await env.STORE.get("refresh_token")), email: isAdmin(req, env) ? await env.STORE.get("drive_email") : undefined });
   }
 
-  // ----- admin only below -----
+  // ----- signed in below: admin for everything, app password for the app's own calls -----
   if (!path.startsWith("/api/")) return new Response("Not found", { status: 404 });
-  if (!isAdmin(req, env)) return json({ error: "Sai mật khẩu quản lý." }, 401);
+  const role = keyRole(req, env);
+  if (!role) return json({ error: "Sai mật khẩu." }, 401);
+  if (role === "app" && !appAllowed(req.method, path)) return json({ error: "Mật khẩu app không dùng được cho trang quản lý." }, 403);
+  if (path === "/api/app-check" && req.method === "GET") return json({ ok: true, role });
 
   if (path === "/api/images" && req.method === "GET") {
     const list = await readList(env);
@@ -323,7 +347,7 @@ async function handle(req, env, ctx) {
   }
 
   const logs = path.match(/^\/api\/logs(?:\/([^/]+))?$/);
-  if (logs) return handleLogs(req, env, url, logs[1]);
+  if (logs) return handleLogs(req, env, url, logs[1], role);
 
   const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
   if (sources) return handleSources(req, env, url, [sources[1], sources[2]]);

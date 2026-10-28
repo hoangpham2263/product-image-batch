@@ -47,3 +47,16 @@ function Send-SupportLog($Drive, [string]$ZipPath) {
     Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/logs?name=$name" -Method Post -ContentType 'application/zip' -Headers @{ 'x-admin-key' = $Drive.AdminKey } -InFile $ZipPath -TimeoutSec 300 | Out-Null
     return [IO.Path]::GetFileName($ZipPath)
 }
+
+# One log per machine every 10 minutes, so repeated clicks do not flood the admin page.
+function Get-SupportLogWait([string]$ProjectRoot) {
+    $file = Join-Path $ProjectRoot 'workspace/logs-sent.txt'
+    if (-not (Test-Path -LiteralPath $file)) { return 0 }
+    $last = [DateTime]::MinValue
+    if (-not [DateTime]::TryParse((Get-Content -LiteralPath $file -Raw).Trim(), [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::RoundtripKind, [ref]$last)) { return 0 }
+    return [Math]::Max(0, [int](600 - ((Get-Date).ToUniversalTime() - $last.ToUniversalTime()).TotalSeconds))
+}
+
+function Set-SupportLogSent([string]$ProjectRoot) {
+    Set-Content -LiteralPath (Join-Path $ProjectRoot 'workspace/logs-sent.txt') -Value (Get-Date).ToUniversalTime().ToString('o') -Encoding ASCII
+}
