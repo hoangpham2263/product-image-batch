@@ -6,6 +6,6 @@ if ! command -v node >/dev/null || ! command -v pwsh >/dev/null; then bash src/m
 nohup node src/mac/server.mjs >/dev/null 2>&1 &
 disown
 # The app keeps running on its own; close this Terminal window once the script has ended.
-(sleep 1; osascript -e 'tell application "Terminal" to close (every window whose name contains "start-app.command")') >/dev/null 2>&1 &
-disown
+# nohup: Terminal hangs up this session's processes when the script exits, before the close would run.
+nohup /bin/bash -c 'sleep 1; osascript -e "tell application \"Terminal\" to close (every window whose name contains \"start-app.command\")"' >/dev/null 2>&1 &
 exit 0
