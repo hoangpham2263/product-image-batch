@@ -71,6 +71,22 @@ test("names from the local app are reduced to safe characters", () => {
   assert.equal(cleanName("", "fallback.png"), "fallback.png");
 });
 
+test("wrong passwords never lock an address; existing lock records do not block valid login", async () => {
+  const { call, kv } = setup();
+  const ip = "192.0.2.1";
+  kv.set(`fail:${ip}`, "5");
+  const headers = { "cf-connecting-ip": ip };
+  for (let n = 0; n < 8; n++) {
+    const denied = await call("/api/images", { headers: { ...headers, "x-admin-key": "wrong" } });
+    assert.equal(denied.status, 401);
+    assert.equal((await denied.json()).error, "Sai mật khẩu quản lý.");
+  }
+  assert.equal((await call("/api/images", { headers: { ...headers, "x-admin-key": "secret" } })).status, 200);
+  assert.equal((await call("/oauth/start?key=wrong", { headers })).status, 401);
+  assert.equal((await call("/oauth/start?key=secret", { headers })).status, 302);
+  assert.equal(kv.get(`fail:${ip}`), "5", "login no longer reads or updates old lock records");
+});
+
 test("parallel uploads all stay listed and served; old single-list items still work", async () => {
   const { call, kv } = setup();
   kv.set("images", JSON.stringify([{ id: "old1", fileId: "file-old", batch: "b", name: "o.png", status: "awaiting_review", createdAt: "2020-01-01T00:00:00Z" }]));

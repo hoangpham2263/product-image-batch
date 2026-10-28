@@ -112,16 +112,6 @@ async function handle(req, env, ctx) {
   const url = new URL(req.url);
   const path = url.pathname;
 
-  // Wrong password 5 times from one address: locked out for 15 minutes.
-  const sentKey = req.headers.get("x-admin-key") || (path === "/oauth/start" ? url.searchParams.get("key") : "");
-  if (sentKey) {
-    const ip = req.headers.get("cf-connecting-ip") || "unknown";
-    const fails = Number(await env.STORE.get(`fail:${ip}`)) || 0;
-    if (fails >= 5) return json({ error: "Nhập sai quá nhiều lần, thử lại sau 15 phút." }, 429);
-    if (!sameKey(sentKey, env.ADMIN_PASSWORD || "")) ctx.waitUntil(env.STORE.put(`fail:${ip}`, String(fails + 1), { expirationTtl: 900 }));
-    else if (fails) ctx.waitUntil(env.STORE.delete(`fail:${ip}`));
-  }
-
   if (path === "/oauth/start") {
     if (!sameKey(url.searchParams.get("key") || "", env.ADMIN_PASSWORD || "")) return new Response("Sai mật khẩu.", { status: 401 });
     const q = new URLSearchParams({
