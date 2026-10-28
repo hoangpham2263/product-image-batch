@@ -28,7 +28,7 @@ function Update-ProductQueueRow($Editor,$Row) {
     $scenes=if($entry.Count){@(Get-ManualScenes $entry[0])}else{@()}
     $index=0
     if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[Math]::Max(0,[Math]::Min($Row.SceneIndex,$scenes.Count-1));$index=$Row.SceneIndex}
-    if($Row.PSObject.Properties['SceneCount']){$Row.SceneCount.Text=if($scenes.Count){"Ảnh $($index+1)/$($scenes.Count)"}else{''}}
+    if($Row.PSObject.Properties['Thumbs']){Update-SceneThumbs $Editor $Row $scenes $index}
     if($scenes.Count -and (Test-Path -LiteralPath $scenes[$index].file)){
         $count=if($scenes.Count -gt 1){"● $($scenes.Count) ảnh"}else{'● Đã có ảnh'}
         try{Set-FeedbackPreview $Row.Preview $scenes[$index].file;$Row.ImagePath=$scenes[$index].file;$Row.Status.Text=$count;$Row.Status.ForeColor=$script:Ui.Ok}catch{$Row.Status.Text='Không đọc được ảnh, hãy gắn lại.';$Row.Status.ForeColor=$script:Ui.Error}
@@ -37,6 +37,19 @@ function Update-ProductQueueRow($Editor,$Row) {
 }
 
 # Adds one or more scene images to the link; each image produces its own result.
+function Update-SceneThumbs($Editor,$Row,$Scenes,[int]$Selected) {
+    foreach($old in @($Row.Thumbs.Controls)){Set-FeedbackPreview $old '';$old.Dispose()}
+    $Row.Thumbs.Controls.Clear()
+    for($i=0;$i -lt @($Scenes).Count;$i++){
+        $thumb=New-Object Windows.Forms.PictureBox -Property @{Size='72,72';SizeMode='Zoom';Margin='0,0,6,0';Cursor='Hand';BackColor=$script:Ui.Page;Padding=if($i -eq $Selected){'3,3,3,3'}else{'1,1,1,1'}}
+        $thumb.BackColor=if($i -eq $Selected){$script:Ui.Accent}else{$script:Ui.Line}
+        try{Set-FeedbackPreview $thumb $Scenes[$i].file}catch{}
+        $index=$i
+        $thumb.Add_Click({$Row.SceneIndex=$index;$Row.BoundUrl=$null;Update-ProductQueueRow $Editor $Row}.GetNewClosure())
+        $Row.Thumbs.Controls.Add($thumb)
+    }
+}
+
 function Set-ProductQueueReference($Editor,$Row,[string[]]$Source) {
     foreach($path in @($Source|Where-Object{$_})){[void](Save-ManualReference $Editor.Root $Row.Url.Text.Trim() $path)}
     if($Row.PSObject.Properties['SceneIndex']){$Row.SceneIndex=[int]::MaxValue}
@@ -74,13 +87,11 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $paste=New-Object Windows.Forms.Button -Property @{Name='PasteRowImage';Text='Dán ảnh · Ctrl+V';Location='20,436';Size='164,32';Anchor='Bottom,Left'}
     $choose=New-Object Windows.Forms.Button -Property @{Text='Chọn ảnh…';Location='196,436';Size='120,32';Anchor='Bottom,Left'}
     $clear=New-Object Windows.Forms.Button -Property @{Name='ClearReference';Text='Bỏ ảnh này';Location='328,436';Size='110,32';Anchor='Bottom,Left'}
-    $prev=New-Object Windows.Forms.Button -Property @{Name='PreviousScene';Text='‹';Location='450,436';Size='36,32';Anchor='Bottom,Left'}
-    $next=New-Object Windows.Forms.Button -Property @{Name='NextScene';Text='›';Location='490,436';Size='36,32';Anchor='Bottom,Left'}
-    $count=New-Object Windows.Forms.Label -Property @{Name='SceneCount';Location='534,442';Size='110,24';Anchor='Bottom,Left';ForeColor=$script:Ui.Muted}
-    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;SceneCount=$count}
-    $card.Controls.AddRange(@($box,$status,$picture,$paste,$choose,$clear,$prev,$next,$count))
-    $prev.Add_Click({if($row.SceneIndex -gt 0){$row.SceneIndex--};$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure())
-    $next.Add_Click({$row.SceneIndex++;$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}.GetNewClosure())
+    # Every attached scene image is shown as a thumbnail; clicking one previews it above.
+    $picture.Height=230
+    $thumbs=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='SceneThumbs';Location='20,348';Size='720,80';Anchor='Bottom,Left,Right';AutoScroll=$true;WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
+    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;ImagePath='';BoundUrl=$null;SceneIndex=0;Thumbs=$thumbs}
+    $card.Controls.AddRange(@($box,$status,$picture,$thumbs,$paste,$choose,$clear))
     $box.Add_TextChanged({Update-ProductQueueRow $Editor $row}.GetNewClosure())
     $key={if($_.Control -and $_.KeyCode -eq [Windows.Forms.Keys]::V){$_.SuppressKeyPress=$true;Paste-ProductQueueRow $Editor $row}}.GetNewClosure()
     $box.Add_KeyDown($key);$picture.Add_KeyDown($key);$paste.Add_Click({Paste-ProductQueueRow $Editor $row}.GetNewClosure())
@@ -89,7 +100,7 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
     $choose.Add_Click({$picker=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Ảnh PNG/JPEG|*.png;*.jpg;*.jpeg';Multiselect=$true};try{$picker.InitialDirectory=Get-SourcePhotoDirectory $Editor.LibraryRoot $Editor.SourceGroup;if($picker.ShowDialog() -eq 'OK'){Set-ProductQueueReference $Editor $row $picker.FileNames}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}finally{$picker.Dispose()}}.GetNewClosure())
     $enter={if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}}
     $drop={try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure()
-    $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop)
+    $card.Add_DragEnter($enter);$card.Add_DragDrop($drop);$picture.Add_DragEnter($enter);$picture.Add_DragDrop($drop);$thumbs.Add_DragEnter($enter);$thumbs.Add_DragDrop($drop)
     $clear.Add_Click({
         Remove-ManualScene $Editor.MapPath $row.Url.Text.Trim() $row.SceneIndex
         $row.BoundUrl=$null;Update-ProductQueueRow $Editor $row
@@ -101,7 +112,7 @@ function New-ProductQueueEditControls($Editor,[string]$Url='') {
 function Add-ProductImageControls($Editor,$Row) {
     $Row.Card.Size=[Drawing.Size]::new(1040,570)
     $Row.Url.Width=1000;$Row.Status.Width=1000
-    $Row.Preview.Size=[Drawing.Size]::new(680,310)
+    $Row.Preview.Size=[Drawing.Size]::new(680,230);$Row.Thumbs.Width=680
     $label=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc (không cần mở web)';Location='720,82';Size='300,26'}
     $preview=New-Object Windows.Forms.PictureBox -Property @{Name='ProductImagePreview';Location='720,112';Size='300,310';SizeMode='Zoom';BorderStyle='FixedSingle';AllowDrop=$true;TabStop=$true}
     $Row|Add-Member NoteProperty ProductPreview $preview
@@ -222,7 +233,7 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $row.Card.Controls.AddRange(@($label,$hint,$groups,$openFolder,$save,$cancel));$dialog.Controls.Add($row.Card);$dialog.CancelButton=$cancel
     $state=[pscustomobject]@{Row=$row;Editor=$draftEditor;TempFolder=$temp};$dialog.Tag=$state
     $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
-    $dialog.Add_Disposed({Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
+    $dialog.Add_Disposed({foreach($thumb in @($row.Thumbs.Controls)){Set-FeedbackPreview $thumb ''};Set-FeedbackPreview $row.Preview '';Set-FeedbackPreview $row.ProductPreview '';Remove-Item -LiteralPath $temp -Recurse -Force}.GetNewClosure())
     return $dialog
 }
 
