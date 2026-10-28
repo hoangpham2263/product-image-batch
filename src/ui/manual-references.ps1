@@ -156,7 +156,12 @@ function Update-ProductDraftRows($State) {
             $scene=$k
             $row.Controls.Add((& $newThumb $scenes[$k].file "Ảnh review $($k+1) · ảnh gốc #$($i+1)" {Remove-ManualScene $State.Editor.MapPath $State.Url.Text.Trim() $scene $index;Update-ProductDraftRows $State}.GetNewClosure() $State))
         }
-        $row.Controls.Add((& $newAdd {Show-ReviewSourceMenu $State $index $this}.GetNewClosure()))
+        # Review images for this product image: from this computer or from the Drive library.
+        $fromComputer=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true) $index}.GetNewClosure()
+        $fromDrive=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Show-DriveSourcePicker $State.Dialog $State.Editor) $index}.GetNewClosure()
+        foreach($b in @($fromComputer,$fromDrive)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
+        $fromComputer.Text='+ Máy';$fromDrive.Text='+ Drive'
+        $row.Controls.AddRange(@($fromComputer,$fromDrive))
         $row.Add_Click({$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$this.BackColor=$script:Ui.Hover}.GetNewClosure())
         $row.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
         $row.Add_DragDrop({$State.Active=$index;Add-ProductDraftImages $State (Get-DroppedImages $_.Data) $index}.GetNewClosure())
@@ -310,13 +315,6 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}finally{foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose()}
 }
 
-# The + of a product row: review images from this computer or from the Drive library.
-function Show-ReviewSourceMenu($State,[int]$ProductIndex,$Anchor) {
-    $menu=New-Object Windows.Forms.ContextMenuStrip
-    [void]$menu.Items.Add('Từ máy',$null,{$State.Active=$ProductIndex;Add-ProductDraftImages $State (Select-ImageFiles $true) $ProductIndex}.GetNewClosure())
-    [void]$menu.Items.Add('Từ kho Drive',$null,{$State.Active=$ProductIndex;Add-ProductDraftImages $State (Show-DriveSourcePicker $State.Dialog $State.Editor) $ProductIndex}.GetNewClosure())
-    $menu.Show($Anchor,[Drawing.Point]::new(0,$Anchor.Height))
-}
 
 function Show-ProductQueueDialog($Editor,$Target=$null) {
     $dialog=New-ProductQueueDialog $Editor $Target

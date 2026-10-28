@@ -307,18 +307,6 @@ function showImagePreview(path, title) {
   close.focus();
 }
 
-// The + of a product row: review images from this computer or from the Drive library.
-function reviewSourceMenu(anchorEl, pick) {
-  document.querySelector(".menu-pop")?.remove();
-  const box = anchorEl.getBoundingClientRect();
-  const menu = el("div", "menu-pop", { style: { left: box.left + "px", top: box.bottom + 2 + "px" } });
-  for (const [key, text] of [["computer", "Từ máy"], ["drive", "Từ kho Drive"]]) {
-    menu.append(el("div", "", { text, onclick: () => { menu.remove(); pick(key); } }));
-  }
-  document.body.append(menu);
-  setTimeout(() => addEventListener("mousedown", function off(e) { if (!menu.contains(e.target)) { menu.remove(); removeEventListener("mousedown", off); } }), 0);
-}
-
 // "Từ kho Drive": one Drive group's images; click to tick, Thêm downloads the ticked ones (paths for the draft).
 function showDrivePicker() {
   return new Promise((resolve) => {
@@ -432,7 +420,7 @@ async function showProductDialog(target = null) {
   };
   const addTile = (text, onPick) => {
     const tile = el("button", "btn", { type: "button", text });
-    Object.assign(tile.style, { position: "static", width: "56px", height: "56px", flex: "none", fontSize: "20px", color: "var(--muted)", borderStyle: "dashed" });
+    Object.assign(tile.style, { position: "static", width: "56px", height: "56px", flex: "none", fontSize: text === "+" ? "20px" : "12px", color: "var(--muted)", borderStyle: "dashed", padding: "0", whiteSpace: "normal" });
     tile.onclick = onPick;
     return tile;
   };
@@ -452,7 +440,8 @@ async function showProductDialog(target = null) {
       const arrow = el("div", "label muted", { text: "→", style: { position: "static", width: "16px", textAlign: "center" } });
       row.append(product, arrow, ...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
         await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
-      }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+", (e) => { active = i; reviewSourceMenu(e.currentTarget, async (from) => attachPaths(from === "drive" ? await showDrivePicker() : await Promise.all(imageFiles(await pickFiles("image/png,image/jpeg", true)).map(upload)), i)); }));
+      }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await Promise.all(imageFiles(await pickFiles("image/png,image/jpeg", true)).map(upload)), i); }),
+        addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }));
       row.addEventListener("click", () => { if (active !== i) { active = i; for (const [n, r] of [...rowsBox.children].entries()) r.style.background = n === i ? "var(--hover)" : ""; } });
       row.addEventListener("dragover", (e) => e.preventDefault());
       row.addEventListener("drop", (e) => { e.preventDefault(); e.stopPropagation(); active = i; attach(e.dataTransfer.files, i); });
