@@ -126,6 +126,7 @@
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
   .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
+  .steps .cmd { margin-top: 6px; }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
     .filters, .filters input, .filters select { width: 100%; }
@@ -168,7 +169,9 @@
         <li>Mở app:
           <ul>
             <li>Windows: <b>start-app.cmd</b></li>
-            <li>Mac: <b>start-app.command</b></li>
+            <li>Mac: <b>start-app.command</b>, hoặc cài bằng Terminal để macOS không chặn:
+              <div class="cmd"><code id="macCmd">curl -fsSL https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip -o /tmp/prb.zip &amp;&amp; unzip -oq /tmp/prb.zip -d ~/Applications &amp;&amp; bash ~/Applications/product-review-batch/start-app.command</code><button id="copyMacBtn" type="button">Copy</button></div>
+            </li>
           </ul>
         </li>
         <li>Có bản mới thì bấm <b>Cập nhật</b> trong app.</li>
@@ -605,6 +608,7 @@ document.addEventListener("paste", (e) => {
   e.preventDefault();
   upload(files);
 });
+$("copyMacBtn").onclick = async () => { try { await navigator.clipboard.writeText($("macCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("srcHelpBtn").onclick = () => $("srcHelpDlg").showModal();
 $("copyCmdBtn").onclick = async () => { try { await navigator.clipboard.writeText($("srcCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
