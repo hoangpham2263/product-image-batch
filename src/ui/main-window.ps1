@@ -5,6 +5,7 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 . (Join-Path $PSScriptRoot 'progress.ps1')
 . (Join-Path $PSScriptRoot 'drive-login.ps1')
 . (Join-Path $PSScriptRoot 'setup-dialog.ps1')
+. (Join-Path $PSScriptRoot 'update-dialog.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
@@ -179,17 +180,10 @@ $queueEditor.Fallback.Add_CheckedChanged({$lblPer.Visible=$queueEditor.Fallback.
 $btnDrive.Add_Click({ [void](Show-DriveLogin $form $workspace.Root); Update-DriveButton })
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
-    $updater = Join-Path $root 'src\update.ps1'
-    $form.Cursor = 'WaitCursor'
-    try { $next = & $updater -Root $root -Check }
-    catch { $next = $null; $err = $_.Exception.Message }
-    finally { $form.Cursor = 'Default' }
-    if ($null -eq $next) { [Windows.Forms.MessageBox]::Show($form, "Không kiểm tra được bản mới: $err", 'Cập nhật') | Out-Null; return }
-    if (-not $next) { [Windows.Forms.MessageBox]::Show($form, 'Đang dùng bản mới nhất.', 'Cập nhật') | Out-Null; return }
-    $label = if ($next -eq 'git') { 'mới' } else { $next }
-    if ([Windows.Forms.MessageBox]::Show($form, "Có bản $label. Cập nhật và mở lại app?", 'Cập nhật', 'YesNo') -ne 'Yes') { return }
-    Start-Process powershell -WorkingDirectory $root -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',('"' + $updater + '"'),'-Restart','-WaitPid',$PID)
-    $form.Close()
+    if (Show-UpdateDialog $form $root $workspace.Logs $appVersion) {
+        Start-Process powershell -WorkingDirectory $root -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',('"' + (Join-Path $srcDir 'gui.ps1') + '"'))
+        $form.Close()
+    }
 })
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 

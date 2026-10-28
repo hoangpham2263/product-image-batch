@@ -610,6 +610,48 @@ async function showSetupDialog() {
   check();
 }
 
+// ----- Cập nhật (Show-UpdateDialog): check, then download and install with a running bar -----
+function showUpdateDialog() {
+  const view = openWindow("Cập nhật", 440, 168);
+  const status = at(label(""), 20, 20, 400, 44);
+  status.style.whiteSpace = "normal";
+  const bar = at(el("div", "progress marquee"), 20, 72, 400, 10);
+  bar.append(el("span"));
+  const go = at(button("Cập nhật", true), 220, 112, 100, 32), close = at(button("Đóng"), 330, 112, 90, 32);
+  go.hidden = true;
+  close.onclick = () => { if (!close.disabled) view.close(); };
+  view.cancel = close.onclick;
+  view.body.append(status, bar, go, close);
+  const current = state.version || "bản hiện tại";
+  let next = "";
+  const check = async () => {
+    status.textContent = "Đang kiểm tra bản mới…";
+    bar.hidden = false; go.hidden = true;
+    try { next = await api("updateCheck"); }
+    catch { bar.hidden = true; status.textContent = "Không kiểm tra được bản mới. Kiểm tra mạng rồi thử lại."; return; }
+    bar.hidden = true;
+    if (!next) { status.textContent = `Đang dùng bản mới nhất (${current}).`; return; }
+    status.textContent = next === "git" ? "Có bản mới trên GitHub." : `Có bản ${next} (đang dùng ${current}).`;
+    go.hidden = false; go.focus();
+  };
+  // The server replaces the files, restarts on them, and the page reloads once it answers again.
+  go.onclick = async () => {
+    status.textContent = `Đang tải và cài ${next === "git" ? "bản mới" : next}…`;
+    bar.hidden = false; go.hidden = true; close.disabled = true;
+    const r = await fetch("/api/update", { method: "POST" }).catch(() => null);
+    if (!r || !r.ok) {
+      bar.hidden = true; close.disabled = false; go.textContent = "Thử lại"; go.hidden = false;
+      status.textContent = "Chưa cập nhật được. Kiểm tra mạng rồi thử lại.";
+      return;
+    }
+    status.textContent = "Đã cập nhật. Đang mở lại app…";
+    const wait = () => fetch("/api/rpc", { method: "POST", body: JSON.stringify({ cmd: "state", args: {} }) })
+      .then((x) => (x.ok ? location.reload() : setTimeout(wait, 500))).catch(() => setTimeout(wait, 500));
+    setTimeout(wait, 800);
+  };
+  check();
+}
+
 // ----- Google Drive (Show-DriveLogin) -----
 function showDriveDialog() {
   const view = openWindow("Google Drive", 400, 170);
@@ -744,23 +786,8 @@ function wire() {
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
   ui.btnSetup.onclick = showSetupDialog;
-  ui.btnUpdate.onclick = async () => {
-    if (run.active) return messageBox("Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.", "Cập nhật");
-    let next;
-    document.body.style.cursor = "wait";
-    try { next = await api("updateCheck"); }
-    catch (e) { document.body.style.cursor = ""; return messageBox(`Không kiểm tra được bản mới: ${e.message}`, "Cập nhật"); }
-    document.body.style.cursor = "";
-    if (!next) return messageBox("Đang dùng bản mới nhất.", "Cập nhật");
-    const name = next === "git" ? "mới" : next;
-    if ((await messageBox(`Có bản ${name}. Cập nhật và mở lại app?`, "Cập nhật", ["Yes", "No"])) !== "Yes") return;
-    document.body.style.cursor = "wait";
-    const r = await fetch("/api/update", { method: "POST" }).catch(() => null);
-    if (!r || !r.ok) { document.body.style.cursor = ""; return messageBox("Chưa cập nhật được. Thử lại sau.", "Cập nhật"); }
-    // The server restarts on the new files; reload once it answers again.
-    const wait = () => fetch("/api/rpc", { method: "POST", body: JSON.stringify({ cmd: "state", args: {} }) }).then((x) => (x.ok ? location.reload() : setTimeout(wait, 500))).catch(() => setTimeout(wait, 500));
-    setTimeout(wait, 800);
-  };
+  ui.btnUpdate.onclick = () => (run.active ? messageBox("Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.", "Cập nhật") : showUpdateDialog());
+
   ui.btnRun.onclick = () => startBatch();
   ui.btnStop.onclick = async () => { if (run.active) { run.stopped = true; await fetch("/api/stop", { method: "POST" }); setStatus("Đang dừng...", "var(--accent)"); } };
   addEventListener("beforeunload", (e) => { if (run.active) { e.preventDefault(); e.returnValue = ""; } });

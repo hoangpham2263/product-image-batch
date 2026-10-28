@@ -1,7 +1,7 @@
 ﻿# Run from the app's Cập nhật button: bring the app files up to the latest GitHub Release (vX.Y.Z).
 # Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
-# -Check prints the newer version ('' when current); -Restart waits for the app to close, updates and reopens it.
-param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun, [switch]$Check, [switch]$Restart, [int]$WaitPid)
+# -Check prints the newer version ('' when current); -Apply installs it (the app reopens itself afterwards).
+param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun, [switch]$Check, [switch]$Apply)
 $ErrorActionPreference = 'Stop'
 $script:Repo = 'hoangpham2263/product-review-batch'
 # Local data and lessons the app writes; an update keeps them as they are.
@@ -61,9 +61,4 @@ function Update-App([string]$Root) {
 }
 
 if ($Check) { return (Get-AppUpdate $Root) }
-if ($Restart) {
-    if ($WaitPid) { Wait-Process -Id $WaitPid -Timeout 30 -ErrorAction SilentlyContinue }
-    # No network or GitHub down: reopen the version already on this machine.
-    try { Update-App $Root } catch { Write-Verbose $_ }
-    Start-Process powershell -WorkingDirectory $Root -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', ('"' + (Join-Path $Root 'src\gui.ps1') + '"'))
-}
+if ($Apply) { Update-App $Root }
