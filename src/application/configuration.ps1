@@ -2,10 +2,13 @@
     $workspace = Initialize-ProjectWorkspace $ProjectRoot
     $contexts = @(Get-ProductContexts (Join-Path $ProjectRoot 'data/product-contexts.json'))
     $catalog = Get-SourceCatalog $SourceDir
+    # Review categories come from every catalog entry, including groups not downloaded from Drive.
+    $allPhotos = @{}
+    foreach ($entry in @(Get-SampleCatalogEntries $SourceDir)) { $allPhotos[$entry.file] = $entry }
     return @{
         SourceDir = $SourceDir; MaxTries = $MaxTries; Model = $Model; PhotosPerImage = $PhotosPerImage
         ReviewStyles = @(Get-ReviewStyleProfiles (Join-Path $ProjectRoot 'data/review-style.json'))
-        ReviewSamples = @(Get-ReviewSamples (Join-Path $ProjectRoot 'data/review-samples.jsonl') $contexts $catalog)
+        ReviewSamples = @(Get-ReviewSamples (Join-Path $ProjectRoot 'data/review-samples.jsonl') $contexts $allPhotos)
         StyleExample = Join-Path $ProjectRoot 'data/image-style/example.png'
         ProductContexts = $contexts
         SourceCatalog = $catalog

@@ -2,3 +2,5 @@
 /workspace/
 /bridge/node_modules/
 /worker/.wrangler/
+# Sample photos are downloaded per group from Drive; only the catalog is versioned.
+/data/source-photos/*/

@@ -2,27 +2,31 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
-$dir = Join-Path $root 'data/source-photos'
-$catalog = Get-SourceCatalog $dir
-if ($catalog.Count -lt 202) { throw 'Expected at least the 202 preserved photos.' }
+# Photos live on Drive and are downloaded per group; the catalog alone is versioned. Each check
+# runs on a copy of the catalog with placeholder files, as after a Drive sync.
+$dir = Join-Path $TestWorkspaceRoot ('source-data-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force -Path $dir | Out-Null
+Copy-Item -LiteralPath (Join-Path $root 'data/source-photos/catalog.json') -Destination $dir
 $entries=@(Get-SampleCatalogEntries $dir)
 if ($entries.Count -ne 3111) { throw 'The regrouped library must preserve all 3111 photos.' }
-$groups=@(Get-SourcePhotoGroups $dir)
-if ($groups.Count -ne 12 -or $groups[0] -ne 'Áo' -or $groups[1] -ne 'Nội thất') { throw 'Shared merchandise folders are missing or ordered incorrectly.' }
+if ((Get-SourceCatalog $dir).Count) { throw 'Groups not downloaded yet must be skipped, not listed.' }
+$groups=@($entries | ForEach-Object { ($_.file -split '/')[0] } | Sort-Object -Unique)
+if ($groups.Count -ne 12 -or 'Áo' -notin $groups -or 'Nội thất' -notin $groups) { throw 'Shared merchandise folders are missing.' }
 if ((Get-SourcePhotoDirectory $dir 'Nội thất') -ne [IO.Path]::GetFullPath((Join-Path $dir 'Nội thất'))) { throw 'The file picker opens the wrong local folder.' }
 foreach($entry in $entries){
     if(($entry.file -split '/')[0] -ne $entry.source_group -or -not $entry.previous_file){throw 'Folder grouping lost category or migration provenance.'}
+    if ($entry.file -notmatch '^[\p{L}\p{N}][\p{L}\p{N} -]*/[^/]+\.jpg$') { throw 'Photo is outside product categories or not a library JPEG.' }
+    # Identical photos may repeat in the catalog; Get-SourceCatalog keeps the first.
+    if ($entry.sha256 -notmatch '^[0-9a-f]{64}$') { throw 'Missing photo hash.' }
+    # Placeholder files for the categories the selection check and dining evidence need.
+    if ($entry.category -in @('polo-shirts', 'tees-hoodies', 'dining-tables')) {
+        New-Item -ItemType File -Force -Path (Join-Path $dir $entry.file) | Out-Null
+    }
 }
+$catalog = Get-SourceCatalog $dir
+if ((@(Get-SourcePhotoGroups $dir))[0] -ne 'Áo') { throw 'Local folders are ordered incorrectly.' }
 $blocked=$false;try{Get-SourcePhotoDirectory $dir '../outside'|Out-Null}catch{$blocked=$true}
 if(-not $blocked){throw 'Local group navigation escaped the library.'}
-$hashes = @{}
-foreach ($path in $catalog.Keys) {
-    $entry = $catalog[$path]
-    if ($entry.file -notmatch '^[\p{L}\p{N}][\p{L}\p{N} -]*/[^/]+$') { throw 'Photo is outside product categories.' }
-    $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
-    if ($hash -ine $entry.sha256 -or $hashes.ContainsKey($hash)) { throw 'Changed or duplicate photo.' }
-    $hashes[$hash] = $true
-}
 $expansionPath = Join-Path $root 'data/dining-gallery-expansion.json'
 if (Test-Path -LiteralPath $expansionPath) {
     $expansion = Get-Content -LiteralPath $expansionPath -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -42,4 +46,5 @@ function Invoke-AI($PromptText, $Images, $ResultFile) {
     return 'FIT'
 }
 Select-Photo 'product.png' 'polo-shirt' 'catalog-test' | Out-Null
-Write-Host "PASS: $($catalog.Count) unique photos, provenance hashes and category selection."
+Remove-Item -LiteralPath $dir -Recurse -Force
+Write-Host "PASS: $($entries.Count) catalogued photos, downloaded groups only, provenance hashes and category selection."

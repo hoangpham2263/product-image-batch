@@ -16,11 +16,28 @@ function setup() {
     },
   };
   const files = new Map();
+  // Drive metadata for list queries: id -> { name, parents, folder, mime }.
+  const nodes = new Map();
   globalThis.caches = { default: { match: async () => null, put: async () => {}, delete: async () => {} } };
   globalThis.fetch = async (url, init = {}) => {
     url = String(url);
     if (url.includes("oauth2.googleapis.com/token")) return Response.json({ access_token: "a", expires_in: 3600 });
-    if (url.includes("/drive/v3/files?fields=id")) return Response.json({ id: `folder-${files.size}` });
+    if (url.includes("/drive/v3/files?fields=id")) {
+      const meta = JSON.parse(init.body);
+      const id = `folder-${nodes.size}`;
+      nodes.set(id, { name: meta.name, parents: meta.parents || [], folder: true });
+      return Response.json({ id });
+    }
+    if (url.includes("/drive/v3/files?q=")) {
+      const q = new URL(url).searchParams.get("q");
+      const parent = q.match(/^'([^']+)' in parents/)[1];
+      const name = q.match(/name = '((?:[^'\\]|\\.)*)'/)?.[1];
+      const list = [...nodes].filter(([, n]) => n.parents.includes(parent) && (!name || n.name === name) &&
+        (!q.includes("mimeType = ") || n.folder) && (!q.includes("mimeType != ") || !n.folder));
+      return Response.json({ files: list.map(([id, n]) => ({ id, name: n.name, mimeType: n.mime, size: "1", md5Checksum: "m" + id })) });
+    }
+    const metaOnly = url.match(/files\/([\w-]+)\?fields=parents/);
+    if (metaOnly) return Response.json({ parents: nodes.get(metaOnly[1])?.parents || [] });
     if (url.includes("/upload/drive/v3/files")) {
       // Keep only the media part of the multipart/related body, as Drive does.
       const body = new Uint8Array(await new Response(init.body).arrayBuffer());
@@ -28,12 +45,15 @@ function setup() {
       const start = text.indexOf("\r\n\r\n", text.indexOf("content-type:", text.indexOf("--", 2))) + 4;
       const end = text.lastIndexOf("\r\n--");
       const id = `file-${files.size}`;
+      const meta = JSON.parse(text.slice(text.indexOf("{"), text.indexOf("}") + 1));
+      const mime = text.slice(start - 4).length && text.match(/content-type: (image\/\w+)/)?.[1];
       files.set(id, body.slice(start, end));
+      nodes.set(id, { name: meta.name, parents: meta.parents, mime });
       return Response.json({ id });
     }
     const media = url.match(/files\/([\w-]+)\?alt=media/);
-    if (media) return new Response(files.get(media[1]));
-    if (init.method === "DELETE") { files.delete(url.split("/files/")[1]); return new Response(null, { status: 204 }); }
+    if (media) return new Response(files.get(media[1]), { headers: { "content-type": nodes.get(media[1])?.mime || "image/png" } });
+    if (init.method === "DELETE") { const id = url.split("/files/")[1]; files.delete(id); nodes.delete(id); return new Response(null, { status: 204 }); }
     throw new Error(`unexpected ${url}`);
   };
   const ctx = { waitUntil: () => {} };
@@ -99,4 +119,30 @@ test("parallel uploads all stay listed and served; old single-list items still w
   const body = await patched.json();
   assert.equal(body.status, "accepted", JSON.stringify(body));
   assert.equal((await (await call("/api/images", { headers: admin })).json()).length, 6);
+});
+
+test("source groups are Drive folders: create, upload, list, rename duplicates, delete", async () => {
+  const { call } = setup();
+  const admin = { "x-admin-key": "secret" };
+  assert.equal((await call("/api/sources")).status, 401);
+  assert.equal((await call("/api/sources", { method: "POST", headers: admin, body: JSON.stringify({ name: "../x" }) })).status, 400);
+  assert.equal((await call("/api/sources", { method: "POST", headers: admin, body: JSON.stringify({ name: "Áo" }) })).status, 201);
+  assert.equal((await call("/api/sources", { method: "POST", headers: admin, body: JSON.stringify({ name: "Áo" }) })).status, 409);
+  const group = `/api/sources/${encodeURIComponent("Áo")}`;
+  assert.equal((await call(`${group}?name=a.txt`, { method: "POST", headers: { ...admin, "content-type": "text/plain" }, body: "x" })).status, 400);
+  const first = await (await call(`${group}?name=tee.jpg`, { method: "POST", headers: { ...admin, "content-type": "image/jpeg" }, body: "one" })).json();
+  const second = await (await call(`${group}?name=tee.jpg`, { method: "POST", headers: { ...admin, "content-type": "image/jpeg" }, body: "two" })).json();
+  assert.equal(second.name, "tee-2.jpg");
+  const listed = await (await call(group, { headers: admin })).json();
+  assert.deepEqual(listed.files.map((f) => f.name), ["tee-2.jpg", "tee.jpg"]);
+  assert.ok(listed.files.every((f) => f.md5));
+  const groups = await (await call("/api/sources", { headers: admin })).json();
+  assert.deepEqual(groups.groups, [{ name: "Áo", count: 2 }]);
+  const image = await call(new URL(first.url).pathname);
+  assert.equal(image.headers.get("content-type"), "image/jpeg");
+  assert.equal(await image.text(), "one");
+  assert.equal((await call(group, { method: "DELETE", headers: admin })).status, 400, "a group with photos is not deleted");
+  for (const f of listed.files) assert.equal((await call(`${group}/${f.id}`, { method: "DELETE", headers: admin })).status, 200);
+  assert.equal((await call(group, { method: "DELETE", headers: admin })).status, 200);
+  assert.deepEqual((await (await call("/api/sources", { headers: admin })).json()).groups, []);
 });

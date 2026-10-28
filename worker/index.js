@@ -56,18 +56,40 @@ async function drive(env, path, init = {}) {
   return r;
 }
 
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+async function createFolder(env, name, parent) {
+  const r = await drive(env, "/drive/v3/files?fields=id", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME, ...(parent ? { parents: [parent] } : {}) }),
+  });
+  return (await r.json()).id;
+}
+
 async function folder(env, name, parent) {
   const key = `folder:${parent || "root"}:${name}`;
   const saved = await env.STORE.get(key);
   if (saved) return saved;
-  const r = await drive(env, "/drive/v3/files?fields=id", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name, mimeType: "application/vnd.google-apps.folder", ...(parent ? { parents: [parent] } : {}) }),
-  });
-  const { id } = await r.json();
+  const id = await createFolder(env, name, parent);
   await env.STORE.put(key, id);
   return id;
+}
+
+// drive.file scope: this lists only files the Worker created, never the rest of the Drive.
+async function listChildren(env, parent, extra = "") {
+  const files = [];
+  let pageToken = "";
+  do {
+    const q = new URLSearchParams({
+      q: `'${parent}' in parents and trashed = false${extra ? ` and ${extra}` : ""}`,
+      fields: "nextPageToken, files(id, name, mimeType, size, md5Checksum, createdTime)", pageSize: "1000",
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const page = await (await drive(env, `/drive/v3/files?${q}`)).json();
+    files.push(...(page.files || []));
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  return files;
 }
 
 async function uploadFile(env, name, mime, bytes, parent) {
@@ -106,6 +128,77 @@ async function removeItem(env, id) {
   if (legacy.some((i) => i.id === id)) await writeLegacy(env, legacy.filter((i) => i.id !== id));
 }
 const publicUrl = (origin, item) => `${origin}/img/${item.id}.png`;
+
+// ---------- Source library ----------
+// Sample photos for the app live in "<FOLDER_NAME>/Nguồn ảnh/<group>/". Drive is the only index:
+// the app downloads one group at a time and compares md5 to fetch only new or changed files.
+const SOURCE_FOLDER = "Nguồn ảnh";
+const GROUP_RE = /^[\p{L}\p{N}][\p{L}\p{N} -]{0,59}$/u;
+const SOURCE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const quote = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+export const cleanFileName = (value) => String(value || "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").replace(/^\.+/, "").slice(0, 120);
+const sourceRoot = async (env) => folder(env, SOURCE_FOLDER, await folder(env, FOLDER_NAME));
+const sourceUrl = (origin, file) => `${origin}/src/${file.id}`;
+async function groupFolder(env, name) {
+  const found = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}' and name = '${quote(name)}'`);
+  return found[0]?.id || null;
+}
+const sourceFile = (origin, f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), md5: f.md5Checksum, createdAt: f.createdTime, url: sourceUrl(origin, f) });
+
+async function handleSources(req, env, url, parts) {
+  const [rawGroup, fileId] = parts;
+  if (!rawGroup) {
+    if (req.method === "GET") {
+      const folders = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}'`);
+      const groups = await Promise.all(folders.map(async (f) => ({ name: f.name, count: (await listChildren(env, f.id, `mimeType != '${FOLDER_MIME}'`)).length })));
+      return json({ groups: groups.sort((a, b) => a.name.localeCompare(b.name, "vi")) }, 200, { "cache-control": "no-store" });
+    }
+    if (req.method === "POST") {
+      const name = String((await req.json().catch(() => ({}))).name || "").trim();
+      if (!GROUP_RE.test(name)) return json({ error: "Tên nhóm chỉ gồm chữ, số, dấu cách hoặc gạch ngang." }, 400);
+      if (await groupFolder(env, name)) return json({ error: "Nhóm đã có." }, 409);
+      await createFolder(env, name, await sourceRoot(env));
+      return json({ name, count: 0 }, 201);
+    }
+    return json({ error: "Not found" }, 404);
+  }
+  const group = decodeURIComponent(rawGroup);
+  if (!GROUP_RE.test(group)) return json({ error: "Tên nhóm không hợp lệ." }, 400);
+  const parent = await groupFolder(env, group);
+  if (!parent) return json({ error: "Không tìm thấy nhóm." }, 404);
+
+  if (fileId) {
+    if (req.method !== "DELETE" || !/^[\w-]+$/.test(fileId)) return json({ error: "Not found" }, 404);
+    const meta = await (await drive(env, `/drive/v3/files/${fileId}?fields=parents`)).json();
+    if (!(meta.parents || []).includes(parent)) return json({ error: "Ảnh không thuộc nhóm này." }, 404);
+    await drive(env, `/drive/v3/files/${fileId}`, { method: "DELETE" });
+    return json({ ok: true });
+  }
+  if (req.method === "GET") {
+    const files = await listChildren(env, parent, `mimeType != '${FOLDER_MIME}'`);
+    return json({ group, files: files.map((f) => sourceFile(url.origin, f)).sort((a, b) => a.name.localeCompare(b.name)) }, 200, { "cache-control": "no-store" });
+  }
+  if (req.method === "DELETE") {
+    if ((await listChildren(env, parent)).length) return json({ error: "Xoá hết ảnh trong nhóm trước." }, 400);
+    await drive(env, `/drive/v3/files/${parent}`, { method: "DELETE" });
+    return json({ ok: true });
+  }
+  if (req.method === "POST") {
+    const mime = (req.headers.get("content-type") || "").split(";")[0].trim();
+    if (!SOURCE_TYPES.includes(mime)) return json({ error: "Chỉ nhận ảnh JPG, PNG hoặc WebP." }, 400);
+    const bytes = await req.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 25 * 1024 * 1024) return json({ error: "Ảnh rỗng hoặc quá 25MB." }, 400);
+    // The app matches files by name, so a repeated name gets a numbered suffix instead of a duplicate.
+    let name = cleanFileName(url.searchParams.get("name")) || `anh-${Date.now()}.jpg`;
+    const taken = new Set((await listChildren(env, parent, `mimeType != '${FOLDER_MIME}'`)).map((f) => f.name));
+    const dot = name.lastIndexOf(".");
+    const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+    for (let n = 2; taken.has(name); n++) name = `${stem}-${n}${ext}`;
+    const id = await uploadFile(env, name, mime, bytes, parent);
+    return json(sourceFile(url.origin, { id, name, size: bytes.byteLength, createdTime: new Date().toISOString() }), 201);
+  }
+  return json({ error: "Not found" }, 404);
+}
 
 // ---------- Routes ----------
 async function handle(req, env, ctx) {
@@ -154,6 +247,20 @@ async function handle(req, env, ctx) {
     return res;
   }
 
+  // Public source photo link for thumbnails on the management page; ids are unguessable Drive ids.
+  const src = path.match(/^\/src\/([\w-]+)$/);
+  if (src && req.method === "GET") {
+    const cache = caches.default;
+    const hit = await cache.match(req);
+    if (hit) return hit;
+    const r = await drive(env, `/drive/v3/files/${src[1]}?alt=media`);
+    const type = r.headers.get("content-type") || "";
+    if (!type.startsWith("image/")) return new Response("Không tìm thấy ảnh.", { status: 404 });
+    const res = new Response(r.body, { headers: { "content-type": type, "cache-control": "public, max-age=86400" } });
+    ctx.waitUntil(cache.put(req, res.clone()));
+    return res;
+  }
+
   if (path === "/api/status" && req.method === "GET") {
     return json({ connected: !!(await env.STORE.get("refresh_token")), email: isAdmin(req, env) ? await env.STORE.get("drive_email") : undefined });
   }
@@ -183,6 +290,9 @@ async function handle(req, env, ctx) {
     await putItem(env, item);
     return json({ ...item, url: publicUrl(url.origin, item) }, 201);
   }
+
+  const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
+  if (sources) return handleSources(req, env, url, [sources[1], sources[2]]);
 
   const one = path.match(/^\/api\/images\/(\w+)$/);
   if (one && (req.method === "PATCH" || req.method === "DELETE")) {

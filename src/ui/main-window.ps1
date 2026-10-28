@@ -13,6 +13,7 @@ $root = Split-Path $srcDir -Parent   # project root (base data and local workspa
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
+. (Join-Path $srcDir 'infrastructure/source-sync.ps1')
 . (Join-Path $srcDir 'application/agent-lessons.ps1')
 . (Join-Path $srcDir 'application/image-feedback.ps1')
 . (Join-Path $srcDir 'application/manual-references.ps1')

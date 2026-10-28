@@ -52,7 +52,7 @@ Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gall
 
 Ảnh gốc quyết định sản phẩm xuất hiện như thế nào: mặc, cầm, đặt trong không gian hoặc sử dụng xe. Kết quả FIT/NOFIT đã lưu chỉ được dùng khi khớp cả URL sản phẩm và hash ảnh; hai listing dùng chung ảnh có thể bán kích thước hoặc bộ phận khác nhau. Với bàn, phòng cần có footprint đồ cũ tương đương để thay cục bộ, không chỉ đủ diện tích chung. Bát đĩa hoặc bữa ăn do AI gợi ý trong context không phải điều kiện bắt buộc.
 
-Kho chung nằm trong `data/source-photos/<nhóm-hàng>/`, không chia theo website. `Áo` chứa nhóm áo, `Nội thất` chứa nội thất; các ảnh khác giữ trong `Cốc và bình`, `Trang trí nhà cửa`, `Phụ kiện`, `Mũ`, `Đồ bếp`, `Thể thao ngoài trời`, `Đồ thú cưng`, `Quần đùi`, `Đồ lót`, `Đồng phục` để dùng lại sau. Toàn bộ 3.111 ảnh cũ được giữ nguyên nội dung. Trong popup, chọn **Kho ảnh local** rồi **Chọn ảnh** để mở đúng thư mục, hoặc **Mở thư mục** để xem kho; nhóm đã lưu được nhớ cho lần sau.
+Kho chung nằm trong `data/source-photos/<nhóm-hàng>/`, không chia theo website. `Áo` chứa nhóm áo, `Nội thất` chứa nội thất; các ảnh khác giữ trong `Cốc và bình`, `Trang trí nhà cửa`, `Phụ kiện`, `Mũ`, `Đồ bếp`, `Thể thao ngoài trời`, `Đồ thú cưng`, `Quần đùi`, `Đồ lót`, `Đồng phục` để dùng lại sau. Ảnh kho nằm trên Google Drive (`Product Image Batch/Nguồn ảnh/<nhóm>/`), không nằm trong Git: thêm/xoá ảnh và tạo nhóm ở tab **Nguồn ảnh** của trang quản lý. Khi chạy có bật dùng kho ảnh, app chỉ tải nhóm đã chọn về `data/source-photos/<nhóm>/` và chỉ tải lại ảnh mới hoặc đã đổi. 3.111 ảnh cũ được thu về cạnh dài tối đa 1280 px (JPEG); `catalog.json` giữ nguồn, hash mới và tên cũ trong `previous_files`. Trong popup, chọn **Kho ảnh** rồi **Chọn ảnh** để mở đúng thư mục, hoặc **Mở thư mục** để xem kho; nhóm đã lưu được nhớ cho lần sau.
 
 Mỗi ảnh có bản ghi trong catalog.json (nhóm lưu trữ `source_group`, danh mục sản phẩm `category`, nguồn, SHA256 và đường dẫn cũ). Nhóm thư mục chỉ giúp chọn file; danh mục chi tiết cho từng loại sản phẩm vẫn khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
 
@@ -140,7 +140,7 @@ CLI có `-LocalOnly` cho kiểm thử hoặc chủ đích chỉ xuất local; đ
 | Đường dẫn | Nội dung |
 |---|---|
 | src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
-| data/ | Dữ liệu base trên Git: `source-photos/` (+ catalog.json), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
+| data/ | Dữ liệu base trên Git: `source-photos/catalog.json` (ảnh tải từ Drive theo nhóm), names.txt, *.json quy tắc, `image-style/`, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
 | bridge/ | Server local nối workflow với extension |
 | extension/ | Tạo ảnh qua tab ChatGPT / Google Flow |
 | worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |

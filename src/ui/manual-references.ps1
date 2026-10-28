@@ -248,9 +248,9 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Ảnh review & ảnh sản phẩm gốc';ClientSize='1040,570';MinimumSize='1040,570';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $row.Card.Dock='Fill'
     $label=New-Object Windows.Forms.Label -Property @{Text='Link sản phẩm (có thể chưa public; gắn ảnh sản phẩm để dùng trực tiếp)';Location='20,16';AutoSize=$true}
-    $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh local:';Location='20,82';Size='110,26'}
+    $hint=New-Object Windows.Forms.Label -Property @{Text='Kho ảnh:';Location='20,82';Size='110,26'}
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='SourcePhotoGroup';Location='132,78';Size='216,28';DropDownStyle='DropDownList'}
-    foreach($group in @(Get-SourcePhotoGroups $Editor.LibraryRoot)){[void]$groups.Items.Add($group)}
+    foreach($group in @(Get-SourceGroupChoices $Editor.Root $Editor.LibraryRoot)){[void]$groups.Items.Add($group)}
     $groups.SelectedItem=$Editor.SourceGroup;if($groups.SelectedIndex -lt 0){$groups.SelectedIndex=0}
     $draftEditor.SourceGroup=[string]$groups.SelectedItem
     $groups.Add_SelectedIndexChanged({$draftEditor.SourceGroup=[string]$groups.SelectedItem}.GetNewClosure())

@@ -9,6 +9,7 @@ $script:WorkflowModuleFiles = @(
     'infrastructure/url-queue.ps1'
     'infrastructure/csv.ps1'
     'infrastructure/source-catalog.ps1'
+    'infrastructure/source-sync.ps1'
     'application/agent-lessons.ps1'
     'application/image-feedback.ps1'
     'application/manual-references.ps1'

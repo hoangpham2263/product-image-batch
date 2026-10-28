@@ -42,7 +42,8 @@ function Get-SourceCatalog([string]$SourceDir) {
         if ($catalog.ContainsKey($full)) {
             throw 'Conflicting source catalog path.'
         }
-        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw "Missing catalog photo: $($entry.file)" }
+        # Only the groups downloaded from Drive are on this machine.
+        if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { continue }
         if ($entry.sha256 -and $hashes.ContainsKey($entry.sha256)) { continue }
         if ($entry.sha256) { $hashes[$entry.sha256] = $true }
         $catalog[$full] = $entry

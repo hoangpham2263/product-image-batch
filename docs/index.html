@@ -51,12 +51,11 @@
   .dlg.warn .admin-dot { background: var(--warn); }
   .settings-list { display: grid; gap: 8px; }
   .settings-list > * { width: 100%; justify-content: flex-start; }
-  /* Stats */
-  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-  .stat { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--soft); border: 1px solid transparent; text-align: left; height: auto; justify-content: stretch; }
-  .stat strong { font-size: 22px; font-weight: 500; line-height: 1.2; }
-  .stat:hover { background: var(--soft); border-color: var(--border); }
-  .stat.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 8%, var(--bg)); }
+  /* Tabs (signed in) */
+  .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--soft); width: fit-content; }
+  .tabs button { border: 0; background: none; height: 32px; color: var(--muted); }
+  .tabs button:hover { color: var(--fg); background: none; }
+  .tabs button.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgba(15, 23, 42, .08); }
   /* Filters */
   .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
   .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -70,11 +69,10 @@
   .thumb { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 10px; background: var(--soft); }
   .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s; }
   .item:hover .thumb img { transform: scale(1.04); }
-  .badge { position: absolute; top: 6px; left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; color: #fff; background: rgba(15, 23, 42, .6); }
-  .badge.accepted { background: var(--ok); }
-  .badge.rejected { background: var(--warn); }
   .item-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .item-meta { font-size: 12px; color: var(--muted); margin-top: -6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .more { justify-self: center; }
+  .drop-on { outline: 2px dashed var(--primary); outline-offset: -2px; }
   .empty { padding: 32px 16px; text-align: center; color: var(--muted); font-size: 14px; border: 1px dashed var(--border); border-radius: 10px; }
   /* Dialogs */
   .dlg { width: min(420px, calc(100% - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); color: var(--fg); }
@@ -103,7 +101,6 @@
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 4px; }
   @media (max-width: 640px) {
     input, select { font-size: 16px !important; }
-    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .filters, .filters input, .filters select { width: 100%; }
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .back span { display: none; }
@@ -145,7 +142,10 @@
     <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
   </section>
 
-  <section id="stats" class="stats" hidden></section>
+  <nav id="tabs" class="tabs" hidden>
+    <button type="button" class="on" data-tab="manage">Ảnh đã tạo</button>
+    <button type="button" data-tab="sources">Nguồn ảnh</button>
+  </nav>
 
   <section id="manage" class="card" hidden>
     <div class="sec-head">
@@ -159,6 +159,22 @@
     <p id="empty" class="empty">Đăng nhập để xem ảnh.</p>
   </section>
 
+  <section id="sources" class="card" hidden>
+    <div class="sec-head">
+      <h2 id="srcTitle">Nguồn ảnh</h2>
+      <div class="filters">
+        <select id="group" aria-label="Nhóm"></select>
+        <button id="newGroupBtn" type="button">Tạo nhóm</button>
+        <button id="uploadBtn" class="primary" type="button">Tải ảnh lên</button>
+        <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
+      </div>
+    </div>
+    <div id="srcGrid" class="grid"></div>
+    <button id="srcMore" class="more" type="button" hidden>Xem thêm</button>
+    <p id="srcEmpty" class="empty" hidden></p>
+    <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
+  </section>
+
   <footer class="muted small">Làm bởi <a href="https://hoangpham.is-a.dev" target="_blank" rel="noopener">Phạm Quốc Hoàng</a> · Ảnh lưu trên Google Drive</footer>
 </main>
 
@@ -168,6 +184,15 @@
     <input id="keyInput" type="password" placeholder="Mật khẩu quản lý" autocomplete="current-password" required />
     <p id="loginError" class="small danger" hidden></p>
     <div class="actions"><button class="primary" type="submit" id="loginBtn">Đăng nhập</button></div>
+  </form>
+</dialog>
+
+<dialog id="groupDlg" class="dlg">
+  <form class="dlg-box" id="groupForm">
+    <div class="dlg-head"><strong>Tạo nhóm</strong><button class="icon" type="button" data-close-group aria-label="Đóng">✕</button></div>
+    <input id="groupInput" placeholder="Tên nhóm, ví dụ: Áo" maxlength="60" required />
+    <p id="groupError" class="small danger" hidden></p>
+    <div class="actions"><button class="primary" type="submit">Tạo</button></div>
   </form>
 </dialog>
 
@@ -194,8 +219,6 @@
       <p><strong id="viewerName"></strong></p>
       <p id="viewerMeta" class="muted small"></p>
       <div class="actions">
-        <button type="button" data-act="accepted">Duyệt</button>
-        <button type="button" data-act="rejected">Loại</button>
         <button type="button" data-act="copy">Copy link</button>
         <button type="button" data-act="open">Mở ảnh</button>
         <button type="button" class="danger" data-act="delete">Xoá</button>
@@ -208,21 +231,22 @@
 
 <script>
 const API = "https://product-images-api.hoangpham2263.workers.dev";
-const STATUS = { awaiting_review: "Chờ duyệt", accepted: "Đã duyệt", rejected: "Đã loại" };
+const PAGE = 120;
 const $ = (id) => document.getElementById(id);
-const state = { images: [], status: "", current: -1, connected: false };
+// The viewer shows either generated images (list "images") or the current source group ("sources").
+const state = { images: [], sources: [], groups: [], group: "", shown: PAGE, tab: "manage", list: "images", current: -1, connected: false };
 
 const store = {
   get: () => { try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; } },
   set: (v) => { try { v ? sessionStorage.setItem("pib-key", v) : sessionStorage.removeItem("pib-key"); } catch {} },
 };
 
-function toast(text) {
+function toast(text, ms = 2200) {
   const el = $("toast");
   el.textContent = text;
   el.classList.add("show");
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => el.classList.remove("show"), 2200);
+  toast.t = setTimeout(() => el.classList.remove("show"), ms);
 }
 
 async function api(path, init = {}) {
@@ -232,90 +256,165 @@ async function api(path, init = {}) {
   return body;
 }
 
+function tile(url, name, meta, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "item";
+  b.innerHTML = `<div class="thumb"><img loading="lazy" alt="" /></div><span class="item-name"></span><span class="item-meta"></span>`;
+  b.querySelector("img").src = url;
+  b.querySelector(".item-name").textContent = name;
+  b.querySelector(".item-meta").textContent = meta;
+  b.onclick = onClick;
+  return b;
+}
+
+// ----- Generated images -----
 function visible() {
   const q = $("search").value.trim().toLowerCase();
   const batch = $("batch").value;
-  return state.images.filter((i) =>
-    (!state.status || i.status === state.status) && (!batch || i.batch === batch) &&
-    (!q || `${i.product} ${i.name}`.toLowerCase().includes(q)));
-}
-
-function renderStats() {
-  const count = (s) => state.images.filter((i) => !s || i.status === s).length;
-  const tiles = [["", "Tất cả"], ["awaiting_review", STATUS.awaiting_review], ["accepted", STATUS.accepted], ["rejected", STATUS.rejected]];
-  $("stats").replaceChildren(...tiles.map(([key, label]) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "stat" + (state.status === key ? " on" : "");
-    b.innerHTML = `<span class="muted small"></span><strong></strong>`;
-    b.querySelector("span").textContent = label;
-    b.querySelector("strong").textContent = count(key);
-    b.onclick = () => { state.status = key; render(); };
-    return b;
-  }));
+  return state.images.filter((i) => (!batch || i.batch === batch) && (!q || `${i.product} ${i.name}`.toLowerCase().includes(q)));
 }
 
 function render() {
-  renderStats();
   const items = visible();
   $("listTitle").textContent = `Ảnh (${items.length})`;
   $("empty").hidden = items.length > 0;
   $("empty").textContent = state.images.length ? "Không có ảnh khớp bộ lọc." : "Chưa có ảnh nào được tải lên.";
-  $("grid").replaceChildren(...items.map((item) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "item";
-    b.innerHTML = `<div class="thumb"><img loading="lazy" alt="" /><span class="badge"></span></div><span class="item-name"></span><span class="item-meta"></span>`;
-    b.querySelector("img").src = item.url;
-    const badge = b.querySelector(".badge");
-    badge.textContent = STATUS[item.status] || item.status;
-    badge.classList.add(item.status);
-    b.querySelector(".item-name").textContent = item.product || item.name;
-    b.querySelector(".item-meta").textContent = item.batch;
-    b.onclick = () => openViewer(state.images.indexOf(item));
-    return b;
-  }));
+  $("grid").replaceChildren(...items.map((item) => tile(item.url, item.product || item.name, item.batch, () => openViewer("images", state.images.indexOf(item)))));
 }
 
-function openViewer(index) {
+// ----- Source library -----
+function renderSources() {
+  const files = state.sources;
+  const count = state.groups.find((g) => g.name === state.group)?.count;
+  $("srcTitle").textContent = state.group ? `Nguồn ảnh (${files.length || count || 0})` : "Nguồn ảnh";
+  $("group").hidden = !state.groups.length;
+  $("uploadBtn").disabled = !state.group;
+  $("srcEmpty").hidden = files.length > 0;
+  $("srcEmpty").textContent = state.groups.length ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên hoặc kéo thả ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
+  $("deleteGroupBtn").hidden = !state.group || files.length > 0;
+  $("srcMore").hidden = files.length <= state.shown;
+  $("srcGrid").replaceChildren(...files.slice(0, state.shown).map((f, i) => tile(f.url, f.name, `${Math.round(f.size / 1024)} KB`, () => openViewer("sources", i))));
+}
+
+async function loadGroups(select) {
+  state.groups = (await api("/api/sources")).groups;
+  if (select !== undefined) state.group = select;
+  if (!state.groups.some((g) => g.name === state.group)) state.group = state.groups[0]?.name || "";
+  $("group").replaceChildren(...state.groups.map((g) => new Option(`${g.name} (${g.count})`, g.name)));
+  $("group").value = state.group;
+  await loadGroup();
+}
+
+async function loadGroup() {
+  state.sources = [];
+  state.shown = PAGE;
+  renderSources();
+  if (!state.group) return;
+  const group = state.group;
+  const body = await api(`/api/sources/${encodeURIComponent(group)}`);
+  if (group === state.group) { state.sources = body.files; renderSources(); }
+}
+
+// Shrink to at most 1600px JPEG before upload so the app downloads a light library.
+async function shrink(file) {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.85));
+    if (blob && (blob.size < file.size || file.type !== "image/jpeg")) return { blob, name: file.name.replace(/\.[^.]+$/, "") + ".jpg" };
+  } catch {}
+  return { blob: file, name: file.name };
+}
+
+async function upload(files) {
+  files = [...files].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
+  if (!state.group) return toast("Chọn hoặc tạo nhóm trước.");
+  if (!files.length) return toast("Chỉ nhận ảnh JPG, PNG hoặc WebP.");
+  const group = state.group;
+  let done = 0, failed = 0;
+  const queue = [...files];
+  const worker = async () => {
+    for (let file; (file = queue.shift()); ) {
+      try {
+        const { blob, name } = await shrink(file);
+        await api(`/api/sources/${encodeURIComponent(group)}?name=${encodeURIComponent(name)}`, { method: "POST", headers: { "content-type": blob.type || file.type }, body: blob });
+        done++;
+      } catch { failed++; }
+      toast(`Đang tải ${done + failed}/${files.length}`, 60_000);
+    }
+  };
+  $("uploadBtn").disabled = true;
+  await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker));
+  $("uploadBtn").disabled = false;
+  toast(failed ? `Đã tải ${done} ảnh, lỗi ${failed} ảnh` : `Đã tải ${done} ảnh`);
+  await loadGroups(group).catch((e) => toast(e.message));
+}
+
+function showTab(tab) {
+  state.tab = tab;
+  for (const b of document.querySelectorAll("[data-tab]")) b.classList.toggle("on", b.dataset.tab === tab);
+  $("manage").hidden = tab !== "manage";
+  $("sources").hidden = tab !== "sources";
+  if (tab === "sources" && !state.groups.length) loadGroups().catch((e) => toast(e.message));
+}
+
+// ----- Viewer -----
+function viewerItem() { return state.list === "images" ? state.images[state.current] : state.sources[state.current]; }
+
+function openViewer(list, index) {
+  state.list = list;
   state.current = index;
-  const item = state.images[index];
+  const item = viewerItem();
   $("viewerImg").src = item.url;
-  $("viewerName").textContent = item.product || item.name;
-  $("viewerMeta").textContent = `${STATUS[item.status] || item.status} · ${item.batch} · ${item.name} · ${new Date(item.createdAt).toLocaleString("vi-VN")}`;
+  $("viewerName").textContent = list === "images" ? item.product || item.name : item.name;
+  $("viewerMeta").textContent = list === "images"
+    ? `${item.batch} · ${item.name} · ${new Date(item.createdAt).toLocaleString("vi-VN")}`
+    : `${state.group} · ${Math.round(item.size / 1024)} KB`;
   if (!$("viewer").open) $("viewer").showModal();
 }
 
 function step(delta) {
+  if (state.list === "sources") {
+    const n = state.sources.length;
+    if (n) openViewer("sources", (state.current + delta + n) % n);
+    return;
+  }
   const list = visible();
   const at = list.indexOf(state.images[state.current]);
   const next = list[(at + delta + list.length) % list.length];
-  if (next) openViewer(state.images.indexOf(next));
+  if (next) openViewer("images", state.images.indexOf(next));
 }
 
 async function act(action) {
-  const item = state.images[state.current];
+  const item = viewerItem();
   if (!item) return;
   try {
     if (action === "copy") { await navigator.clipboard.writeText(item.url); return toast("Đã copy link"); }
     if (action === "open") return window.open(item.url, "_blank", "noopener");
-    if (action === "delete") {
+    if (action !== "delete") return;
+    if (state.list === "images") {
       await api(`/api/images/${item.id}`, { method: "DELETE" });
       state.images.splice(state.current, 1);
-      $("viewer").close();
-      toast("Đã xoá ảnh");
+      render();
     } else {
-      const updated = await api(`/api/images/${item.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: action }) });
-      state.images[state.current] = updated;
-      openViewer(state.current);
-      toast(STATUS[action]);
+      await api(`/api/sources/${encodeURIComponent(state.group)}/${item.id}`, { method: "DELETE" });
+      state.sources.splice(state.current, 1);
+      const g = state.groups.find((x) => x.name === state.group);
+      if (g) g.count = state.sources.length;
+      renderSources();
     }
-    render();
+    $("viewer").close();
+    toast("Đã xoá ảnh");
   } catch (e) { toast(e.message); }
 }
 
 function downloadCsv() {
-  const rows = [["batch", "name", "product", "status", "url"], ...visible().map((i) => [i.batch, i.name, i.product, i.status, i.url])];
+  const rows = [["batch", "name", "product", "url"], ...visible().map((i) => [i.batch, i.name, i.product, i.url])];
   const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
@@ -323,14 +422,15 @@ function downloadCsv() {
   a.click();
 }
 
-// Signed out: lock button only. Signed in: settings button; Drive and sign-out live in its dialog.
+// Signed out: download page and lock button. Signed in: tabs, management and the settings button.
 function showAdmin() {
   const signedIn = !!store.get();
   $("lockBtn").hidden = signedIn;
   $("settingsBtn").hidden = !signedIn;
-  $("stats").hidden = !signedIn;
   $("download").hidden = signedIn;
-  $("manage").hidden = !signedIn;
+  $("tabs").hidden = !signedIn;
+  $("manage").hidden = !signedIn || state.tab !== "manage";
+  $("sources").hidden = !signedIn || state.tab !== "sources";
   $("dlIcon").hidden = !signedIn;
   $("filters").hidden = !signedIn;
   $("settingsBtn").classList.toggle("warn", !state.connected);
@@ -368,11 +468,40 @@ $("loginForm").addEventListener("submit", async (event) => {
 document.querySelector("[data-close-login]").onclick = () => $("loginDlg").close();
 $("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
 $("settingsBtn").onclick = () => $("settingsDlg").showModal();
-$("logoutBtn").onclick = () => { $("settingsDlg").close(); store.set(""); state.images = []; showAdmin(); render(); $("empty").textContent = "Đăng nhập để xem ảnh."; };
+$("logoutBtn").onclick = () => {
+  $("settingsDlg").close(); store.set("");
+  Object.assign(state, { images: [], sources: [], groups: [], group: "", tab: "manage" });
+  showTab("manage"); showAdmin(); render();
+};
 $("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
 $("csvBtn").onclick = () => { $("settingsDlg").close(); downloadCsv(); };
 $("search").oninput = render;
 $("batch").onchange = render;
+for (const b of document.querySelectorAll("[data-tab]")) b.onclick = () => showTab(b.dataset.tab);
+$("group").onchange = () => { state.group = $("group").value; loadGroup().catch((e) => toast(e.message)); };
+$("srcMore").onclick = () => { state.shown += PAGE; renderSources(); };
+$("uploadBtn").onclick = () => $("uploadInput").click();
+$("uploadInput").onchange = () => { upload($("uploadInput").files); $("uploadInput").value = ""; };
+$("sources").addEventListener("dragover", (e) => { e.preventDefault(); $("sources").classList.add("drop-on"); });
+$("sources").addEventListener("dragleave", () => $("sources").classList.remove("drop-on"));
+$("sources").addEventListener("drop", (e) => { e.preventDefault(); $("sources").classList.remove("drop-on"); upload(e.dataTransfer.files); });
+$("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
+document.querySelector("[data-close-group]").onclick = () => $("groupDlg").close();
+$("groupForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("groupInput").value.trim();
+  try {
+    await api("/api/sources", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+    $("groupDlg").close();
+    await loadGroups(name);
+    toast("Đã tạo nhóm");
+  } catch (e) { $("groupError").hidden = false; $("groupError").textContent = e.message; }
+});
+$("deleteGroupBtn").onclick = async () => {
+  if (!confirm(`Xoá nhóm "${state.group}"?`)) return;
+  try { await api(`/api/sources/${encodeURIComponent(state.group)}`, { method: "DELETE" }); await loadGroups(); toast("Đã xoá nhóm"); }
+  catch (e) { toast(e.message); }
+};
 $("viewer").addEventListener("click", (event) => {
   const t = event.target.closest("button");
   if (!t) return;
