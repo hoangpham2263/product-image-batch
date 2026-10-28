@@ -128,6 +128,7 @@
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
       Tải về
     </a>
+    <span id="version" class="muted small"></span>
     <ol class="steps">
       <li>Giải nén file zip.</li>
       <li>Chạy <b>start-app.cmd</b>.</li>
@@ -519,6 +520,11 @@ document.addEventListener("keydown", (event) => {
 });
 // Refresh the Drive state when returning from the Google consent tab.
 window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
+
+fetch("https://api.github.com/repos/hoangpham2263/product-review-batch/releases/latest")
+  .then((r) => r.json())
+  .then((r) => { if (r.tag_name) $("version").textContent = `${r.tag_name} · ${new Date(r.published_at).toLocaleDateString("vi-VN")}`; })
+  .catch(() => {});
 
 if (store.get()) load().catch(() => { store.set(""); showAdmin(); });
 else showAdmin();
