@@ -8,6 +8,10 @@ try{
     $valid=Join-Path $temp 'valid.png';New-TestPng $valid 37 29 ([byte[]](255,0,255))
     $before=Get-BytesHash ([IO.File]::ReadAllBytes($valid))
     Assert-GeneratedImage $valid
+    $large=Join-Path $temp 'large.png';New-TestPng $large 1024 32
+    $size=Get-ImageSize ([IO.File]::ReadAllBytes($large))
+    if($size.Width -ne 1024 -or $size.Height -ne 32){throw 'Byte shifts truncated image dimensions.'}
+    Assert-GeneratedImage $large
     if((Get-BytesHash ([IO.File]::ReadAllBytes($valid))) -ne $before){throw 'Validation altered the generated image.'}
     $bad=Join-Path $temp 'bad.png';[IO.File]::WriteAllText($bad,'not an image')
     foreach($path in @($bad,(Join-Path $temp 'missing.png'))){

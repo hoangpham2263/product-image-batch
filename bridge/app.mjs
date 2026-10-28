@@ -190,7 +190,7 @@ export function createApp(root, { spawnImpl = spawn, platform = process.platform
           const ext = IMAGE_TYPES[String(req.headers["content-type"] || "").split(";")[0]];
           if (!ext) return send(res, 400, { error: "Chọn ảnh PNG hoặc JPEG." });
           const bytes = await readBody(req);
-          if (bytes.length < 100 || bytes.length > 30 * 1024 * 1024) return send(res, 400, { error: "Ảnh rỗng hoặc quá 30MB." });
+          if (bytes.length === 0 || bytes.length > 30 * 1024 * 1024) return send(res, 400, { error: "Ảnh rỗng hoặc quá 30MB." });
           await mkdir(paths.refs, { recursive: true });
           const file = join(paths.refs, randomUUID().replace(/-/g, "") + ext);
           await writeFile(file, bytes);

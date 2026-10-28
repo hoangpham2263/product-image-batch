@@ -79,8 +79,6 @@ function Read-ProductInput($Item, [string]$ItemId) {
         if(-not (Test-Path -LiteralPath $source -PathType Leaf)){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thiếu. Hãy gắn lại ảnh.'}
         $bytes=[IO.File]::ReadAllBytes($source)
         if((Get-BytesHash $bytes) -ine $manual[0].product_sha256){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm đã gắn bị thay đổi. Hãy gắn lại ảnh.'}
-        $size=Get-ImageSize $bytes
-        if(-not $size -or $size.Width -lt 32 -or $size.Height -lt 32){throw '[CAUSE:PRODUCT_INPUT] Ảnh sản phẩm không đọc được hoặc quá nhỏ.'}
         $reference=Join-Path $script:Batch.Refs ($ItemId+'-manual-product'+[IO.Path]::GetExtension($source))
         [IO.File]::WriteAllBytes($reference,$bytes)
         Write-Host '  [PRODUCT-MANUAL] Using attached product image; no product URL request.' -ForegroundColor Cyan

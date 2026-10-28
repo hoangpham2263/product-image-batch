@@ -31,7 +31,7 @@ test("product and scene uploads remain independent for an unpublished listing", 
     await json(base, '/api/queue', { method: 'PUT', body: JSON.stringify({ urls: [url] }) });
     const endpoint = `/api/reference?url=${encodeURIComponent(url)}`;
     const upload = (role, bytes) => json(base, endpoint + `&role=${role}`, { method: 'POST', headers: { 'content-type': 'image/png' }, body: bytes });
-    let r = await upload('product', Buffer.alloc(200, 1));
+    let r = await upload('product', Buffer.alloc(70, 1));
     assert.equal(r.status, 200);
     assert.ok(r.body.urls[0].productReference);
     assert.equal(r.body.urls[0].reference, null);
@@ -43,7 +43,7 @@ test("product and scene uploads remain independent for an unpublished listing", 
     assert.ok(r.body.urls[0].productReference);
     assert.equal(r.body.urls[0].reference, null);
     const response = await fetch(base + endpoint + '&role=product');
-    assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.alloc(200, 1));
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), Buffer.alloc(70, 1));
   } finally { server.close(); }
 });
 

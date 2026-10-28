@@ -6,7 +6,7 @@ function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
 $temp=Join-Path $TestWorkspaceRoot ('manual-product-'+[Guid]::NewGuid().ToString('N'))
 try{
     New-Item -ItemType Directory -Path $temp -Force|Out-Null
-    $photo=Join-Path $temp 'product.png';New-TestPng $photo 64 48 ([byte[]](0,0,128))
+    $photo=Join-Path $temp 'product.png';New-TestPng $photo 1 1 ([byte[]](0,0,128))
     $url='https://private.example/products/draft-shirt'
     $path=Save-ManualReference $temp $url $photo Product
     $map=Read-ManualReferenceMap $path

@@ -12,8 +12,8 @@ function Stop-ProcessTree([Diagnostics.Process]$Process) {
 
 # Width/height from the file header (PNG, JPEG, WebP), without an imaging library.
 function Get-ImageSize([byte[]]$Bytes) {
-    $be16 = { param($i) ($Bytes[$i] -shl 8) -bor $Bytes[$i + 1] }
-    $be32 = { param($i) ([long]$Bytes[$i] -shl 24) -bor ($Bytes[$i + 1] -shl 16) -bor ($Bytes[$i + 2] -shl 8) -bor $Bytes[$i + 3] }
+    $be16 = { param($i) ([int]$Bytes[$i] -shl 8) -bor [int]$Bytes[$i + 1] }
+    $be32 = { param($i) ([long]$Bytes[$i] -shl 24) -bor ([long]$Bytes[$i + 1] -shl 16) -bor ([long]$Bytes[$i + 2] -shl 8) -bor [long]$Bytes[$i + 3] }
     if ($Bytes.Length -ge 24 -and $Bytes[0] -eq 0x89 -and $Bytes[1] -eq 0x50 -and $Bytes[2] -eq 0x4E -and $Bytes[3] -eq 0x47) {
         return [pscustomobject]@{ Format = 'png'; Width = (& $be32 16); Height = (& $be32 20) }
     }
@@ -30,9 +30,9 @@ function Get-ImageSize([byte[]]$Bytes) {
     }
     if ($Bytes.Length -ge 30 -and [Text.Encoding]::ASCII.GetString($Bytes, 0, 4) -eq 'RIFF' -and [Text.Encoding]::ASCII.GetString($Bytes, 8, 4) -eq 'WEBP') {
         $kind = [Text.Encoding]::ASCII.GetString($Bytes, 12, 4)
-        if ($kind -eq 'VP8X') { return [pscustomobject]@{ Format = 'webp'; Width = 1 + ($Bytes[24] -bor ($Bytes[25] -shl 8) -bor ($Bytes[26] -shl 16)); Height = 1 + ($Bytes[27] -bor ($Bytes[28] -shl 8) -bor ($Bytes[29] -shl 16)) } }
-        if ($kind -eq 'VP8 ') { return [pscustomobject]@{ Format = 'webp'; Width = ($Bytes[26] -bor ($Bytes[27] -shl 8)) -band 0x3FFF; Height = ($Bytes[28] -bor ($Bytes[29] -shl 8)) -band 0x3FFF } }
-        if ($kind -eq 'VP8L') { $b = $Bytes; return [pscustomobject]@{ Format = 'webp'; Width = 1 + (($b[21] -bor ($b[22] -shl 8)) -band 0x3FFF); Height = 1 + ((($b[22] -shr 6) -bor ($b[23] -shl 2) -bor ($b[24] -shl 10)) -band 0x3FFF) } }
+        if ($kind -eq 'VP8X') { return [pscustomobject]@{ Format = 'webp'; Width = 1 + ([int]$Bytes[24] -bor ([int]$Bytes[25] -shl 8) -bor ([int]$Bytes[26] -shl 16)); Height = 1 + ([int]$Bytes[27] -bor ([int]$Bytes[28] -shl 8) -bor ([int]$Bytes[29] -shl 16)) } }
+        if ($kind -eq 'VP8 ') { return [pscustomobject]@{ Format = 'webp'; Width = ([int]$Bytes[26] -bor ([int]$Bytes[27] -shl 8)) -band 0x3FFF; Height = ([int]$Bytes[28] -bor ([int]$Bytes[29] -shl 8)) -band 0x3FFF } }
+        if ($kind -eq 'VP8L') { $b = $Bytes; return [pscustomobject]@{ Format = 'webp'; Width = 1 + (([int]$b[21] -bor ([int]$b[22] -shl 8)) -band 0x3FFF); Height = 1 + ((([int]$b[22] -shr 6) -bor ([int]$b[23] -shl 2) -bor ([int]$b[24] -shl 10)) -band 0x3FFF) } }
     }
     return $null
 }

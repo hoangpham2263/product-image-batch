@@ -257,14 +257,14 @@ $timer.Add_Tick({
     }
 })
 
-# Light motion while a run is active: pulsing dots in the status and on the Start button.
+# Show running animation only in the status label; button captions stay fixed.
 $script:animFrame = 0
 $animTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 350 }
 $animTimer.Add_Tick({
     if (-not $script:proc) { return }
     $script:animFrame = ($script:animFrame + 1) % 3
     $dots = @('●○○', '○●○', '○○●')[$script:animFrame]
-    if (-not $script:runStopped) { $lblStatus.Text = "Đang chạy $dots"; $btnRun.Text = "Đang chạy $dots" }
+    if (-not $script:runStopped) { $lblStatus.Text = "Đang chạy $dots" }
 })
 function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '') {
     if ($script:proc) { return }
@@ -292,7 +292,7 @@ function Start-GuiBatch([string]$FeedbackFile = '', [string]$ApprovedImage = '')
         Append-Log ("Chưa khởi động được lượt xử lý: " + $_.Exception.Message)
         return
     }
-    $btnRun.Enabled = $false; $btnRun.Text = 'Đang chạy'; $btnStop.Enabled = $true
+    $btnRun.Enabled = $false; $btnStop.Enabled = $true
     $btnSave.Enabled = $false; $btnSetup.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numPer.Enabled = $false; $numThr.Enabled = $false
     $btnFeedback.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30

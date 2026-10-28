@@ -40,8 +40,10 @@ Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, t�
 ## 5. Giao diện và kho ảnh
 
 - Danh sách bên trái, nút thao tác bên phải, Bắt đầu/Dừng bên dưới. Thêm/sửa trong popup; lưu xong mỗi sản phẩm một dòng nhỏ có thumbnail/trạng thái, bấm để xem lại đúng link/ảnh. Hạn chế chữ đậm, hỗ trợ danh sách lớn.
+- Khi chạy, giữ nguyên nhãn các nút và chỉ đổi trạng thái enabled/disabled; hiệu ứng chạy chỉ xuất hiện ở dòng trạng thái bên phải. Nút Dừng vẫn dùng được để hủy lượt đang chạy.
 - Dán clipboard, chọn file hoặc kéo thả ảnh cho từng URL. Đổi URL không mang ảnh cũ sang. Hủy popup không thay dữ liệu. Lưu snapshot/hash; không dùng ảnh của URL khác hoặc âm thầm thay ảnh chỉ định bằng ảnh trong kho.
 - Hai đầu vào riêng: ảnh sản phẩm gốc quyết định thiết kế; ảnh bối cảnh quyết định người/phòng cần chỉnh. Web chưa public vẫn dùng ảnh gốc trực tiếp; có đủ ảnh thì không cần link thật. Khi thiếu/hỏng ảnh đã chỉ định phải báo lỗi, không âm thầm tải web hoặc đổi ảnh khác.
+- Ảnh người dùng gắn được dùng trực tiếp, không chặn vì kích thước tối thiểu hay chấm chất lượng/độ phù hợp. Không thêm lại thông báo “Reference image is too small” hoặc bước xét ảnh trước khi tạo. Giữ đúng cặp ảnh đã chọn và hash đầu vào.
 - Kho dùng tên tiếng Việt có dấu theo nhóm hàng chung như `Áo`, `Nội thất`; không chia theo website, không gọi kho áo là kho cả quần áo. Giữ nhóm khác để dùng về sau. `source_group` là nhóm thư mục; `category` là mã danh mục chi tiết để chọn ảnh và áp dụng bài học.
 - Chuyển kho phải cập nhật đường dẫn, giữ nguồn, hash và lịch sử sử dụng. Kiểm tra inventory thực tế trong catalog, không coi số đếm trong tài liệu là luôn cập nhật.
 - Khi bật fallback, chọn đúng danh mục, góc ghép, độ nét và diện tích thay thế tương đương; phòng bàn nhỏ hoặc bàn tiệc quá dài không mặc nhiên hợp sản phẩm khác. Không kéo dài sản phẩm để lấp đồ cũ. Tránh CGI, collage, ảnh cận hoặc bị che vùng ghép.
