@@ -26,6 +26,7 @@
   .top-text { flex: 1; min-width: 0; }
   h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 500; }
   .brand img { display: block; border-radius: 10px; }
+  .home-link { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; min-width: 0; }
   input, select, button { font: inherit; font-size: 14px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; background: var(--bg); }
   input, select { height: 36px; padding: 0 10px; min-width: 0; }
   input:focus, select:focus { outline: none; border-color: var(--primary); }
@@ -151,8 +152,11 @@
 <body>
 <main class="wrap">
   <header class="top">
-    <span class="brand"><img src="brand/hp-icon.svg" alt="" width="40" height="40" /></span>
-    <div class="top-text"><h1>Product Review Batch</h1></div>
+    <a class="home-link" id="homeLink" href="./" title="Trang chính">
+      <span class="brand"><img src="brand/hp-icon.svg" alt="" width="40" height="40" /></span>
+      <h1>Product Review Batch</h1>
+    </a>
+    <div class="top-text"></div>
     <a id="dlIcon" class="icon btn" hidden href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip" title="Tải app" aria-label="Tải app">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
     </a>
@@ -663,6 +667,8 @@ $("search").oninput = () => { state.imgShown = PAGE; render(); };
 $("batch").onchange = () => { state.imgShown = PAGE; render(); };
 $("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
 for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
+// Logo and name go back to the management home (or the download page when signed out).
+$("homeLink").onclick = (e) => { e.preventDefault(); go(""); };
 $("srcBack").onclick = () => go(state.group ? "nguon" : "");
 window.addEventListener("hashchange", route);
 window.addEventListener("popstate", route);
