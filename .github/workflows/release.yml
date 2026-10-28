@@ -11,10 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       # One fixed asset name, so releases/latest/download/product-review-batch.zip always works.
-      # product-image-batch.zip is the same file for installs from before the rename.
       - run: |
           git archive --format=zip --prefix=product-review-batch/ -o product-review-batch.zip "$GITHUB_REF_NAME"
-          cp product-review-batch.zip product-image-batch.zip
-          gh release create "$GITHUB_REF_NAME" product-review-batch.zip product-image-batch.zip --generate-notes --title "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" product-review-batch.zip --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ github.token }}
