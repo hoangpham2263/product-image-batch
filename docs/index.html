@@ -113,6 +113,8 @@
   .back:hover { color: var(--fg); }
   /* Filters */
   .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
+  /* Lists sit straight on the page: no card around the table. */
+  .panel { display: grid; gap: 16px; min-width: 0; }
   .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
   h2 { margin: 0; font-size: 16px; font-weight: 500; }
   .filters { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -122,6 +124,7 @@
   .dt { display: grid; gap: 10px; }
   .dt-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
   .dt-bar .dt-count { margin-right: auto; font-size: 13px; color: var(--muted); }
+  .dt-search { width: 260px; max-width: 100%; }
   .dt-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
   .dt table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .dt th { height: 40px; padding: 0 12px; text-align: left; font-weight: 500; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
@@ -285,7 +288,7 @@
     </button>
   </section>
 
-  <section id="logs" class="card" hidden>
+  <section id="logs" class="panel" hidden>
     <div class="sec-head">
       <div class="crumbs"><button class="back" type="button" data-go="">← Quản lý</button><h2 id="logsTitle">Log người dùng</h2></div>
     </div>
@@ -334,7 +337,7 @@
     <div id="importDoc" class="doc"><p class="muted">Đang tải…</p></div>
   </section>
 
-  <section id="manage" class="card" hidden>
+  <section id="manage" class="panel" hidden>
     <div class="sec-head">
       <div class="crumbs"><button class="back" type="button" data-go="">← Quản lý</button><h2 id="listTitle">Ảnh đã tạo</h2></div>
       <div class="filters" id="filters">
@@ -347,7 +350,7 @@
     <p id="empty" class="empty" hidden></p>
   </section>
 
-  <section id="sources" class="card" hidden>
+  <section id="sources" class="panel" hidden>
     <div class="sec-head">
       <div class="crumbs"><button id="srcBack" class="back" type="button">← Quản lý</button><h2 id="srcTitle">Nguồn ảnh</h2></div>
       <div class="filters">
@@ -470,28 +473,36 @@ async function api(path, init = {}) {
 }
 
 // ----- Data table (like shadcn's): pick rows, act on the picked ones, action buttons on each row -----
-// columns: [{ label, cell(row) -> text or node, cls }]; bulk / menu: [{ label, danger, run(rows) }]; open(row) on a row click.
-function dataTable(box, { rows, key, columns, bulk = [], menu = [], open }) {
+// columns: [{ label, cell(row) -> text or node, cls }]; bulk / menu: [{ label, danger, run(rows) }]; search(row) -> text
+// adds a search box. A click on a row picks it; the toolbar then offers the bulk actions.
+function dataTable(box, { rows: all, key, columns, bulk = [], menu = [], search, empty = "Không có dòng nào khớp." }) {
   const picked = box.picked || (box.picked = new Set());
-  for (const id of [...picked]) if (!rows.some((r) => key(r) === id)) picked.delete(id);
-  const draw = () => dataTable(box, { rows, key, columns, bulk, menu, open });
+  for (const id of [...picked]) if (!all.some((r) => key(r) === id)) picked.delete(id);
+  const q = (box.query || "").trim().toLowerCase();
+  const rows = q && search ? all.filter((r) => search(r).toLowerCase().includes(q)) : all;
+  const draw = () => dataTable(box, { rows: all, key, columns, bulk, menu, search, empty });
   const chosen = () => rows.filter((r) => picked.has(key(r)));
   const check = (on, change) => { const c = document.createElement("input"); c.type = "checkbox"; c.checked = on; c.onclick = (e) => e.stopPropagation(); c.onchange = () => change(c.checked); return c; };
   const bar = document.createElement("div");
   bar.className = "dt-bar";
-  bar.hidden = !picked.size;
-  bar.append(Object.assign(document.createElement("span"), { className: "dt-count", textContent: `Đã chọn ${picked.size}` }));
-  for (const a of bulk) {
+  if (search) {
+    const input = Object.assign(document.createElement("input"), { type: "search", placeholder: "Tìm…", value: box.query || "", className: "dt-search" });
+    input.setAttribute("aria-label", "Tìm");
+    input.oninput = () => { box.query = input.value; draw(); const again = box.querySelector(".dt-search"); again.focus(); again.setSelectionRange(again.value.length, again.value.length); };
+    bar.append(input);
+  }
+  bar.append(Object.assign(document.createElement("span"), { className: "dt-count", textContent: picked.size ? `Đã chọn ${picked.size}/${all.length}` : `${rows.length} dòng` }));
+  if (picked.size) for (const a of bulk) {
     const b = Object.assign(document.createElement("button"), { type: "button", textContent: a.label, className: a.danger ? "danger" : "" });
     b.onclick = async () => { b.disabled = true; try { if ((await a.run(chosen())) !== false) picked.clear(); } catch (e) { toast(e.message); } draw(); };
     bar.append(b);
   }
-  bar.append(Object.assign(document.createElement("button"), { type: "button", textContent: "Bỏ chọn", onclick: () => { picked.clear(); draw(); } }));
+  if (picked.size) bar.append(Object.assign(document.createElement("button"), { type: "button", textContent: "Bỏ chọn", onclick: () => { picked.clear(); draw(); } }));
   const table = document.createElement("table");
   const head = table.createTHead().insertRow();
-  const all = rows.length > 0 && rows.every((r) => picked.has(key(r)));
+  const allOn = rows.length > 0 && rows.every((r) => picked.has(key(r)));
   const th = (cls) => { const c = document.createElement("th"); c.className = cls || ""; head.append(c); return c; };
-  th("dt-check").append(check(all, (on) => { rows.forEach((r) => on ? picked.add(key(r)) : picked.delete(key(r))); draw(); }));
+  th("dt-check").append(check(allOn, (on) => { rows.forEach((r) => on ? picked.add(key(r)) : picked.delete(key(r))); draw(); }));
   for (const col of columns) th(col.cls).textContent = col.label;
   if (menu.length) th("dt-more");
   const body = table.createTBody();
@@ -515,15 +526,17 @@ function dataTable(box, { rows, key, columns, bulk = [], menu = [], open }) {
         td.append(b);
       }
     }
-    if (open) tr.onclick = () => open(row);
+    tr.onclick = () => { picked.has(key(row)) ? picked.delete(key(row)) : picked.add(key(row)); draw(); };
   }
   const scroll = document.createElement("div");
   scroll.className = "dt-scroll";
   scroll.append(table);
   const wrap = document.createElement("div");
   wrap.className = "dt";
-  wrap.append(bar, scroll);
-  wrap.hidden = !rows.length;
+  const none = Object.assign(document.createElement("p"), { className: "empty", textContent: empty, hidden: rows.length > 0 });
+  wrap.append(bar, scroll, none);
+  scroll.hidden = !rows.length;
+  wrap.hidden = !all.length;
   box.replaceChildren(wrap);
 }
 const thumb = (url) => Object.assign(document.createElement("img"), { className: "dt-thumb", src: url, loading: "lazy", alt: "" });
@@ -544,11 +557,10 @@ async function loadLogs() {
   $("logsTitle").textContent = `Log người dùng (${state.logs.length})`;
   $("logsEmpty").hidden = state.logs.length > 0;
   dataTable($("logList"), {
-    rows: state.logs, key: (l) => l.id,
+    rows: state.logs, key: (l) => l.id, search: (l) => l.name,
     columns: [{ label: "Tên file", cell: (l) => l.name, cls: "dt-name" }, { label: "Thời gian", cell: (l) => at(l.createdAt), cls: "dt-muted" }, { label: "Dung lượng", cell: (l) => kb(l.size), cls: "dt-muted" }],
-    bulk: [{ label: "Tải", run: async (rows) => { for (const l of rows) await downloadLog(l); } }, { label: "Xoá", danger: true, run: deleteLogs }],
+    bulk: [{ label: "Tải các file đã chọn", run: async (rows) => { for (const l of rows) { await downloadLog(l); await new Promise((ok) => setTimeout(ok, 400)); } } }, { label: "Xoá", danger: true, run: deleteLogs }],
     menu: [{ label: "Tải", run: ([l]) => downloadLog(l) }, { label: "Xoá", danger: true, run: deleteLogs }],
-    open: downloadLog,
   });
 }
 async function downloadLog(log) {
@@ -592,7 +604,6 @@ function render() {
     columns: [{ label: "", cell: (i) => thumb(i.url) }, { label: "Sản phẩm", cell: (i) => i.product || i.name, cls: "dt-name" }, { label: "Lần chạy", cell: (i) => i.batch, cls: "dt-muted" }, { label: "Ngày tạo", cell: (i) => at(i.createdAt), cls: "dt-muted" }],
     bulk: [{ label: "Copy link", run: copyLinks }, { label: "Tải CSV", run: (rows) => { downloadCsv(rows); return false; } }, { label: "Xoá", danger: true, run: deleteImages }],
     menu: [{ label: "Xem", run: ([i]) => openViewer("images", state.images.indexOf(i)) }, { label: "Copy link", run: copyLinks }, { label: "Mở ảnh", run: ([i]) => window.open(i.url, "_blank", "noopener") }, { label: "Xoá", danger: true, run: deleteImages }],
-    open: (i) => openViewer("images", state.images.indexOf(i)),
   });
 }
 async function deleteImages(rows) {
@@ -613,7 +624,7 @@ function renderSources() {
   $("groupList").hidden = inGroup;
   $("srcGrid").hidden = !inGroup;
   dataTable($("groupList"), {
-    rows: inGroup ? [] : groups, key: (g) => g.name,
+    rows: inGroup ? [] : groups, key: (g) => g.name, search: (g) => g.name,
     columns: [{ label: "Nhóm", cell: (g) => g.name, cls: "dt-name" }, { label: "Số ảnh", cell: (g) => num(g.count), cls: "dt-muted" }, { label: "Hiện trong app", cell: (g) => {
       const sw = Object.assign(document.createElement("input"), { type: "checkbox", className: "switch", checked: !!g.enabled, title: "Hiện trong app" });
       sw.onclick = (e) => e.stopPropagation();
@@ -622,7 +633,6 @@ function renderSources() {
     } }],
     bulk: [{ label: "Hiện trong app", run: (rows) => setGroupsEnabled(rows, true) }, { label: "Ẩn trong app", run: (rows) => setGroupsEnabled(rows, false) }],
     menu: [{ label: "Mở", run: ([g]) => go(`nguon/${encodeURIComponent(g.name)}`) }, { label: "Hiện trong app", run: ([g]) => setGroupEnabled(g, true) }, { label: "Ẩn trong app", run: ([g]) => setGroupEnabled(g, false) }],
-    open: (g) => go(`nguon/${encodeURIComponent(g.name)}`),
   });
   const empty = inGroup ? !state.sources.length : !groups.length;
   $("srcEmpty").hidden = !empty || (inGroup && state.loading);
@@ -630,11 +640,10 @@ function renderSources() {
   $("deleteGroupBtn").hidden = !inGroup || state.loading || state.sources.length > 0;
   $("srcMore").hidden = !inGroup || state.sources.length <= state.shown;
   dataTable($("srcGrid"), {
-    rows: inGroup ? state.sources.slice(0, state.shown) : [], key: (f) => f.id,
+    rows: inGroup ? state.sources.slice(0, state.shown) : [], key: (f) => f.id, search: (f) => f.name,
     columns: [{ label: "", cell: (f) => thumb(f.url) }, { label: "Tên ảnh", cell: (f) => f.name, cls: "dt-name" }, { label: "Dung lượng", cell: (f) => kb(f.size), cls: "dt-muted" }],
     bulk: [{ label: "Copy link", run: copyLinks }, { label: "Xoá", danger: true, run: deleteSources }],
     menu: [{ label: "Xem", run: ([f]) => openViewer("sources", state.sources.indexOf(f)) }, { label: "Copy link", run: copyLinks }, { label: "Xoá", danger: true, run: deleteSources }],
-    open: (f) => openViewer("sources", state.sources.indexOf(f)),
   });
 }
 
