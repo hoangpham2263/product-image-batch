@@ -520,7 +520,7 @@ function Show-ProductQueueDialog($Editor,$Target=$null) {
 $script:ImportGuideUrl='https://hoangpham.is-a.dev/product-review-batch/#nhap'
 function Show-ProductQueueBulkDialog($Editor) {
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Nhập hàng loạt';ClientSize='760,480';MinimumSize='640,420';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
-    $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc bảng có cột product_url, product_image, review_images để app tự tải và gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
+    $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc bấm Chọn file… và chọn products.csv trong thư mục ảnh để app gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
     $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,56';Size='200,22'}
     $pick=New-Object Windows.Forms.Button -Property @{Text='Chọn file…';Location='634,50';Size='110,30';Anchor='Top,Right'}
     $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,88';Size='728,270';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
@@ -555,7 +555,7 @@ function Show-ProductQueueBulkDialog($Editor) {
     }.GetNewClosure()
     $timer.Add_Tick({
         $s=try{Get-Content -LiteralPath $st.StatusFile -Raw -Encoding UTF8 -ErrorAction Stop|ConvertFrom-Json}catch{$null}
-        if($s -and $s.total){$bar.Style='Continuous';$bar.Value=[Math]::Min(100,[int](100*$s.done/$s.total));$status.Text="Đang tải và gắn ảnh $($s.done)/$($s.total)…"}
+        if($s -and $s.total){$bar.Style='Continuous';$bar.Value=[Math]::Min(100,[int](100*$s.done/$s.total));$status.Text="Đang gắn ảnh $($s.done)/$($s.total)…"}
         if($st.Proc.HasExited){& $finish}
     }.GetNewClosure())
     $save.Add_Click({
@@ -572,7 +572,7 @@ function Show-ProductQueueBulkDialog($Editor) {
             [IO.File]::WriteAllText($st.InputFile,$text.Text,[Text.UTF8Encoding]::new($false))
             $st.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.Root 'src\import-batch.ps1')+'"'),'-File',('"'+$st.InputFile+'"'),'-Folder',('"'+$st.Folder+'"'),'-StatusFile',('"'+$st.StatusFile+'"'))
             [void]$st.Proc.Handle
-            $text.ReadOnly=$true;$save.Enabled=$false;$pick.Enabled=$false;$bar.Style='Marquee';$bar.Visible=$true;$status.Text='Đang tải và gắn ảnh…'
+            $text.ReadOnly=$true;$save.Enabled=$false;$pick.Enabled=$false;$bar.Style='Marquee';$bar.Visible=$true;$status.Text='Đang gắn ảnh…'
             $timer.Start()
         }catch{& $fail $_.Exception.Message}
     }.GetNewClosure())

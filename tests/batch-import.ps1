@@ -16,7 +16,7 @@ try{
     $plain=ConvertFrom-ProductBatch "https://shop.test/a`n# note`nhttps://shop.test/b"
     Assert (@($plain.Rows).Count -eq 2 -and -not @($plain.Errors).Count -and -not $plain.Rows[0].Product) 'Plain links must parse as links without images.'
 
-    # The folder: nhap.csv names its images by file name; one row per product image, two rows of one link give it two
+    # The folder: products.csv names its images by file name; one row per product image, two rows of one link give it two
     # product images, several review images in one cell are separated by commas.
     $img="$temp/img"
     $csv="product_url,product_image,review_images`nhttps://shop.test/a,p1.png,`"r1.jpg,r2.png`"`nhttps://shop.test/a,p2.jpg,r3.jpg`nhttps://shop.test/b,,r1.jpg"

@@ -1,4 +1,4 @@
-﻿# Nhập hàng loạt: many products at once from one folder (docs/import.md): nhap.csv next to its images, which the table
+﻿# Nhập hàng loạt: many products at once from one folder (docs/import.md): products.csv next to its images, which the table
 # names by file name. Each row is one product image of a link with its review images; several rows with the same link
 # give that link several product images. Plain links, one per line, still work and only add the links.
 $script:ImportColumns = @('product_url', 'product_image', 'review_images')
@@ -15,7 +15,7 @@ function ConvertFrom-ProductBatch([string]$Text, [string]$Folder = '') {
         # Plain links: one per line, nothing to attach.
         for ($i = 0; $i -lt $lines.Count; $i++) { $rows.Add([pscustomobject]@{ Line = $i + 1; Url = $lines[$i].Trim(); Product = ''; Reviews = @() }) }
     } else {
-        if (-not $Folder) { return @{ Rows = @(); Errors = @('Bấm Chọn file… và chọn nhap.csv trong thư mục ảnh.') } }
+        if (-not $Folder) { return @{ Rows = @(); Errors = @('Bấm Chọn file… và chọn products.csv trong thư mục ảnh.') } }
         $names = @($header -split ',' | ForEach-Object { $_.Trim().Trim('"').ToLowerInvariant() })
         foreach ($name in $names) { if ($name -and $name -notin $script:ImportColumns) { $errors.Add("Dòng 1: cột lạ '$name'. Chỉ dùng: $($script:ImportColumns -join ', ').") } }
         $records = @($lines | ConvertFrom-Csv)

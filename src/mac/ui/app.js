@@ -676,7 +676,7 @@ async function addLinks(urls) {
 }
 function showBulkDialog() {
   const view = openWindow("Nhập hàng loạt", 760, 480);
-  const hint = at(label("Dán link (mỗi dòng một link), hoặc bảng có cột product_url, product_image, review_images để app tự tải và gắn ảnh."), 16, 14, 728, 40);
+  const hint = at(label("Dán link (mỗi dòng một link), hoặc bấm Chọn file… và chọn products.csv trong thư mục ảnh để app gắn ảnh."), 16, 14, 728, 40);
   hint.style.whiteSpace = "normal";
   const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 56, 200, 22);
   const pick = at(button("Chọn file…"), 634, 50, 110, 30);
@@ -694,7 +694,7 @@ function showBulkDialog() {
   const fail = (message) => { status.style.color = "var(--error)"; status.textContent = message; };
   const busy = (on) => { text.readOnly = on; save.disabled = on; pick.disabled = on; bar.hidden = !on; };
   pick.onclick = async () => {
-    // nhap.csv names its images by file name: they are files in its folder.
+    // products.csv names its images by file name: they are files in its folder.
     const [path] = await chooseImages("", true);
     if (path) { text.value = await api("importFile", { path }); folder = path.slice(0, path.lastIndexOf("/")); }
   };
@@ -720,10 +720,10 @@ function showBulkDialog() {
       if (!r.ok) throw new Error((await r.json()).error);
       busy(true);
       bar.classList.add("marquee");
-      status.textContent = "Đang tải và gắn ảnh…";
+      status.textContent = "Đang gắn ảnh…";
       timer = setInterval(async () => {
         const { running, status: s } = await (await fetch("/api/import")).json();
-        if (s?.total) { bar.classList.remove("marquee"); bar.firstChild.style.width = `${Math.round((100 * s.done) / s.total)}%`; status.textContent = `Đang tải và gắn ảnh ${s.done}/${s.total}…`; }
+        if (s?.total) { bar.classList.remove("marquee"); bar.firstChild.style.width = `${Math.round((100 * s.done) / s.total)}%`; status.textContent = `Đang gắn ảnh ${s.done}/${s.total}…`; }
         if (!running && timer) finish(s);
       }, 600);
     } catch (e) { fail(e.message); }

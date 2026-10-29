@@ -1,21 +1,21 @@
 # Nhập hàng loạt – chuẩn thư mục
 
-Thêm nhiều sản phẩm cùng lúc thay vì gắn ảnh tay từng link. Chuẩn duy nhất: **một thư mục** chứa file `nhap.csv` và các ảnh trên máy.
+Thêm nhiều sản phẩm cùng lúc thay vì gắn ảnh tay từng link. Chuẩn duy nhất: **một thư mục** chứa file `products.csv` và các ảnh trên máy.
 
 ```
-nhap-hang/
-  nhap.csv
-  ban-an-nau.jpg
-  ban-an-den.jpg
-  review-1.jpg
-  review-2.jpg
-  review-3.jpg
-  polo-review.jpg
+product-import/
+  products.csv
+  dining-table-brown.jpg
+  dining-table-black.jpg
+  dining-table-review-1.jpg
+  dining-table-review-2.jpg
+  dining-table-review-3.jpg
+  polo-shirt-review.jpg
 ```
 
-Trong app bấm **Nhập hàng loạt → Chọn file…**, chọn `nhap.csv`, rồi bấm **Nhập**.
+Trong app bấm **Nhập hàng loạt → Chọn file…**, chọn `products.csv`, rồi bấm **Nhập**.
 
-## nhap.csv
+## products.csv
 
 File CSV (UTF-8, cột cách bằng dấu phẩy). Dòng đầu là tên cột:
 
@@ -27,16 +27,16 @@ File CSV (UTF-8, cột cách bằng dấu phẩy). Dòng đầu là tên cột:
 
 ```csv
 product_url,product_image,review_images
-https://shop.com/products/ban-an-go,ban-an-nau.jpg,"review-1.jpg,review-2.jpg"
-https://shop.com/products/ban-an-go,ban-an-den.jpg,review-3.jpg
-https://shop.com/products/ao-polo,,polo-review.jpg
+https://shop.com/products/wooden-dining-table,dining-table-brown.jpg,"dining-table-review-1.jpg,dining-table-review-2.jpg"
+https://shop.com/products/wooden-dining-table,dining-table-black.jpg,dining-table-review-3.jpg
+https://shop.com/products/polo-shirt,,polo-shirt-review.jpg
 ```
 
 Dòng 1–2: bàn ăn có hai màu, mỗi màu có ảnh review riêng (tạo 3 ảnh). Dòng 3: áo polo lấy ảnh gốc từ trang, một ảnh review.
 
 - **Mỗi dòng là một ảnh gốc** cùng các ảnh review của nó. Một sản phẩm có nhiều ảnh gốc (nhiều màu) thì viết nhiều dòng cùng `product_url`.
 - Mỗi cặp ảnh gốc + ảnh review tạo một ảnh kết quả.
-- Ảnh nằm trong thư mục con thì ghi kèm thư mục, ví dụ `review/review-1.jpg`. Chỉ nhận JPG/PNG, tối đa 25 MB.
+- Ảnh nằm trong thư mục con thì ghi kèm thư mục, ví dụ `reviews/dining-table-review-1.jpg`. Chỉ nhận JPG/PNG, tối đa 25 MB.
 - Ô có nhiều ảnh được bọc trong dấu nháy kép `"…"`; Excel / Google Sheets tự làm khi lưu CSV.
 - Dòng bắt đầu bằng `#` được bỏ qua.
 

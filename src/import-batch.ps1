@@ -1,4 +1,4 @@
-﻿# Nhập hàng loạt, run in the background by the app (Windows and macOS): reads nhap.csv (docs/import.md) and attaches
+﻿# Nhập hàng loạt, run in the background by the app (Windows and macOS): reads products.csv (docs/import.md) and attaches
 # every row's images, files in -Folder, to its link. Progress goes to -StatusFile as UTF-8 JSON; the import dialog shows it and, when
 # finished, adds the links to the list.
 param([Parameter(Mandatory)][string]$File, [string]$Folder = '', [string]$StatusFile = '')
