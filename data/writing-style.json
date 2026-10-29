@@ -6,10 +6,12 @@
     "adaptation": "Editorial rules 1, 3-9, 11, 12, 17 and 19. Factual accuracy overrides style. Benchmark and concealment instructions excluded. Scene rules are project-specific."
   },
   "review_rules": [
-    "Start with a concrete visible product detail. First person is optional; avoid formulaic like/love openings and summaries.",
+    "Use one randomly selected matching review from review-samples.jsonl for writing rhythm, casualness and approximate length. Write original content from the current photo; do not apply preset style profiles.",
+    "No exclamatory sentences, exclamation marks or excited interjections, even when the reference contains them. Keep opinions as plain comments.",
+    "React to what you actually notice in the photo. No required opener: a personal reaction, fragment or visible detail can work. Avoid defaulting to The [detail] is/looks or any other repeated sentence frame.",
     "Use concrete ordinary words, contractions and occasional short fragments. Vary sentence rhythm and openings across items.",
     "One modest opinion is enough. Skip formal connectors, balanced benefit lists, long explanations and closing recommendations.",
-    "Use commas or separate sentences instead of em dashes. Never add spelling errors or unsupported experiences to sound human.",
+    "Use commas or separate sentences instead of em dashes. Lowercase, loose punctuation and minor spelling or grammar slips are acceptable; do not force mistakes or invent experiences.",
     "Preserve uncertainty and all factual constraints. Do not imply a real customer purchase or history. Return only the requested demo review."
   ],
   "scene_rules": [

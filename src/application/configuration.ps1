@@ -7,7 +7,6 @@
     foreach ($entry in @(Get-SampleCatalogEntries $SourceDir)) { $allPhotos[$entry.file] = $entry }
     return @{
         SourceDir = $SourceDir; MaxTries = $MaxTries; Model = $Model; PhotosPerImage = $PhotosPerImage
-        ReviewStyles = @(Get-ReviewStyleProfiles (Join-Path $ProjectRoot 'data/review-style.json'))
         ReviewSamples = @(Get-ReviewSamples (Join-Path $ProjectRoot 'data/review-samples.jsonl') $contexts $allPhotos)
         ProductContexts = $contexts
         SourceCatalog = $catalog

@@ -2213,7 +2213,7 @@
                          "max_words":  20,
                          "min_words":  10,
                          "id":  "detail-first",
-                         "guidance":  "Start directly with one visible color or pattern detail, then give a brief personal reaction. One sentence is enough."
+                         "guidance":  "Notice a color or pattern and say what you think in your own words. No required order or opening; a few casual words can be enough."
                      },
                      {
                          "max_words":  16,
@@ -2225,7 +2225,7 @@
                          "max_words":  30,
                          "min_words":  18,
                          "id":  "outfit-detail",
-                         "guidance":  "Use two uneven sentences: a specific visible product detail, then how it looks with the surroundings actually visible. Discuss an outfit only for worn clothing. Do not invent an occasion."
+                         "guidance":  "Comment casually on how the product looks in these surroundings. Discuss an outfit only for worn clothing. Do not invent an occasion or force a detail-then-reaction structure."
                      },
                      {
                          "max_words":  12,
@@ -2237,25 +2237,25 @@
                          "max_words":  24,
                          "min_words":  12,
                          "id":  "reaction-then-detail",
-                         "guidance":  "Begin with a restrained personal reaction, then explain it using one detail actually visible in the image. Do not start with I love."
+                         "guidance":  "A spontaneous personal reaction is welcome if grounded in something visible. No obligatory explanation or prescribed opening."
                      },
                      {
                          "max_words":  28,
                          "min_words":  16,
                          "id":  "detail-then-reaction",
-                         "guidance":  "Point out a visible detail in plain language, then add a short reaction. Let the second sentence be shorter than the first."
+                         "guidance":  "Mention a detail that catches your eye, with a reaction only if you have more to say. Use whatever sentence order sounds natural."
                      },
                      {
                          "max_words":  18,
                          "min_words":  9,
                          "id":  "one-observation",
-                         "guidance":  "Write one complete sentence about the strongest visible detail. No list of benefits or extra closing endorsement."
+                         "guidance":  "One quick thought about something visible is enough, even as a fragment. No list of benefits or extra closing endorsement."
                      },
                      {
                          "max_words":  35,
                          "min_words":  20,
                          "id":  "casual-two-sentences",
-                         "guidance":  "Use a relaxed observation and a second sentence about a different visible detail. First person is optional. Natural contractions are fine; avoid polished sales copy."
+                         "guidance":  "Write like a quick informal comment. Add another thought only if it comes naturally; no need for two details or two complete sentences. Avoid polished sales copy."
                      }
                  ]
 }

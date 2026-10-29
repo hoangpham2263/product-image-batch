@@ -55,11 +55,9 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     if ($ResultFile -like '*-quality-*.txt') { throw 'Image QA must not run.' }
     if ($ResultFile -like '*-review.txt') {
         if ($Images.Count -ne 1 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Review missing finished image.' }
-        if ($PromptText -notmatch 'Writing style direction') { throw 'Missing data-driven writing style.' }
-        if ($PromptText -notmatch 'Editorial guidance: Start with a concrete visible product detail' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing natural writing rules or factual constraints.' }
+        if ($PromptText -notmatch 'Randomly selected writing reference from review-samples.jsonl' -or $PromptText -match 'Optional writing nudge|Writing style direction') { throw 'Expected sample-based writing without preset profiles.' }
+        if ($PromptText -notmatch 'No exclamatory sentences' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing plain-comment rules or factual constraints.' }
         if ($PromptText -notmatch 'narrow collar trim' -or $PromptText -match 'UNRELATED_FURNITURE_SAMPLE') { throw 'Matching reference reviews did not reach the parallel worker.' }
-        if ($ResultFile -like '*-one-review.txt' -and $PromptText -notmatch '\(detail-first\)') { throw 'Incorrect first writing style.' }
-        if ($ResultFile -like '*-two-review.txt' -and $PromptText -notmatch '\(quiet-opinion\)') { throw 'Writing style did not vary by item.' }
         if ($ResultFile -like '*-fail-review.txt' -and -not (Test-Path (Join-Path $script:Config.SourceDir 'allow-review-success.flag'))) { throw 'Simulated review failure' }
         Start-Sleep -Milliseconds 500
         "The navy pattern is subtle.`nIt looks good with the shorts." | Set-Content -LiteralPath $ResultFile

@@ -34,7 +34,7 @@ function Get-ReviewSamples([string]$Path, $ProductContexts, $SourceCatalog) {
         if ($record.body -isnot [string]) { continue }
         $body = ($record.body -replace '\s+', ' ').Trim()
         $words = @($body -split '\s+').Count
-        if ($words -lt 4 -or $words -gt 100 -or $body.Length -gt 1000) { continue }
+        if ($words -lt 1 -or $words -gt 100 -or $body.Length -gt 1000) { continue }
         $category = $record.category
         if (-not $category -and $record.review_id) { $category = $categoriesById[$record.review_id] }
         if (-not $category -and $record.source_url) {
@@ -55,25 +55,22 @@ function Get-ReviewSamples([string]$Path, $ProductContexts, $SourceCatalog) {
     }
 }
 
-function Select-ReviewSamples($Samples, $Context, [int]$Position) {
+function Select-ReviewSamples($Samples, $Context) {
     $categories = @($Context.id) + @($Context.source_categories | Select-Object -First 1)
     $pool = @($Samples | Where-Object { $_.category -in $categories })
-    # Closely related tables can supply writing rhythm when an exact category is sparse.
+    # Use related tables only when the current category has no examples.
     $tables = @('coffee-tables', 'dining-tables', 'side-tables', 'console-tables', 'desks')
-    if ($pool.Count -lt 3 -and @($categories | Where-Object { $_ -in $tables }).Count) {
+    if (-not $pool.Count -and @($categories | Where-Object { $_ -in $tables }).Count) {
         $pool += @($Samples | Where-Object { $_.category -in $tables -and $_.category -notin $categories })
     }
     if (-not $pool.Count) { return }
-    $count = [Math]::Min(3, $pool.Count)
-    # Rotate a fixed-size window so parallel items don't share mutable selection state.
-    for ($i = 0; $i -lt $count; $i++) { $pool[($Position * 3 + $i) % $pool.Count] }
+    # Pick once per review; repair attempts keep this same reference.
+    $pool | Get-Random -Count 1
 }
 
 function Get-ReviewDraftIssue([string]$Text, $Samples) {
     if (-not $Text.Trim()) { return 'The draft was empty.' }
-    if ($Text -match '(?i)^\s*(?:I\s+(?:(?:really|absolutely|just|quite)\s+)*(?:like|love)\b|(?:really\s+)?(?:like|love)\b)') {
-        return 'The draft used a formulaic like/love opening. Begin with a concrete visible product detail.'
-    }
+    if ($Text -match '[!\uFF01\u203C\u2049]') { return 'The draft used an exclamation mark. Rewrite as a plain comment without exclamatory sentences.' }
     $normalized = ([regex]::Replace($Text.ToLowerInvariant(), '[^\p{L}\p{N}]+', ' ')).Trim()
     foreach ($sample in $Samples) {
         $source = ([regex]::Replace($sample.body.ToLowerInvariant(), '[^\p{L}\p{N}]+', ' ')).Trim()

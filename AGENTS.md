@@ -60,8 +60,10 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 
 - Rating mẫu random độc lập từng review: 55% cho 5 sao, 45% cho 4 sao; batch nhỏ không bắt buộc đúng tỉ lệ tuyệt đối.
 - Kho tên nam/nữ dùng dạng tên riêng + chữ cái đầu của họ, ví dụ `Josh K.`; mỗi tên riêng một dòng, không nhân từng tên với họ A–Z. Xáo trộn, dùng hết kho trước khi lặp; đây là tên cho dữ liệu mẫu.
-- Đưa review tham khảo đúng danh mục vào luồng viết thực tế. Học cách diễn đạt và độ dài, không chép nội dung hoặc trải nghiệm của người khác.
-- Không ép mở đầu bằng “I like”, “I love”, “tôi thích”. Không bịa trải nghiệm mua hàng, giao hàng hay sử dụng. Đây là dữ liệu mẫu được tạo, không phải lời chứng thực khách thật.
+- Mỗi review chọn ngẫu nhiên một mẫu đúng danh mục từ `review-samples.jsonl`, học cách diễn đạt, nhịp và độ dài rồi viết mới theo ảnh hiện tại; không áp bộ kiểu viết định sẵn, chép nội dung hoặc trải nghiệm của người khác.
+- Không viết câu cảm thán, dấu chấm than hoặc thán từ phấn khích, kể cả mẫu tham khảo có dùng; diễn đạt nhận xét bằng câu bình thường.
+- Review mẫu viết như bình luận nhanh về điều nhìn thấy; không ép mở đầu bằng chi tiết sản phẩm hoặc lặp khuôn “The…”. Cho phép phản ứng cá nhân, câu cụt, viết thường, dấu câu thoải mái và lỗi chính tả/ngữ pháp nhỏ; không cố rải lỗi hay thay bằng một khuôn mở đầu khác.
+- Không bắt buộc hoặc cấm tuyệt đối “I like”, “I love”, “tôi thích”; dùng tự nhiên và đa dạng. Không bịa trải nghiệm mua hàng, giao hàng hay sử dụng. Đây là dữ liệu mẫu được tạo, không phải lời chứng thực khách thật.
 - Phân biệt thời gian một lượt AI với tổng thời gian sản phẩm; giữ timeout, tiến độ, số lượt thử và lý do lỗi. Không tắt tiến trình không thuộc lượt workflow.
 - Báo riêng code đã sửa, kiểm tra offline, ảnh đã tạo thật và ảnh đã xem đối chiếu. Không dùng mock để khẳng định chất lượng ảnh đã đạt. Ghi bài học không có nghĩa lỗi đã được sửa và kiểm chứng.
 - Chỉ nói đã cập nhật Git sau commit/push thành công. Kiểm tra diff, giữ thay đổi đang có và không đưa output tạm vào repository.
