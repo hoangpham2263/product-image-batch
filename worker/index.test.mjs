@@ -137,7 +137,7 @@ test("source groups are Drive folders: create, upload, list, rename duplicates, 
   assert.deepEqual(listed.files.map((f) => f.name), ["tee-2.jpg", "tee.jpg"]);
   assert.ok(listed.files.every((f) => f.md5));
   const groups = await (await call("/api/sources", { headers: admin })).json();
-  assert.deepEqual(groups.groups, [{ name: "Áo", count: 2 }]);
+  assert.deepEqual(groups.groups, [{ name: "Áo", count: 2, enabled: true }]);
   const image = await call(new URL(first.url).pathname);
   assert.equal(image.headers.get("content-type"), "image/jpeg");
   assert.equal(await image.text(), "one");
@@ -145,6 +145,25 @@ test("source groups are Drive folders: create, upload, list, rename duplicates, 
   for (const f of listed.files) assert.equal((await call(`${group}/${f.id}`, { method: "DELETE", headers: admin })).status, 200);
   assert.equal((await call(group, { method: "DELETE", headers: admin })).status, 200);
   assert.deepEqual((await (await call("/api/sources", { headers: admin })).json()).groups, []);
+});
+
+test("the app sees only switched-on groups; Áo and Nội thất start on", async () => {
+  const { call } = setup();
+  const app = { "x-admin-key": "app-pass" }, admin = { "x-admin-key": "secret" };
+  for (const name of ["Áo", "Nội thất", "Mũ"]) await call("/api/sources", { method: "POST", headers: admin, body: JSON.stringify({ name }) });
+  const names = async (headers) => (await (await call("/api/sources", { headers })).json()).groups.map((g) => g.name);
+  assert.deepEqual(await names(admin), ["Áo", "Mũ", "Nội thất"]);
+  assert.deepEqual(await names(app), ["Áo", "Nội thất"]);
+  // A macOS folder name arrives decomposed (NFD); it is still the same group.
+  assert.equal((await call(`/api/sources/${encodeURIComponent("Nội thất".normalize("NFD"))}`, { headers: app })).status, 200);
+  const mu = `/api/sources/${encodeURIComponent("Mũ")}`;
+  assert.equal((await call(mu, { headers: app })).status, 404, "a hidden group is not listed to the app");
+  assert.equal((await call(mu, { method: "PATCH", headers: app, body: JSON.stringify({ enabled: true }) })).status, 403);
+  assert.equal((await call(mu, { method: "PATCH", headers: admin, body: "{}" })).status, 400);
+  assert.equal((await call(mu, { method: "PATCH", headers: admin, body: JSON.stringify({ enabled: true }) })).status, 200);
+  assert.equal((await call(`/api/sources/${encodeURIComponent("Áo")}`, { method: "PATCH", headers: admin, body: JSON.stringify({ enabled: false }) })).status, 200);
+  assert.deepEqual(await names(app), ["Mũ", "Nội thất"]);
+  assert.equal((await call(mu, { headers: app })).status, 200);
 });
 
 test("support logs: upload a zip, list it, download it, delete it", async () => {

@@ -25,6 +25,17 @@ foreach($entry in $entries){
 }
 $catalog = Get-SourceCatalog $dir
 if ((@(Get-SourcePhotoGroups $dir))[0] -ne 'Áo') { throw 'Local folders are ordered incorrectly.' }
+# The picker lists only the groups switched on in the management page; offline it keeps the last list.
+$project = Join-Path $dir 'project'
+New-Item -ItemType Directory -Force -Path (Join-Path $project 'workspace') | Out-Null
+if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất') { throw 'Without the app password the picker starts with Áo and Nội thất.' }
+'{"apiUrl":"https://api.test","adminKey":"k"}' | Set-Content -LiteralPath (Join-Path $project 'workspace/drive.json') -Encoding UTF8
+function Get-RemoteSourceGroups($Drive) { @('Mũ', 'Nội thất'.Normalize([Text.NormalizationForm]::FormD), 'Áo') }
+if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'The picker must show exactly the switched-on groups.' }
+function Get-RemoteSourceGroups($Drive) { throw 'offline' }
+if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'Offline, the picker must keep the last switched-on groups.' }
+function Get-RemoteSourceGroups($Drive) { @() }
+if (@(Get-SourceGroupChoices $project).Count) { throw 'With every group switched off the picker must be empty.' }
 $blocked=$false;try{Get-SourcePhotoDirectory $dir '../outside'|Out-Null}catch{$blocked=$true}
 if(-not $blocked){throw 'Local group navigation escaped the library.'}
 $expansionPath = Join-Path $root 'data/dining-gallery-expansion.json'

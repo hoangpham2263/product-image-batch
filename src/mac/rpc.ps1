@@ -45,7 +45,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             }
         }
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
-        'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root $libraryRoot }) }
+        'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root }) }
         'sourceFiles' {
             # Drive listing with local copies; without the app password or network, only what is on this machine.
             $drive = Get-DriveConfig $workspace.Root

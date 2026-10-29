@@ -64,6 +64,13 @@
   .block { display: grid; gap: 12px; align-content: start; justify-content: stretch; width: 100%; height: auto; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); text-align: left; }
   .block:hover { background: var(--soft); }
   .block .menu-text { gap: 2px; }
+  .group-block { position: relative; cursor: pointer; }
+  .group-block.off .menu-text { opacity: .5; }
+  .switch { position: absolute; top: 14px; right: 14px; width: 36px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--muted) 45%, var(--bg)); cursor: pointer; transition: background .15s; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(15, 23, 42, .25); transition: transform .15s; }
+  .switch:checked { background: var(--ok); }
+  .switch:checked::after { transform: translateX(16px); }
+  .switch:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .log-list { display: grid; }
   .log-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--border); }
   .log-row:last-child { border-bottom: 0; }
@@ -288,6 +295,7 @@
       <li>Chọn nhóm, hoặc bấm <b>Tạo nhóm</b>.</li>
       <li>Bấm <b>Tải ảnh lên</b>, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh.</li>
       <li>Bấm vào ảnh để xem hoặc xoá.</li>
+      <li>Bật công tắc của nhóm để nhóm hiện trong app. Nhóm mới để tắt.</li>
     </ol>
     <span class="settings-label">Từ thư mục trên máy</span>
     <ol class="help">
@@ -448,13 +456,19 @@ function renderSources() {
   $("groupList").hidden = inGroup;
   $("srcGrid").hidden = !inGroup;
   $("groupList").replaceChildren(...groups.map((g) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "block";
-    b.innerHTML = `<span class="menu-text"><span></span><span class="muted small"></span></span>`;
+    const b = document.createElement("div");
+    b.className = "block group-block" + (g.enabled ? "" : " off");
+    b.tabIndex = 0;
+    b.innerHTML = `<span class="menu-text"><span></span><span class="muted small"></span></span><input class="switch" type="checkbox" />`;
     b.querySelector(".menu-text span").textContent = g.name;
-    b.querySelector(".muted").textContent = `${num(g.count)} ảnh`;
+    b.querySelector(".muted").textContent = `${num(g.count)} ảnh${g.enabled ? "" : " · ẩn trong app"}`;
+    const sw = b.querySelector(".switch");
+    sw.checked = !!g.enabled;
+    sw.title = sw.ariaLabel = "Hiện trong app";
+    sw.onclick = (e) => e.stopPropagation();
+    sw.onchange = () => setGroupEnabled(g, sw.checked);
     b.onclick = () => go(`nguon/${encodeURIComponent(g.name)}`);
+    b.onkeydown = (e) => { if (e.target === b && e.key === "Enter") b.onclick(); };
     return b;
   }));
   const empty = inGroup ? !state.sources.length : !groups.length;
@@ -463,6 +477,20 @@ function renderSources() {
   $("deleteGroupBtn").hidden = !inGroup || state.loading || state.sources.length > 0;
   $("srcMore").hidden = !inGroup || state.sources.length <= state.shown;
   $("srcGrid").replaceChildren(...(inGroup ? state.sources.slice(0, state.shown) : []).map((f, i) => tile(f.url, f.name, `${Math.round(f.size / 1024)} KB`, () => openViewer("sources", i))));
+}
+
+// The app only lists switched-on groups, so a group can be filled before users see it.
+async function setGroupEnabled(group, enabled) {
+  group.enabled = enabled;
+  renderSources();
+  try {
+    await api(`/api/sources/${encodeURIComponent(group.name)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled }) });
+    toast(enabled ? `Đã hiện "${group.name}" trong app` : `Đã ẩn "${group.name}" trong app`);
+  } catch (e) {
+    group.enabled = !enabled;
+    renderSources();
+    toast(e.message);
+  }
 }
 
 async function loadGroups() {
@@ -706,7 +734,7 @@ $("groupForm").addEventListener("submit", async (event) => {
     $("groupDlg").close();
     await loadGroups();
     go(`nguon/${encodeURIComponent(name)}`);
-    toast("Đã tạo nhóm");
+    toast("Đã tạo nhóm, bật công tắc để hiện trong app");
   } catch (e) { $("groupError").hidden = false; $("groupError").textContent = e.message; }
 });
 $("deleteGroupBtn").onclick = async () => {

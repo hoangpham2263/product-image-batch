@@ -376,8 +376,8 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     }.GetNewClosure())
     $dialog.Add_FormClosing({if($state.Proc){$_.Cancel=$true}}.GetNewClosure())
     $dialog.Add_Shown({
-        foreach($g in @(Get-SourceGroupChoices $Editor.ProjectRoot $libraryRoot)){[void]$groups.Items.Add($g)}
-        if($groups.Items.Contains($Editor.SourceGroup)){$groups.SelectedItem=$Editor.SourceGroup}elseif($groups.Items.Count){$groups.SelectedIndex=0}
+        foreach($g in @(Get-SourceGroupChoices $Editor.ProjectRoot)){[void]$groups.Items.Add($g)}
+        if($groups.Items.Contains($Editor.SourceGroup)){$groups.SelectedItem=$Editor.SourceGroup}elseif($groups.Items.Count){$groups.SelectedIndex=0}else{$count.Text='Chưa có nhóm nào đang bật.'}
     }.GetNewClosure())
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
     finally{$timer.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}

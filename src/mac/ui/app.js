@@ -388,6 +388,7 @@ function showDrivePicker() {
     api("groups", { local: false }).then((g) => {
       g = list(g);
       groups.setItems(g);
+      if (!g.length) { count.textContent = "Chưa có nhóm nào đang bật."; return; }
       groups.value = g.includes(state.group) ? state.group : g[0] || "";
       load();
     }).catch(() => { count.textContent = "Chưa tải được danh sách nhóm."; });

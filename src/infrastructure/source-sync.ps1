@@ -5,17 +5,22 @@ function Get-RemoteSourceGroups($Drive) {
     return @($result.groups | ForEach-Object { [string]$_.name })
 }
 
-# Groups for the picker: Drive groups (read once per app session) plus folders already on this machine.
-function Get-SourceGroupChoices([string]$ProjectRoot, [string]$LibraryRoot) {
-    if ($null -eq $script:RemoteSourceGroups) {
-        $script:RemoteSourceGroups = @(try {
-            $drive = Get-DriveConfig (Join-Path $ProjectRoot 'workspace')
-            if ($drive) { Get-RemoteSourceGroups $drive }
-        } catch { Write-Verbose $_ })
+# Groups for the picker: only the groups switched on in the management page, read each time the picker
+# opens so a switch applies at once. The last list is kept in workspace/source-groups.json for offline use.
+function Get-SourceGroupChoices([string]$ProjectRoot) {
+    $cache = Join-Path $ProjectRoot 'workspace/source-groups.json'
+    $groups = try {
+        $drive = Get-DriveConfig (Join-Path $ProjectRoot 'workspace')
+        if (-not $drive) { throw 'Chưa có mật khẩu app.' }
+        $fetched = @(Get-RemoteSourceGroups $drive)
+        try { Set-Content -LiteralPath $cache -Value (ConvertTo-Json -InputObject $fetched -Compress) -Encoding UTF8 } catch { Write-Verbose $_ }
+        ,$fetched
+    } catch {
+        Write-Verbose $_
+        if (Test-Path -LiteralPath $cache) { ,@(foreach ($g in (Get-Content -LiteralPath $cache -Raw -Encoding UTF8 | ConvertFrom-Json)) { [string]$g }) }
+        else { ,@('Áo', 'Nội thất') }
     }
-    $local = @(if (Test-Path -LiteralPath $LibraryRoot) { Get-ChildItem -LiteralPath $LibraryRoot -Directory | ForEach-Object { $_.Name.Normalize([Text.NormalizationForm]::FormC) } })
-    if (-not ($script:RemoteSourceGroups + $local).Count) { return @(Get-SourcePhotoGroups $LibraryRoot) }
-    return @($script:RemoteSourceGroups + $local | Sort-Object -Unique |
+    return @($groups | ForEach-Object { ([string]$_).Normalize([Text.NormalizationForm]::FormC) } | Sort-Object -Unique |
         Sort-Object @{ Expression = { if ($_ -eq 'Áo') { 0 } elseif ($_ -eq 'Nội thất') { 1 } else { 2 } } }, @{ Expression = { $_ } })
 }
 

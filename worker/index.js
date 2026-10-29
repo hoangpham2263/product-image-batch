@@ -157,6 +157,13 @@ async function groupFolder(env, name) {
   return found[0]?.id || null;
 }
 const sourceFile = (origin, f) => ({ id: f.id, name: f.name, size: Number(f.size || 0), md5: f.md5Checksum, createdAt: f.createdTime, url: sourceUrl(origin, f) });
+// Groups the desktop app sees. The admin switches each one on or off on the management page; a new
+// group stays hidden until switched on, so the library can grow a group at a time.
+const ENABLED_KEY = "source_enabled";
+const DEFAULT_ENABLED = ["Áo", "Nội thất"];
+const nfc = (value) => String(value).normalize("NFC");
+const readEnabled = async (env) => new Set(((await env.STORE.get(ENABLED_KEY, "json")) || DEFAULT_ENABLED).map(nfc));
+const writeEnabled = (env, set) => env.STORE.put(ENABLED_KEY, JSON.stringify([...set].sort((a, b) => a.localeCompare(b, "vi"))));
 
 // ---------- Support logs ----------
 // "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
@@ -189,12 +196,14 @@ async function handleLogs(req, env, url, id) {
   return json({ error: "Not found" }, 404);
 }
 
-async function handleSources(req, env, url, parts) {
+async function handleSources(req, env, url, parts, role) {
   const [rawGroup, fileId] = parts;
+  const enabled = await readEnabled(env);
   if (!rawGroup) {
     if (req.method === "GET") {
-      const folders = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}'`);
-      const groups = await Promise.all(folders.map(async (f) => ({ name: f.name, count: (await listChildren(env, f.id, `mimeType != '${FOLDER_MIME}'`)).length })));
+      let folders = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}'`);
+      if (role !== "admin") folders = folders.filter((f) => enabled.has(nfc(f.name)));
+      const groups = await Promise.all(folders.map(async (f) => ({ name: f.name, count: (await listChildren(env, f.id, `mimeType != '${FOLDER_MIME}'`)).length, enabled: enabled.has(nfc(f.name)) })));
       return json({ groups: groups.sort((a, b) => a.name.localeCompare(b.name, "vi")) }, 200, { "cache-control": "no-store" });
     }
     if (req.method === "POST") {
@@ -206,8 +215,9 @@ async function handleSources(req, env, url, parts) {
     }
     return json({ error: "Not found" }, 404);
   }
-  const group = decodeURIComponent(rawGroup);
+  const group = nfc(decodeURIComponent(rawGroup));
   if (!GROUP_RE.test(group)) return json({ error: "Tên nhóm không hợp lệ." }, 400);
+  if (role !== "admin" && !enabled.has(nfc(group))) return json({ error: "Không tìm thấy nhóm." }, 404);
   const parent = await groupFolder(env, group);
   if (!parent) return json({ error: "Không tìm thấy nhóm." }, 404);
 
@@ -222,9 +232,17 @@ async function handleSources(req, env, url, parts) {
     const files = await listChildren(env, parent, `mimeType != '${FOLDER_MIME}'`);
     return json({ group, files: files.map((f) => sourceFile(url.origin, f)).sort((a, b) => a.name.localeCompare(b.name)) }, 200, { "cache-control": "no-store" });
   }
+  if (req.method === "PATCH") {
+    const on = (await req.json().catch(() => ({}))).enabled;
+    if (typeof on !== "boolean") return json({ error: "Thiếu trạng thái bật/tắt." }, 400);
+    if (on) enabled.add(nfc(group)); else enabled.delete(nfc(group));
+    await writeEnabled(env, enabled);
+    return json({ name: group, enabled: on });
+  }
   if (req.method === "DELETE") {
     if ((await listChildren(env, parent)).length) return json({ error: "Xoá hết ảnh trong nhóm trước." }, 400);
     await drive(env, `/drive/v3/files/${parent}`, { method: "DELETE" });
+    if (enabled.delete(nfc(group))) await writeEnabled(env, enabled);
     return json({ ok: true });
   }
   if (req.method === "POST") {
@@ -342,7 +360,7 @@ async function handle(req, env, ctx) {
   if (logs) return handleLogs(req, env, url, logs[1]);
 
   const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
-  if (sources) return handleSources(req, env, url, [sources[1], sources[2]]);
+  if (sources) return handleSources(req, env, url, [sources[1], sources[2]], role);
 
   const one = path.match(/^\/api\/images\/(\w+)$/);
   if (one && (req.method === "PATCH" || req.method === "DELETE")) {
