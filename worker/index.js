@@ -247,8 +247,9 @@ const readEnabled = async (env) => new Set(((await env.STORE.get(ENABLED_KEY, "j
 const writeEnabled = (env, set) => env.STORE.put(ENABLED_KEY, JSON.stringify([...set].sort((a, b) => a.localeCompare(b, "vi"))));
 
 // ---------- Support logs ----------
-// "Gửi lỗi" in the app uploads one zip here; the management page lists and downloads them.
+// "Gửi lỗi" in the app uploads one error file (.md; older apps a .zip) here; the management page lists and downloads them.
 const LOGS_FOLDER = "Logs";
+const logType = (name) => (/\.zip$/i.test(String(name)) ? "application/zip" : "text/markdown; charset=utf-8");
 const logsRoot = async (env) => folder(env, LOGS_FOLDER, await appRoot(env));
 async function handleLogs(req, env, url, id) {
   const root = await logsRoot(env);
@@ -259,8 +260,9 @@ async function handleLogs(req, env, url, id) {
   if (!id && req.method === "POST") {
     const bytes = await req.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > 50 * 1024 * 1024) return json({ error: "File log rỗng hoặc quá 50MB." }, 400);
-    const name = cleanFileName(url.searchParams.get("name")) || `log-${Date.now()}.zip`;
-    const fileId = await uploadFile(env, name.endsWith(".zip") ? name : `${name}.zip`, "application/zip", bytes, root);
+    const asked = cleanFileName(url.searchParams.get("name")) || `loi-${Date.now()}.md`;
+    const name = /\.(md|zip)$/i.test(asked) ? asked : `${asked}.md`;
+    const fileId = await uploadFile(env, name, logType(name), bytes, root);
     return json({ id: fileId, name }, 201);
   }
   if (!id || !/^[\w-]+$/.test(id)) return json({ error: "Not found" }, 404);
@@ -272,7 +274,7 @@ async function handleLogs(req, env, url, id) {
   }
   if (req.method === "GET") {
     const r = await drive(env, `/drive/v3/files/${id}?alt=media`);
-    return new Response(r.body, { headers: { "content-type": "application/zip", "content-disposition": `attachment; filename="${String(meta.name).replace(/"/g, "")}"`, "cache-control": "no-store" } });
+    return new Response(r.body, { headers: { "content-type": logType(meta.name), "content-disposition": `attachment; filename="${String(meta.name).replace(/"/g, "")}"`, "cache-control": "no-store" } });
   }
   return json({ error: "Not found" }, 404);
 }

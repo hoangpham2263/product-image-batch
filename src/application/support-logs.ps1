@@ -1,96 +1,94 @@
-﻿# Gửi lỗi: one small error report (docs/error-report.md), the same shape every time so an AI can read and check it.
-#   report.json   format prb-error-report/1: app, tools, setup check, config, and only the errors since the last
-#                 Gửi lỗi (first time: 7 days): app errors, error lines of the logs and runs, reviews marked Bỏ with
-#                 the reason typed when rejecting them
-#   summary.txt   the same in a few lines for a person
-#   analysis.md   with -Analyze and errors to look at: Codex CLI reads the report by docs/error-report.md and writes
-#                 cause and fix (skipped when Codex is missing, signed out or slow: the report goes anyway)
-# No images and never drive.json (the app password) or the Codex sign-in. Packed as one ZIP so the upload and the
-# management page stay the same. Returns the zip and the Bỏ samples it reports.
+﻿# Gửi lỗi: one file only, <stamp>_<version>_<system>_<machine>.md, uploaded to the management page.
+# The app gathers what went wrong since the last Gửi lỗi (first time: 7 days): failed setup steps, app errors, the
+# error lines of its logs and runs, and the reviews marked Bỏ with the reason typed. With -Analyze, Codex CLI turns
+# that into the error file by docs/error-report.md (cause, fix, what to change in the app); without Codex (missing,
+# signed out, offline, over 2 minutes) the app writes the same facts itself. No images, never drive.json (the app
+# password) or the Codex sign-in. Returns the file and the Bỏ samples it reports.
 $script:SupportImageTypes = @('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
 $script:SupportErrorPattern = '(?i)error|exception|failed|fatal|lỗi|thất bại|không (tải|tạo|đọc|gửi) được|\[CAUSE:'
 
-function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze) {
+# $OnStep gets each step's text for the progress shown in the app.
+function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze, [scriptblock]$OnStep) {
     $workspace = Join-Path $ProjectRoot 'workspace'
-    $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
     $system = if (($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows) { 'windows' } else { 'mac' }
     $version = try { Get-AppVersion $ProjectRoot } catch { '' }
     $machine = ([Environment]::MachineName -replace '[^\w-]', '')
-    $name = (@($stamp, $version, $system, $machine) | Where-Object { $_ }) -join '_'
-    $zip = Join-Path $workspace "temp/$name.zip"
-    New-Item -ItemType Directory -Force -Path (Split-Path $zip -Parent) | Out-Null
-    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
-    $archive = [IO.Compression.ZipFile]::Open($zip, [IO.Compression.ZipArchiveMode]::Create)
-    $bundle = @{ Archive = $archive; Root = $name; Size = 0L; Skipped = [Collections.Generic.List[string]]::new() }
-    $done = $false
-    try {
-        $since = Get-SupportLogSince $ProjectRoot
-        $info = Get-SupportSystemInfo $ProjectRoot $version $system $machine
-        $check = Join-Path $ProjectRoot 'src/setup-check.ps1'
-        $setup = try { & $check -AsJson 2>&1 | Out-String } catch { $_ | Out-String }
-        $rejected = @(Get-UnsentRejectedSamples $ProjectRoot)
-        $logs = Join-Path $workspace 'logs'
-        $errors = [Collections.Generic.List[object]]::new()
-        # App errors are errors through and through: their last 20 KB since the last Gửi lỗi.
-        $appErrors = Join-Path $logs 'app-errors.log'
-        if ((Test-Path -LiteralPath $appErrors) -and (Get-Item -LiteralPath $appErrors).LastWriteTime -ge $since) {
-            $text = Get-SupportTail $appErrors 20KB
-            if ($text.Trim()) { $errors.Add([ordered]@{ source = 'logs/app-errors.log'; text = $text.Trim() }) }
-        }
-        # Other logs and the runs since then: only their error lines (the last 50 of each file).
-        $files = @(if (Test-Path -LiteralPath $logs) { Get-ChildItem -LiteralPath $logs -File | Where-Object { $_.Name -ne 'app-errors.log' -and $_.LastWriteTime -ge $since } | ForEach-Object { @{ Source = "logs/$($_.Name)"; File = $_ } } })
-        $output = Join-Path $workspace 'output'
-        $all = @(if (Test-Path -LiteralPath $output) { Get-ChildItem -LiteralPath $output -Directory | Sort-Object Name -Descending })
-        $runs = @($all | Select-Object -First 10 | Where-Object { $_.LastWriteTime -ge $since })
-        if (-not $runs.Count -and $all.Count) { $runs = @($all[0]) }
-        foreach ($batch in $runs) {
-            $base = $batch.FullName.TrimEnd('\', '/').Length + 1
-            $files += @(Get-ChildItem -LiteralPath $batch.FullName -File -Recurse | Where-Object { $_.Extension -in '.log', '.txt', '.json' -and $_.Length -lt 5MB } |
-                ForEach-Object { @{ Source = "runs/$($batch.Name)/$($_.FullName.Substring($base) -replace '\\', '/')"; File = $_ } })
-        }
-        foreach ($f in $files) {
-            try {
-                $lines = @((Get-SupportTail $f.File.FullName 2MB) -split '\r?\n' | Where-Object { $_ -match $script:SupportErrorPattern } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Last 50)
-                if ($lines.Count) { $errors.Add([ordered]@{ source = $f.Source; lines = $lines }) }
-            } catch { $bundle.Skipped.Add("$($f.Source)`t$($_.Exception.Message)") }
-        }
-        $samples = @($rejected | ForEach-Object {
-            $json = Join-Path $_.FullName 'sample.json'
-            $sample = if (Test-Path -LiteralPath $json) { Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json } else { [pscustomobject]@{ id = $_.Name } }
-            [ordered]@{ run = $sample.run; id = $sample.id; product_handle = $sample.product_handle; reason = [string]$sample.reason; body = $sample.body; decided_at = $sample.decided_at }
-        })
-        $setupJson = try { $setup | ConvertFrom-Json } catch { $setup }
-        $report = [ordered]@{
-            format = 'prb-error-report/1'; created_at = (Get-Date).ToString('o'); since = $since.ToString('o')
-            app = $info; tools = Get-SupportToolInfo; setup = $setupJson; config = Get-SupportConfig $ProjectRoot $rejected.Count
-            runs = @($runs | ForEach-Object Name); errors = $errors.ToArray(); rejected = $samples; skipped = $bundle.Skipped.ToArray()
-        }
-        $reportText = ConvertTo-Json -InputObject $report -Depth 8
-        Add-SupportText $bundle 'report.json' $reportText
-        if ($Analyze -and ($errors.Count -or $samples.Count)) {
-            $analysis = Get-SupportAnalysis $ProjectRoot $reportText
-            if ($analysis) { Add-SupportText $bundle 'analysis.md' $analysis -Bom }
-        }
-        $summary = Get-SupportSummary $info $setup $runs $appErrors
-        $summary += "Lỗi từ: $($since.ToString('yyyy-MM-dd HH:mm')) · $($errors.Count) nguồn có lỗi"
-        $summary += "Ảnh đã Bỏ báo kèm: $($samples.Count)$(if (@($samples | Where-Object reason).Count) { " (có lý do: $(@($samples | Where-Object reason).Count))" })"
-        Add-SupportText $bundle 'summary.txt' ($summary -join "`r`n") -Bom
-        $done = $true
-        return [pscustomobject]@{ Path = $zip; Samples = @($rejected | ForEach-Object FullName) }
-    } finally {
-        $archive.Dispose()
-        if (-not $done) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
+    $name = (@((Get-Date -Format 'yyyy-MM-dd_HHmmss'), $version, $system, $machine) | Where-Object { $_ }) -join '_'
+    $file = Join-Path $workspace "temp/$name.md"
+    New-Item -ItemType Directory -Force -Path (Split-Path $file -Parent) | Out-Null
+    if ($OnStep) { & $OnStep 'Đang gom lỗi…' }
+    $since = Get-SupportLogSince $ProjectRoot
+    $info = Get-SupportSystemInfo $ProjectRoot $version $system $machine
+    $check = Join-Path $ProjectRoot 'src/setup-check.ps1'
+    $setup = try { & $check -AsJson 2>&1 | Out-String } catch { $_ | Out-String }
+    $steps = @(try { @(($setup | ConvertFrom-Json).Steps) } catch { })
+    $rejected = @(Get-UnsentRejectedSamples $ProjectRoot)
+    $logs = Join-Path $workspace 'logs'
+    $errors = [Collections.Generic.List[object]]::new()
+    # App errors are errors through and through: their last 20 KB since the last Gửi lỗi.
+    $appErrors = Join-Path $logs 'app-errors.log'
+    if ((Test-Path -LiteralPath $appErrors) -and (Get-Item -LiteralPath $appErrors).LastWriteTime -ge $since) {
+        $text = (Get-SupportTail $appErrors 20KB).Trim()
+        if ($text) { $errors.Add([ordered]@{ source = 'logs/app-errors.log'; lines = @($text -split '\r?\n') }) }
     }
+    # Other logs and the runs since then: only their error lines (the last 50 of each file).
+    $files = @(if (Test-Path -LiteralPath $logs) { Get-ChildItem -LiteralPath $logs -File | Where-Object { $_.Name -ne 'app-errors.log' -and $_.LastWriteTime -ge $since } | ForEach-Object { @{ Source = "logs/$($_.Name)"; File = $_ } } })
+    $output = Join-Path $workspace 'output'
+    $runs = @(if (Test-Path -LiteralPath $output) { Get-ChildItem -LiteralPath $output -Directory | Sort-Object Name -Descending | Select-Object -First 10 | Where-Object { $_.LastWriteTime -ge $since } })
+    foreach ($batch in $runs) {
+        $base = $batch.FullName.TrimEnd('\', '/').Length + 1
+        $files += @(Get-ChildItem -LiteralPath $batch.FullName -File -Recurse | Where-Object { $_.Extension -in '.log', '.txt', '.json' -and $_.Length -lt 5MB } |
+            ForEach-Object { @{ Source = "runs/$($batch.Name)/$($_.FullName.Substring($base) -replace '\\', '/')"; File = $_ } })
+    }
+    foreach ($f in $files) {
+        try {
+            $lines = @((Get-SupportTail $f.File.FullName 2MB) -split '\r?\n' | Where-Object { $_ -match $script:SupportErrorPattern } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Last 50)
+            if ($lines.Count) { $errors.Add([ordered]@{ source = $f.Source; lines = $lines }) }
+        } catch { Write-Verbose $_ }
+    }
+    $samples = @($rejected | ForEach-Object {
+        $json = Join-Path $_.FullName 'sample.json'
+        $sample = if (Test-Path -LiteralPath $json) { Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json } else { [pscustomobject]@{ id = $_.Name } }
+        [ordered]@{ run = $sample.run; id = $sample.id; product = $sample.product_handle; reason = [string]$sample.reason; body = $sample.body }
+    })
+    $facts = [ordered]@{ app = $info; tools = Get-SupportToolInfo; since = $since.ToString('o'); setup = @($steps | Where-Object { $_.State -ne 'ok' }); config = Get-SupportConfig $ProjectRoot $rejected.Count
+        errors = $errors.ToArray(); rejected = $samples }
+    $title = "# Lỗi Product Review Batch $version · $system · $machine · $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+    $body = ''
+    if ($Analyze -and ($errors.Count -or $samples.Count -or @($facts.setup).Count)) {
+        if ($OnStep) { & $OnStep 'AI đang viết file lỗi (tối đa 2 phút)…' }
+        $body = Get-SupportAnalysis $ProjectRoot (ConvertTo-Json -InputObject $facts -Depth 8)
+    }
+    if (-not $body) { $body = ConvertTo-SupportErrorText $facts }
+    [IO.File]::WriteAllText($file, "$title`n`n$body`n", [Text.UTF8Encoding]::new($true))
+    return [pscustomobject]@{ Path = $file; Samples = @($rejected | ForEach-Object FullName) }
 }
 
-# Codex CLI sums the report up by the standard (docs/error-report.md): read-only, low effort, at most 2 minutes.
-# '' when it cannot (not installed, signed out, offline, too slow): the report is sent without it.
+# The error file without AI: the same facts, as short lists.
+function ConvertTo-SupportErrorText($Facts) {
+    $out = [Collections.Generic.List[string]]::new()
+    $out.Add("Từ $(([datetime]$Facts.since).ToString('yyyy-MM-dd HH:mm')) · cài $($Facts.app.install) · $($Facts.app.os)")
+    if (@($Facts.setup).Count) { $out.Add(''); $out.Add('## Cấu hình chưa đạt'); foreach ($s in $Facts.setup) { $out.Add("- $($s.Title): $($s.Detail)") } }
+    if (@($Facts.errors).Count) {
+        $out.Add(''); $out.Add('## Lỗi')
+        foreach ($e in $Facts.errors) { $out.Add("### $($e.source)"); foreach ($l in @($e.lines | Select-Object -Last 20)) { $out.Add("- $l") } }
+    }
+    if (@($Facts.rejected).Count) {
+        $out.Add(''); $out.Add('## Đánh giá đã Bỏ')
+        foreach ($r in $Facts.rejected) { $out.Add("- $($r.run) / $($r.id)$(if ($r.product) { " ($($r.product))" }): $(if ($r.reason) { $r.reason } else { 'không ghi lý do' })") }
+    }
+    if ($out.Count -eq 1) { $out.Add(''); $out.Add('Không có lỗi nào từ lần gửi trước.') }
+    return ($out -join "`n")
+}
+
+# Codex CLI writes the error file by the standard (docs/error-report.md): read-only, low effort, at most 2 minutes.
+# '' when it cannot (not installed, signed out, offline, too slow): the app writes the facts itself.
 function Get-SupportAnalysis([string]$ProjectRoot, [string]$ReportText) {
     try {
         $guide = Get-Content -LiteralPath (Join-Path $ProjectRoot 'docs/error-report.md') -Raw -Encoding UTF8
         $temp = Join-Path $ProjectRoot 'workspace/temp'
         $out = Join-Path $temp ('analysis-' + [Guid]::NewGuid().ToString('N') + '.md')
-        $prompt = "$guide`n`nLàm theo mục 'Dành cho AI kiểm tra' với báo cáo dưới đây. Trả lời bằng tiếng Việt, markdown, ngắn gọn: Nguyên nhân, Cách sửa cho người dùng, Việc cần sửa trong app.`n`n``````json`n$ReportText`n``````"
+        $prompt = "$guide`n`nViết file lỗi theo chuẩn trên (mục Nội dung file) từ dữ liệu dưới đây. Chỉ trả về nội dung, bắt đầu từ ## Tóm tắt, không có dòng # đầu.`n`n``````json`n$ReportText`n``````"
         $execution = Invoke-CodexProcess $prompt @('exec', '--skip-git-repo-check', '-s', 'read-only', '-C', $temp, '-c', 'model_reasoning_effort=low', '-o', $out) "$out.console.log" 120
         $text = if ($execution.ExitCode -eq 0 -and (Test-Path -LiteralPath $out)) { [IO.File]::ReadAllText($out, [Text.Encoding]::UTF8).Trim() } else { '' }
         return $text
@@ -119,13 +117,6 @@ function Get-SupportLogSince([string]$ProjectRoot) {
 # After an upload, the next Gửi lỗi starts from now.
 function Complete-SupportLogSend([string]$ProjectRoot) {
     [IO.File]::WriteAllText((Join-Path $ProjectRoot 'workspace/support-sent.txt'), (Get-Date).ToUniversalTime().ToString('o'))
-}
-
-function Add-SupportText($Bundle, [string]$Entry, [string]$Text, [switch]$Bom) {
-    $bytes = [byte[]](@([Text.UTF8Encoding]::new([bool]$Bom).GetPreamble()) + @([Text.Encoding]::UTF8.GetBytes($Text)))
-    $stream = $Bundle.Archive.CreateEntry("$($Bundle.Root)/$Entry", [IO.Compression.CompressionLevel]::Optimal).Open()
-    try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
-    $Bundle.Size += $bytes.Length
 }
 
 # Every value is best effort: a missing tool or permission leaves that field empty, never stops Gửi lỗi.
@@ -197,27 +188,8 @@ function Get-SupportConfig([string]$ProjectRoot, [int]$Unsent) {
     }
 }
 
-function Get-SupportSummary($Info, [string]$Setup, $Runs, [string]$ErrorLog) {
-    $lines = @("Product Review Batch $($Info.version) · $($Info.system) · $($Info.machine) · $($Info.created_at)",
-        "Cài: $($Info.install)$(if ($Info.git_commit) { " $($Info.git_commit), $($Info.git_changed_files) file sửa" }) · $($Info.os) · $($Info.powershell)", '', 'Kiểm tra cấu hình:')
-    $steps = try { @(($Setup | ConvertFrom-Json).Steps) } catch { @() }
-    $lines += @(if ($steps.Count) { $steps | ForEach-Object { "  $($_.Title): $($_.State) · $($_.Detail)" } } else { '  (không chạy được, xem setup-check.json)' })
-    $lines += @('', 'Lần chạy gần nhất:')
-    foreach ($batch in @($Runs)) {
-        $items = @(try { Get-BatchReview $batch.FullName } catch { })
-        $errors = Join-Path $batch.FullName 'logs/run.err.log'
-        $errorLines = if (Test-Path -LiteralPath $errors) { @(Get-Content -LiteralPath $errors -Encoding UTF8 | Where-Object { $_.Trim() }).Count } else { 0 }
-        $lines += "  $($batch.Name): $($items.Count) ảnh · giữ $(@($items | Where-Object Decision -eq 'ok').Count) · bỏ $(@($items | Where-Object Decision -eq 'bad').Count) · chưa duyệt $(@($items | Where-Object { -not $_.Decision }).Count) · $errorLines dòng lỗi"
-    }
-    if (-not @($Runs).Count) { $lines += '  (chưa có)' }
-    $lines += @('', 'Lỗi gần nhất (logs/app-errors.log):')
-    $recent = @(if (Test-Path -LiteralPath $ErrorLog) { Get-Content -LiteralPath $ErrorLog -Encoding UTF8 | Where-Object { $_ -match '^\[' } | Select-Object -Last 5 })
-    $lines += @(if ($recent.Count) { $recent | ForEach-Object { "  $_" } } else { '  (không có)' })
-    return @($lines + '')
-}
-
-function Send-SupportLog($Drive, [string]$ZipPath) {
-    $name = [Uri]::EscapeDataString([IO.Path]::GetFileName($ZipPath))
-    Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/logs?name=$name" -Method Post -ContentType 'application/zip' -Headers @{ 'x-admin-key' = $Drive.AdminKey } -InFile $ZipPath -TimeoutSec 300 | Out-Null
-    return [IO.Path]::GetFileName($ZipPath)
+function Send-SupportLog($Drive, [string]$Path) {
+    $name = [Uri]::EscapeDataString([IO.Path]::GetFileName($Path))
+    Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/logs?name=$name" -Method Post -ContentType 'text/markdown; charset=utf-8' -Headers @{ 'x-admin-key' = $Drive.AdminKey } -InFile $Path -TimeoutSec 120 | Out-Null
+    return [IO.Path]::GetFileName($Path)
 }

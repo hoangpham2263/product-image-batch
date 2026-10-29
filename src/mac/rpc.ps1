@@ -7,7 +7,6 @@ $root = Split-Path $srcDir -Parent
 . (Join-Path $srcDir 'application/workspace.ps1')
 . (Join-Path $srcDir 'application/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
-. (Join-Path $srcDir 'infrastructure/codex.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
@@ -124,22 +123,6 @@ function Invoke-Rpc([string]$Cmd, $A) {
             return $urls.Count
         }
         'rejectedCount' { return @(Get-UnsentRejectedSamples $root).Count }
-        'sendLogs' {
-            $bundle = New-SupportLogBundle $root -Analyze
-            $drive = Get-DriveConfig $workspace.Root
-            try {
-                if (-not $drive) { throw 'no app password' }
-                $name = Send-SupportLog $drive $bundle.Path
-                Complete-RejectedSamples $bundle.Samples
-                Complete-SupportLogSend $root
-                Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
-                return [pscustomobject]@{ sent = $true; name = $name; samples = @($bundle.Samples).Count }
-            } catch {
-                # Why it was not sent, so the message can say so (no app password, network, too large…).
-                $reason = if (-not $drive) { 'chưa có mật khẩu app' } elseif ($_.ErrorDetails.Message) { try { ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch { $_.ErrorDetails.Message } } else { $_.Exception.Message }
-                return [pscustomobject]@{ sent = $false; path = $bundle.Path; reason = [string]$reason }
-            }
-        }
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         # Nhập hàng loạt: problems by line, the links, and whether any row brings images (then src/import-batch.ps1 runs).
         'importParse' {

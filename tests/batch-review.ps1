@@ -31,14 +31,8 @@ try{
     $bundle=New-SupportLogBundle $project
     try{
         Assert (@($bundle.Samples).Count -eq 1) 'Gửi lỗi must carry the rejected reviews not sent yet.'
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        $zip=[IO.Compression.ZipFile]::OpenRead($bundle.Path)
-        try{
-            Assert (-not @($zip.Entries|Where-Object{$_.FullName -like '*.png'}).Count) 'The error report carries no images.'
-            $entry=@($zip.Entries|Where-Object{$_.FullName -like '*/report.json'})[0];$reader=New-Object IO.StreamReader($entry.Open())
-            $report=try{$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
-            Assert (@($report.rejected).Count -eq 1 -and $report.rejected[0].id -eq '002-tee' -and $report.rejected[0].reason -eq 'sai màu áo') 'The report must list the Bỏ review with the reason typed.'
-        }finally{$zip.Dispose()}
+        $text=[IO.File]::ReadAllText($bundle.Path,[Text.Encoding]::UTF8)
+        Assert ($text -match '002-tee' -and $text -match 'sai màu áo') 'The error file must list the Bỏ review with the reason typed.'
     }finally{Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue}
     Complete-RejectedSamples $bundle.Samples
     Assert (-not @(Get-UnsentRejectedSamples $project).Count) 'Samples sent once must not be sent again.'

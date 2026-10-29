@@ -338,19 +338,22 @@ $logsTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
 $logsReset = New-Object Windows.Forms.Timer -Property @{ Interval = 2500 }
 $logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi lỗi'; $btnLogs.Enabled = -not $script:proc })
 $logsTimer.Add_Tick({
+    # Each step of src/send-logs.ps1 shows on the button and in the log.
+    $step = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^step\|' })[-1] -replace '^step\|', '' } catch { '' }
+    if ($step -and $step -ne $script:logsStep) { $script:logsStep = $step; $btnLogs.Text = ($step -replace ' \(.*\)', ''); Append-Log $step }
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
-    $result = try { (Get-Content -LiteralPath $logsOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
+    $result = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^(sent|saved)\|' })[-1] } catch { '' }
     if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi lỗi: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) đánh giá đã Bỏ)" })" }
     elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi lỗi'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file lỗi ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
-    else { $btnLogs.Text = 'Gửi lỗi'; Append-Log 'Chưa tạo được báo cáo lỗi.' }
+    else { $btnLogs.Text = 'Gửi lỗi'; Append-Log 'Chưa tạo được file lỗi.' }
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
     $rejected = @(Get-UnsentRejectedSamples $root).Count
     $question = "Gửi lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi lỗi', 'YesNo') -ne 'Yes') { return }
-    $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
+    $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'; $script:logsStep = ''
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
     [void]$script:logsProc.Handle
     $logsTimer.Start()

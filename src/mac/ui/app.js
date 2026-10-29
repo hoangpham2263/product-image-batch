@@ -1164,18 +1164,26 @@ setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) 
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
-  // Gửi lỗi: packs the logs and uploads them for the admin page; progress shows on the button.
+  // Gửi lỗi: src/send-logs.ps1 runs in the background; each step shows on the button and in the log.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
     const question = "Gửi lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
     if ((await messageBox(question, "Gửi lỗi", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
-    try {
-      const r = await api("sendLogs");
-      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi lỗi: ${r.name}${r.samples ? ` (kèm ${r.samples} đánh giá đã Bỏ)` : ""}`); }
-      else { ui.btnLogs.textContent = "Gửi lỗi"; appendLog(`Chưa gửi được (${r.reason || "không rõ lý do"}); file lỗi ở: ${r.path}`); api("revealPath", { path: r.path }); }
-    } catch { ui.btnLogs.textContent = "Gửi lỗi"; appendLog("Chưa tạo được báo cáo lỗi."); }
-    setTimeout(() => { ui.btnLogs.textContent = "Gửi lỗi"; ui.btnLogs.disabled = run.active; }, 2500);
+    const reset = () => setTimeout(() => { ui.btnLogs.textContent = "Gửi lỗi"; ui.btnLogs.disabled = run.active; }, 2500);
+    if (!(await fetch("/api/send-errors", { method: "POST" }).then((r) => r.ok).catch(() => false))) { appendLog("Chưa gửi lỗi được, thử lại sau."); return reset(); }
+    let shown = "";
+    const timer = setInterval(async () => {
+      const { running, last } = await fetch("/api/send-errors").then((r) => r.json()).catch(() => ({ running: true, last: "" }));
+      const [kind, a = "", b = ""] = last.split("|");
+      if (kind === "step" && a !== shown) { shown = a; ui.btnLogs.textContent = a.replace(/ \(.*\)/, ""); appendLog(a); }
+      if (running) return;
+      clearInterval(timer);
+      if (kind === "sent") { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi lỗi: ${a}${Number(b) ? ` (kèm ${b} đánh giá đã Bỏ)` : ""}`); }
+      else if (kind === "saved") { ui.btnLogs.textContent = "Gửi lỗi"; appendLog(`Chưa gửi được (${b || "không rõ lý do"}); file lỗi ở: ${a}`); api("revealPath", { path: a }); }
+      else { ui.btnLogs.textContent = "Gửi lỗi"; appendLog("Chưa tạo được file lỗi."); }
+      reset();
+    }, 700);
   };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };

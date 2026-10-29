@@ -24,52 +24,16 @@ try{
     foreach($n in 1..2){New-TestPng (Join-Path $library "a$n.png") 2 2 ([byte[]](1,2,3))}
     '{"a1.png":"m"}'|Set-Content -LiteralPath (Join-Path $library '.drive-sync.json')
 
-    # Long names (reproduces "Chưa tạo được file log" on Windows without long paths): an item id long enough that the
-    # old staged copy, temp + prb-log-<guid> + bundle name + runs/<run>/refs/<item>/manifest.json, passes 260 characters,
-    # while the source itself stays under 260 so the fixture can exist on Windows PowerShell 5.1.
-    $refs=Join-Path $run 'refs'
-    $itemLength=[Math]::Min(200, 250 - ([IO.Path]::GetFullPath($refs).Length + '/manifest.json'.Length + 1))
-    $longItem='001-'+('ban-go-tu-nhien-chan-tang-nguyen-khoi-' * 10).Substring(0, $itemLength - 4)
-    New-Item -ItemType Directory -Force -Path (Join-Path $refs $longItem)|Out-Null
-    '{"item_id":"long"}'|Set-Content -LiteralPath (Join-Path $refs "$longItem/manifest.json")
-    $bundleName="2026-10-29_000000_v9.9.9_windows_$([Environment]::MachineName -replace '[^\w-]', '')"
-    $oldStaged=([IO.Path]::GetTempPath() + 'prb-log-' + [Guid]::NewGuid().ToString('N') + "/$bundleName/runs/2026-10-29_run/refs/$longItem/manifest.json").Length
-    Assert ($oldStaged -gt 260) "The fixture must need a path over 260 characters the old way (got $oldStaged)."
-    $tempBefore=@(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'prb-log-*' -ErrorAction SilentlyContinue).Count
 
     $bundle=New-SupportLogBundle $temp
-    $tempAfter=@(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'prb-log-*' -ErrorAction SilentlyContinue).Count
-    Assert ($tempAfter -le $tempBefore) 'Gửi lỗi must not stage files in a temp folder.'
-    Assert ((Test-Path -LiteralPath $bundle.Path) -and (Split-Path $bundle.Path -Parent) -eq (Join-Path $ws 'temp')) 'The ZIP stays in workspace/temp, ready to send by hand if the upload fails.'
-    # Read the ZIP in memory: extracting it would itself hit the 260-character limit on Windows.
-    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
-    $zip=[IO.Compression.ZipFile]::OpenRead($bundle.Path)
-    try{
-        $entries=@{}
-        foreach($e in $zip.Entries){
-            $relative=($e.FullName -replace '\\','/') -replace '^[^/]+/',''
-            $reader=New-Object IO.StreamReader($e.Open(),[Text.Encoding]::UTF8)
-            try{$entries[$relative]=[pscustomobject]@{Length=$e.Length;Text=$(if($e.Length -lt 1MB){$reader.ReadToEnd()}else{''})}}finally{$reader.Dispose()}
-        }
-    }finally{$zip.Dispose()}
-    Assert (@($entries.Keys).Count -eq 2 -and $entries.ContainsKey('report.json') -and $entries.ContainsKey('summary.txt')) "Gửi lỗi is one error report: report.json and summary.txt (got $(@($entries.Keys) -join ', '))."
-    Assert ((Get-Item -LiteralPath $bundle.Path).Length -lt 200KB) 'The error report must stay small.'
-    Assert (-not @($entries.Keys|Where-Object{$entries[$_].Text -match 'never-send-this'}).Count) 'The app password must never leave the machine.'
-    $report=$entries['report.json'].Text|ConvertFrom-Json
-    Assert ($report.format -eq 'prb-error-report/1' -and $report.app.version -eq 'v9.9.9' -and $report.app.install -eq 'zip' -and $report.config.app_password_saved) 'report.json must describe the app and setup without the password.'
-    $sources=@($report.errors|ForEach-Object source)
-    Assert ('logs/app-errors.log' -in $sources -and (@($report.errors|Where-Object source -eq 'logs/app-errors.log')[0].text -match 'nút bị lỗi')) 'App errors must be in the report.'
-    Assert ('runs/2026-10-29_run/logs/run.err.log' -in $sources -and 'logs/huge.log' -notin $sources) 'Only error lines go in: the run error, not a log without errors.'
-    $summary=$entries['summary.txt'].Text
-    Assert ($summary -match 'v9\.9\.9' -and $summary -match 'nút bị lỗi|Giao diện Windows' -and $summary -match 'nguồn có lỗi') 'summary.txt must sum up the version, runs and errors.'
-    # After a sent report the next one starts from then: nothing old is reported again.
+    Assert ((Split-Path $bundle.Path -Parent) -eq (Join-Path $ws 'temp') -and $bundle.Path -like '*.md') 'Gửi lỗi makes one .md file in workspace/temp.'
+    Assert ((Get-Item -LiteralPath $bundle.Path).Length -lt 50KB) 'The error file must stay small.'
+    $text=[IO.File]::ReadAllText($bundle.Path,[Text.Encoding]::UTF8)
+    Assert ($text -notmatch 'never-send-this') 'The app password must never leave the machine.'
+    Assert ($text -match '^\uFEFF?# Lỗi Product Review Batch v9\.9\.9') 'The file starts with the app, version and machine.'
+    Assert ($text -match 'nút bị lỗi' -and $text -match 'runs/2026-10-29_run/logs/run\.err\.log' -and $text -notmatch 'huge\.log') 'Only errors go in: app errors and the run error, not a log without errors.'
     Complete-SupportLogSend $temp
-    Remove-Item -LiteralPath $bundle.Path -Force
-    $next=New-SupportLogBundle $temp
-    $zip=[IO.Compression.ZipFile]::OpenRead($next.Path)
-    try{$reader=New-Object IO.StreamReader(@($zip.Entries|Where-Object{$_.FullName -like '*/report.json'})[0].Open());$again=try{$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}}finally{$zip.Dispose()}
-    Assert ([datetime]$again.since -gt (Get-Date).AddHours(-2)) 'The next report must start from the last one sent.'
-    $bundle=$next
+    Assert ((Get-SupportLogSince $temp) -gt (Get-Date).AddHours(-2)) 'The next Gửi lỗi starts from the last one sent.'
     Remove-Item -LiteralPath $bundle.Path -Force
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
-Write-Host 'PASS: Gửi lỗi is one small error report (report.json + summary.txt) since the last one, without the password or images.'
+Write-Host 'PASS: Gửi lỗi is one small error file since the last one, without the password or images.'

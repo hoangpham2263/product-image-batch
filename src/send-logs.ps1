@@ -1,4 +1,5 @@
-﻿# Gửi lỗi, run in its own process by the app: prints "sent|<name>|<samples marked Bỏ sent>" or
+﻿# Gửi lỗi, run in its own process by the app (Windows and macOS): prints "step|<text>" as it goes, then
+# "sent|<name>|<samples marked Bỏ sent>" or
 # "saved|<zip path>|<reason>" when the upload is not possible, so the user can send the file by hand.
 $ErrorActionPreference = 'Stop'
 # The app reads this output as UTF-8 (paths may hold Vietnamese folder names).
@@ -11,10 +12,12 @@ $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'application/ai-settings.ps1')
 . (Join-Path $PSScriptRoot 'application/batch-review.ps1')
 . (Join-Path $PSScriptRoot 'application/support-logs.ps1')
-$bundle = New-SupportLogBundle $root -Analyze
+$step = { param($Text) [Console]::Out.WriteLine("step|$Text"); [Console]::Out.Flush() }
+$bundle = New-SupportLogBundle $root -Analyze -OnStep $step
 $drive = Get-DriveConfig (Join-Path $root 'workspace')
 try {
     if (-not $drive) { throw 'no app password' }
+    & $step 'Đang gửi…'
     $name = Send-SupportLog $drive $bundle.Path
     Complete-RejectedSamples $bundle.Samples
     Complete-SupportLogSend $root

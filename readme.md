@@ -21,7 +21,7 @@ Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật
 - **Duyệt & xuất file:** Giữ/Bỏ từng ảnh, xong thì tạo `loox_import.csv` (chọn **Custom File** khi import vào Loox).
 - **Theo dõi:** số token đã dùng và hạn mức ChatGPT hiện trực tiếp khi chạy; chọn model AI và mức suy nghĩ trong Kiểm tra cấu hình.
 - **Kho ảnh Drive:** ảnh mẫu chia theo danh mục (Áo, Nội thất…), chọn ảnh trong app hoặc **Tải về máy** chạy nền.
-- **Gửi lỗi:** một báo cáo lỗi nhỏ, chỉ các lỗi từ lần gửi trước và lý do các đánh giá đã Bỏ ([chuẩn báo cáo](docs/error-report.md)); không kèm ảnh hay mật khẩu.
+- **Gửi lỗi:** gửi một file lỗi duy nhất (AI tóm tắt nguyên nhân và cách sửa, kèm lý do các đánh giá đã Bỏ – [chuẩn](docs/error-report.md)); không kèm ảnh hay mật khẩu.
 
 Luồng xử lý mặc định 2, tối đa 4. Link lỗi được giữ lại để chạy tiếp, không tạo lại ảnh đã xong.
 

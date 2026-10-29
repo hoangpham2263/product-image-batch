@@ -37,7 +37,7 @@ function setup() {
       return Response.json({ files: list.map(([id, n]) => ({ id, name: n.name, mimeType: n.mime, size: "1", md5Checksum: "m" + id })) });
     }
     const metaOnly = url.match(/files\/([\w-]+)\?fields=parents/);
-    if (metaOnly) return Response.json({ parents: nodes.get(metaOnly[1])?.parents || [] });
+    if (metaOnly) return Response.json({ name: nodes.get(metaOnly[1])?.name, parents: nodes.get(metaOnly[1])?.parents || [] });
     if (url.includes("/upload/drive/v3/files")) {
       // Keep only the media part of the multipart/related body, as Drive does.
       const body = new Uint8Array(await new Response(init.body).arrayBuffer());
@@ -221,6 +221,10 @@ test("support logs: upload a zip, list it, download it, delete it", async () => 
   assert.equal((await call("/api/logs")).status, 401);
   const zip = new Uint8Array([80, 75, 3, 4, 1, 2]);
   const created = await (await call("/api/logs?name=2026-10-28_v1.0.9_mac.zip", { method: "POST", headers: admin, body: zip })).json();
+  const md = await (await call("/api/logs?name=2026-10-30_v1.0.45_mac.md", { method: "POST", headers: admin, body: "# Lỗi" })).json();
+  assert.equal(md.name, "2026-10-30_v1.0.45_mac.md");
+  assert.match((await call(`/api/logs/${md.id}`, { headers: admin })).headers.get("content-type"), /text\/markdown/);
+  await call(`/api/logs/${md.id}`, { method: "DELETE", headers: admin });
   const listed = await (await call("/api/logs", { headers: admin })).json();
   assert.deepEqual(listed.logs.map((l) => l.name), ["2026-10-28_v1.0.9_mac.zip"]);
   const file = await call(`/api/logs/${created.id}`, { headers: admin });
