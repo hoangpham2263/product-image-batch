@@ -21,7 +21,7 @@ function ConvertFrom-ProductBatch([string]$Text) {
         for ($i = 0; $i -lt $records.Count; $i++) {
             $r = $records[$i]
             $get = { param($n) $p = $r.PSObject.Properties | Where-Object { $_.Name.Trim().ToLowerInvariant() -eq $n } | Select-Object -First 1; if ($p) { ([string]$p.Value).Trim() } else { '' } }
-            $reviews = @((& $get 'review_images') -split '[|\r\n]' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $reviews = @((& $get 'review_images') -split '[|\r\n]|,\s*(?=https?://)' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
             $rows.Add([pscustomobject]@{ Line = $i + 2; Url = (& $get 'product_url'); Product = (& $get 'product_image'); Reviews = $reviews })
         }
     }

@@ -20,6 +20,8 @@ try{
     $csv="product_url,product_image,review_images`nhttps://shop.test/a,$p1,$r1|$r2`nhttps://shop.test/a,$p2,$r3`nhttps://shop.test/b,,$r1"
     $parsed=ConvertFrom-ProductBatch $csv
     Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The CSV table must parse.'
+    $comma=ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,,`"https://cdn.test/r1.jpg,https://cdn.test/r2.jpg|https://cdn.test/r3.jpg`""
+    Assert (-not @($comma.Errors).Count -and @($comma.Rows[0].Reviews).Count -eq 3) 'Review images may be separated by commas (quoted cell) as well as |.'
     $tsv=ConvertFrom-ProductBatch ("product_url`tproduct_image`treview_images`nhttps://shop.test/a`t$p1`t$r1")
     Assert (-not @($tsv.Errors).Count -and $tsv.Rows[0].Product -eq $p1) 'Rows pasted from a spreadsheet (tabs) must parse.'
     $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x"

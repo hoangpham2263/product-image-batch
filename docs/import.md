@@ -10,7 +10,7 @@ File CSV (UTF-8) hoặc dán thẳng từ Google Sheets / Excel (cột cách b�
 |---|---|---|
 | `product_url` | Có | Link sản phẩm `http(s)://…` |
 | `product_image` | Không | Ảnh sản phẩm gốc; bỏ trống thì app đọc ảnh từ trang sản phẩm |
-| `review_images` | Nên có | Ảnh review (ảnh bối cảnh); nhiều ảnh cách nhau bằng dấu `\|` |
+| `review_images` | Nên có | Ảnh review (ảnh bối cảnh); nhiều ảnh cách nhau bằng dấu phẩy `,` (hoặc `\|`) |
 
 - **Mỗi dòng là một ảnh gốc** cùng các ảnh review của nó. Một sản phẩm có nhiều ảnh gốc (nhiều màu) thì viết nhiều dòng cùng `product_url`.
 - Mỗi cặp ảnh gốc + ảnh review tạo một ảnh kết quả.
@@ -22,7 +22,7 @@ File CSV (UTF-8) hoặc dán thẳng từ Google Sheets / Excel (cột cách b�
 
 ```csv
 product_url,product_image,review_images
-https://shop.com/products/ban-an-go,https://cdn.shop.com/ban-an-nau.jpg,https://cdn.shop.com/review-1.jpg|https://cdn.shop.com/review-2.jpg
+https://shop.com/products/ban-an-go,https://cdn.shop.com/ban-an-nau.jpg,"https://cdn.shop.com/review-1.jpg,https://cdn.shop.com/review-2.jpg"
 https://shop.com/products/ban-an-go,https://cdn.shop.com/ban-an-den.jpg,https://cdn.shop.com/review-3.jpg
 https://shop.com/products/ao-polo,,https://cdn.shop.com/polo-review.jpg
 ```
@@ -39,7 +39,6 @@ Dòng 1–2: bàn ăn có hai màu, mỗi màu có ảnh review riêng (tạo 3 
 ## Dành cho AI tạo bảng
 
 1. Mỗi dòng: `product_url`, `product_image`, `review_images`; ghi đúng tên cột.
-2. Nhiều ảnh review trong một ô: nối bằng `|`, không có dấu cách thừa.
-3. Ô có dấu phẩy thì bọc trong dấu nháy kép `"…"`.
-4. Chỉ dùng link ảnh trực tiếp (mở ra là ảnh JPG/PNG), không dùng link trang web.
-5. Ảnh review phải là ảnh bối cảnh phù hợp với sản phẩm cùng dòng.
+2. Nhiều ảnh review trong một ô: nối bằng dấu phẩy và bọc cả ô trong dấu nháy kép `"…"` (Excel / Google Sheets tự làm khi lưu CSV).
+3. Chỉ dùng link ảnh trực tiếp (mở ra là ảnh JPG/PNG), không dùng link trang web.
+4. Ảnh review phải là ảnh bối cảnh phù hợp với sản phẩm cùng dòng.
