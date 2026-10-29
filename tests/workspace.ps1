@@ -14,6 +14,23 @@ try {
     Assert ((Format-ShortProductUrl 'https://www.bangometay.com/p/ban-go-tu-nhien-chan-tang/') -eq 'bangometay.com › ban-go-tu-nhien-chan-tang') 'The list must show a short link.'
     Assert ((Format-ShortProductUrl 'https://shop.test/products/%C3%A1o-polo.html?v=1') -eq 'shop.test › áo-polo') 'Short links drop the query and decode the name.'
     Assert ((Format-ShortProductUrl 'https://local.invalid/products/manual-1') -like 'Sản phẩm tự thêm*') 'A product added without a link says so.'
+    # Windows dialogs: a variable read in a function must be set somewhere (in it, as a parameter, or in its file).
+    # Catches leftovers like a removed temp file still cleaned up in a finally block, which broke + Drive.
+    $automatic = @('_', 'this', 'true', 'false', 'null', 'args', 'PSScriptRoot', 'Matches', 'LASTEXITCODE', 'ErrorActionPreference', 'PSVersionTable', 'IsWindows', 'IsMacOS', 'HOME', 'PID', 'sender', 'input', 'PSBoundParameters', 'ExecutionContext', 'Error', 'PSCmdlet', 'host', 'OutputEncoding')
+    foreach ($uiFile in Get-ChildItem -LiteralPath (Join-Path $project 'src/ui') -Filter *.ps1) {
+        $ast = [Management.Automation.Language.Parser]::ParseFile($uiFile.FullName, [ref]$null, [ref]$null)
+        $fileSet = @($ast.FindAll({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] }, $false) | ForEach-Object { $_.Left.Extent.Text -replace '^\[[^\]]+\]', '' -replace '^\$', '' -replace '[\.\[].*$', '' })
+        foreach ($fn in $ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
+            $set = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+            foreach ($p in $fn.FindAll({ param($n) $n -is [Management.Automation.Language.ParameterAst] }, $true)) { [void]$set.Add($p.Name.VariablePath.UserPath) }
+            foreach ($a in $fn.FindAll({ param($n) $n -is [Management.Automation.Language.AssignmentStatementAst] }, $true)) { foreach ($v in $a.Left.FindAll({ param($n) $n -is [Management.Automation.Language.VariableExpressionAst] }, $true)) { [void]$set.Add($v.VariablePath.UserPath) } }
+            foreach ($f in $fn.FindAll({ param($n) $n -is [Management.Automation.Language.ForEachStatementAst] }, $true)) { [void]$set.Add($f.Variable.VariablePath.UserPath) }
+            foreach ($v in $fn.FindAll({ param($n) $n -is [Management.Automation.Language.VariableExpressionAst] }, $true)) {
+                $name = $v.VariablePath.UserPath
+                Assert (-not $v.VariablePath.IsUnqualified -or $set.Contains($name) -or $automatic -contains $name -or $fileSet -contains $name) "$($uiFile.Name):$($v.Extent.StartLineNumber) $($fn.Name) reads `$$name, which is never set."
+            }
+        }
+    }
     # The Windows window loads its own scripts: every application function its dialogs call must be loaded there.
     $src = Join-Path $project 'src'
     $window = Get-Content -LiteralPath (Join-Path $src 'ui/main-window.ps1') -Raw

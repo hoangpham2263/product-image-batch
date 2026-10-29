@@ -476,7 +476,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if($groups.Items.Count -lt 2){$count.Text='Chưa có danh mục nào đang bật.';$sync.Enabled=$false}
     }.GetNewClosure())
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
-    finally{$loader.Dispose();$client.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
+    finally{$loader.Dispose();$client.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose()}
 }
 
 
