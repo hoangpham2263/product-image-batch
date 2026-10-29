@@ -147,3 +147,16 @@ function Remove-ManualEntriesExcept([string]$MapPath,[string[]]$Urls) {
     $map.entries=$keep
     Write-FeedbackJson $MapPath $map
 }
+
+# A product link as the list shows it, short and readable: "shop.com › product-name" (the full link stays on hover).
+function Format-ShortProductUrl([string]$Url) {
+    $uri = $null
+    if (-not [Uri]::TryCreate($Url.Trim(), [UriKind]::Absolute, [ref]$uri)) { return $Url.Trim() }
+    if ($uri.Host -eq 'local.invalid') { return 'Sản phẩm tự thêm (không có link)' }
+    $site = $uri.Host -replace '^www\.', ''
+    $slug = @($uri.AbsolutePath -split '/' | Where-Object { $_ })
+    if (-not $slug.Count) { return $site }
+    $name = [Uri]::UnescapeDataString($slug[-1]) -replace '\.(html?|php|aspx?)$', ''
+    if ($name.Length -gt 48) { $name = $name.Substring(0, 47) + '…' }
+    return "$site › $name"
+}

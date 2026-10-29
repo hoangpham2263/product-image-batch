@@ -104,6 +104,19 @@ const reportError = (message, stack) => fetch("/api/client-error", { method: "PO
 addEventListener("error", (e) => reportError(e.message, e.error?.stack || `${e.filename}:${e.lineno}:${e.colno}`));
 addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || e.reason, e.reason?.stack));
 
+// A product link as the list shows it, short and readable (Format-ShortProductUrl on Windows).
+function shortUrl(link) {
+  let u;
+  try { u = new URL(link.trim()); } catch { return link.trim(); }
+  if (u.hostname === "local.invalid") return "Sản phẩm tự thêm (không có link)";
+  const site = u.hostname.replace(/^www\./, "");
+  const parts = u.pathname.split("/").filter(Boolean);
+  if (!parts.length) return site;
+  let name = decodeURIComponent(parts.at(-1)).replace(/\.(html?|php|aspx?)$/, "");
+  if (name.length > 48) name = name.slice(0, 47) + "…";
+  return `${site} › ${name}`;
+}
+
 // ---------- child windows ----------
 const stack = [];
 function openWindow(title, w, h, { white = false } = {}) {
@@ -282,8 +295,10 @@ function renderRows() {
     const open = at(button("Xem / sửa"), width - 136, 12, 90, 34);
     const remove = at(button("×"), width - 40, 12, 32, 34);
     remove.title = "Xóa sản phẩm";
-    const url = at(el("div", "text plain", { text: row.url }), 52, 20, width - 397, 22);
-    url.style.lineHeight = "20px";
+    // Shown short ("shop.com › product-name"); the full link on hover.
+    const url = at(el("div", "text plain", { text: shortUrl(row.url) }), 52, 20, width - 397, 22);
+    Object.assign(url.style, { lineHeight: "20px", textOverflow: "ellipsis" });
+    url.title = row.url.trim();
     card.append(at(label("#" + (i + 1), "muted"), 10, 19, 40, 22), url, status, pic, open, remove);
     card.onclick = (e) => { if (!run.active && e.target !== remove) showProductDialog(row); };
     remove.onclick = (e) => { e.stopPropagation(); if (run.active) return; state.rows.splice(state.rows.indexOf(row), 1); renderRows(); updateStatus(); persist(); };

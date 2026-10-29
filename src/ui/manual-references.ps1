@@ -105,20 +105,22 @@ function Add-ProductQueueRow($Editor,[string]$Url='') {
     $card.Add_Paint({$pen=New-Object Drawing.Pen($script:Ui.Line);try{$_.Graphics.DrawRectangle($pen,0,0,$this.Width-1,$this.Height-1)}finally{$pen.Dispose()}})
     $number=New-Object Windows.Forms.Label -Property @{Text=('#'+($Editor.Rows.Count+1));Location='10,19';Size='40,22';ForeColor=$ui.Muted}
     $picture=New-Object Windows.Forms.PictureBox -Property @{Name='ReferencePreview';Location=(New-Object Drawing.Point(($width-192),8));Size='44,44';Anchor='Top,Right';SizeMode='Zoom';BackColor=$ui.Page;AllowDrop=$true}
-    $box=New-Object Windows.Forms.TextBox -Property @{Name='ProductUrl';Location='52,20';Size=(New-Object Drawing.Size(($width-397),22));Anchor='Top,Left,Right';ReadOnly=$true;BorderStyle='None';BackColor=$ui.Surface;ForeColor=$ui.Ink;Cursor='Hand';TabStop=$false}
+    # The full link lives in $box (hidden, read everywhere as .Url.Text); the row shows it short, the full one on hover.
+    $box=New-Object Windows.Forms.TextBox -Property @{Name='ProductUrl';Location='52,20';Size=(New-Object Drawing.Size(($width-397),22));Anchor='Top,Left,Right';ReadOnly=$true;BorderStyle='None';Visible=$false;TabStop=$false}
+    $link=New-Object Windows.Forms.Label -Property @{Name='ProductLink';Location='52,19';Size=(New-Object Drawing.Size(($width-397),22));Anchor='Top,Left,Right';AutoEllipsis=$true;UseMnemonic=$false;BackColor=[Drawing.Color]::Transparent;ForeColor=$ui.Ink;Cursor='Hand'}
     $status=New-Object Windows.Forms.Label -Property @{Name='ReferenceStatus';Location=(New-Object Drawing.Point(($width-340),19));Size='140,24';Anchor='Top,Right';AutoEllipsis=$true;ForeColor=$ui.Muted}
     $open=New-Object Windows.Forms.Button -Property @{Name='PreviewProduct';Text='Xem / sửa';Location=(New-Object Drawing.Point(($width-136),12));Size='90,34';Anchor='Top,Right'}
     $remove=New-Object Windows.Forms.Button -Property @{Name='RemoveProduct';Text='×';Location=(New-Object Drawing.Point(($width-40),12));Size='32,34';Anchor='Top,Right';AccessibleName='Xóa sản phẩm'}
     Set-FlatButton $open;Set-FlatButton $remove
-    $row=[pscustomobject]@{Card=$card;Url=$box;Preview=$picture;Status=$status;Number=$number;ImagePath='';BoundUrl=$null}
-    [void]$Editor.Rows.Add($row);$card.Controls.AddRange(@($number,$box,$status,$picture,$open,$remove));$Editor.Flow.Controls.Add($card)
-    $box.Add_TextChanged({Update-ProductQueueRow $Editor $row}.GetNewClosure())
+    $row=[pscustomobject]@{Card=$card;Url=$box;Link=$link;Preview=$picture;Status=$status;Number=$number;ImagePath='';BoundUrl=$null}
+    [void]$Editor.Rows.Add($row);$card.Controls.AddRange(@($number,$box,$link,$status,$picture,$open,$remove));$Editor.Flow.Controls.Add($card)
+    $box.Add_TextChanged({$link.Text=Format-ShortProductUrl $box.Text;$Editor.Tip.SetToolTip($link,$box.Text.Trim());Update-ProductQueueRow $Editor $row}.GetNewClosure())
     $show={Show-ProductQueueDialog $Editor $row}.GetNewClosure()
-    foreach($control in @($card,$box,$number,$picture,$status,$open)){$control.Add_Click($show)}
+    foreach($control in @($card,$link,$number,$picture,$status,$open)){$control.Add_Click($show)}
     # Hover highlight on the whole row; the pointer moving between child controls must not flicker it off.
     $hoverOn={$card.BackColor=$script:Ui.Hover;$box.BackColor=$script:Ui.Hover;$card.Invalidate()}.GetNewClosure()
     $hoverOff={if(-not $card.ClientRectangle.Contains($card.PointToClient([Windows.Forms.Cursor]::Position))){$card.BackColor=$script:Ui.Surface;$box.BackColor=$script:Ui.Surface;$card.Invalidate()}}.GetNewClosure()
-    foreach($control in @($card,$box,$number,$picture,$status)){$control.Add_MouseEnter($hoverOn);$control.Add_MouseLeave($hoverOff)}
+    foreach($control in @($card,$link,$number,$picture,$status)){$control.Add_MouseEnter($hoverOn);$control.Add_MouseLeave($hoverOff)}
     $picture.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect=[Windows.Forms.DragDropEffects]::Copy}})
     $picture.Add_DragDrop({try{$files=$_.Data.GetData([Windows.Forms.DataFormats]::FileDrop);if($files.Count){Set-ProductQueueReference $Editor $row @($files)}}catch{$row.Status.Text=$_.Exception.Message;$row.Status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
     $remove.Add_Click({Remove-ProductQueueRow $Editor $row}.GetNewClosure())
@@ -531,7 +533,7 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $bulk=New-Object Windows.Forms.Button -Property @{Text='Thêm nhiều link';Location='172,0';Size='150,34'}
     Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk
     # SourceGroup: the Drive group last opened in "Từ kho Drive", offered first next time.
-    $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');OnChanged=$null;SourceGroup=(Read-ManualReferenceMap (Join-Path $ProjectRoot 'workspace/reference-inputs/references.json')).preferred_source_group}
+    $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Tip=(New-Object Windows.Forms.ToolTip);Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');OnChanged=$null;SourceGroup=(Read-ManualReferenceMap (Join-Path $ProjectRoot 'workspace/reference-inputs/references.json')).preferred_source_group}
     $toolbar.Controls.AddRange(@($add,$bulk));$panel.Controls.AddRange(@($flow,$toolbar))
     $flow.Add_ClientSizeChanged({foreach($row in $editor.Rows){$row.Card.Width=[Math]::Max(700,$flow.ClientSize.Width-40)}}.GetNewClosure())
     $add.Add_Click({Show-ProductQueueDialog $editor}.GetNewClosure())

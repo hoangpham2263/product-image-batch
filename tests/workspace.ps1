@@ -10,6 +10,10 @@ try {
     New-Item -ItemType Directory -Force $base | Out-Null
     @{ schema_version = 1; photos = @() } | ConvertTo-Json | Set-Content (Join-Path $base 'catalog.json') -Encoding UTF8
     $paths = Initialize-ProjectWorkspace $fixture
+    # The product list shows links short, the full one on hover.
+    Assert ((Format-ShortProductUrl 'https://www.bangometay.com/p/ban-go-tu-nhien-chan-tang/') -eq 'bangometay.com › ban-go-tu-nhien-chan-tang') 'The list must show a short link.'
+    Assert ((Format-ShortProductUrl 'https://shop.test/products/%C3%A1o-polo.html?v=1') -eq 'shop.test › áo-polo') 'Short links drop the query and decode the name.'
+    Assert ((Format-ShortProductUrl 'https://local.invalid/products/manual-1') -like 'Sản phẩm tự thêm*') 'A product added without a link says so.'
     # The Windows window loads its own scripts: every application function its dialogs call must be loaded there.
     $src = Join-Path $project 'src'
     $window = Get-Content -LiteralPath (Join-Path $src 'ui/main-window.ps1') -Raw
