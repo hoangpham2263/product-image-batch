@@ -45,6 +45,7 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 - Khi chạy, giữ nguyên nhãn các nút và chỉ đổi trạng thái enabled/disabled; hiệu ứng chạy chỉ xuất hiện ở dòng trạng thái bên phải. Nút Dừng vẫn dùng được để hủy lượt đang chạy.
 - Màn duyệt kết quả hiển thị mỗi đánh giá một dòng, kể cả cùng sản phẩm. Giữ/Bỏ chỉ tác động dòng đó; bấm thumbnail xem ảnh lớn và ảnh gốc đối chiếu. CSV cuối chỉ gồm các đánh giá được giữ. Không gộp mảng kết quả thành một mục khi đọc JSON trên Windows PowerShell.
 - Dán clipboard, chọn file hoặc kéo thả ảnh cho từng URL. Đổi URL không mang ảnh cũ sang. Hủy popup không thay dữ liệu. Lưu snapshot/hash; không dùng ảnh của URL khác hoặc âm thầm thay ảnh chỉ định bằng ảnh trong kho.
+- Khi chạy song song hoặc phục hồi, gắn đường dẫn, file ảnh và kết quả với đúng ItemId và snapshot của lượt đó; không nhận hoặc chép ảnh từ lượt khác. Nếu hai sản phẩm khác nhau có cùng hash ảnh xuất, báo nghi vấn và giữ lại để kiểm tra, không đánh dấu hoàn tất; hash trùng là bằng chứng ảnh giống nhau, chưa xác định nguyên nhân lẫn file.
 - Hai đầu vào riêng: ảnh sản phẩm gốc quyết định thiết kế; ảnh bối cảnh quyết định người/phòng cần chỉnh. Web chưa public vẫn dùng ảnh gốc trực tiếp; có đủ ảnh thì không cần link thật. Khi thiếu/hỏng ảnh đã chỉ định phải báo lỗi, không âm thầm tải web hoặc đổi ảnh khác.
 - “Một ảnh = một sản phẩm” nói về ảnh review: mỗi ảnh review tạo một kết quả riêng, dùng cùng ảnh sản phẩm gốc của URL đó. Không gộp hai ảnh review trong một lượt, không bỏ ô ảnh sản phẩm gốc hoặc coi ảnh review là ảnh gốc. Mỗi lượt mới dùng một ảnh review và một ảnh sản phẩm gốc; không thêm ảnh phong cách thứ ba.
 - Ảnh review cung cấp cách trình bày, người và bối cảnh đang có. Nếu ảnh review chỉ có áo gấp/đặt trên bàn, giữ cách trình bày đó, không yêu cầu thêm ảnh người hoặc tự bịa người mẫu. Áo gốc chụp phẳng/gấp vẫn thuộc luồng quần áo, không phân loại thành đồ nội thất hoặc ép ảnh review phải có bàn.
@@ -154,7 +155,7 @@ Bài học được đúc kết thành nguyên tắc ngắn để áp dụng l�
 
 - Giữ đúng số lượng, hướng và điểm nối của chân/thanh giằng theo ảnh sản phẩm; không tự thêm nhánh gỗ, thanh chéo hoặc đầu gỗ cụt.
 - Thanh giằng phải nối hợp lý giữa các chân; không được chìa ra thành khúc gỗ không có chức năng hoặc giao xuyên nhau.
-- Không sao chép phần chân/giằng của đồ cũ trong ảnh bối cảnh; không tự đoán cấu tạo bị che.
+- Nếu ảnh sản phẩm có dải đỡ cong mảnh, giữ độ dày, đường cong, điểm nối và khoảng trống nhìn thấy; không biến thành khối đặc hoặc lòng chảo. Không lấy cấu tạo từ đồ cũ hay đoán phần bị che.
 
 ### Thay áo đang mặc, không đặt thêm áo vào cảnh
 <!-- app-lesson: {"id":"polo-replace-worn-garment-no-extra-prop-20261028","scope":"category","product_url":"","category":"polo-shirts","created_at":"2026-10-28T08:28:26Z"} -->
@@ -163,5 +164,12 @@ Bài học được đúc kết thành nguyên tắc ngắn để áp dụng l�
 - Thay áo đang mặc bằng áo sản phẩm gốc; nếu nhóm người chính cùng mặc polo thì thay trên từng người, giữ người, tư thế, vật đang cầm và bối cảnh.
 - Không giữ áo cũ rồi đặt thêm áo sản phẩm lên xe, ghế hoặc nền; không dán ảnh cắt rời, ô ảnh phụ hay thêm áo làm đạo cụ.
 - Ảnh áo gốc chụp phẳng/gấp chỉ cung cấp thiết kế; cách mặc hoặc đặt áo phải theo ảnh review hiện tại.
+
+### Tỉ lệ bàn trà trong phòng
+<!-- app-lesson: {"id":"coffee-table-room-scale-proportions-20261029","scope":"category","product_url":"","category":"coffee-table","created_at":"2026-10-29T15:05:52+07:00"} -->
+Áp dụng: danh mục `coffee-table`.
+
+- Giữ dáng và tỉ lệ dài, rộng, cao của bàn theo ảnh sản phẩm; đặt bàn đúng phối cảnh, cân đối với ghế và khoảng trống hiện có trong ảnh review.
+- Không phóng bàn quá lớn để lấp chỗ hoặc làm bàn ngắn, bè hơn mẫu; không suy ra kích thước thực khi nguồn không cho biết.
 
 <!-- app-lessons:end -->
