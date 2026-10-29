@@ -949,7 +949,7 @@ function updateRunDisplay() {
   }
   renderRows();
 }
-const usage = { quota: "Hạn mức: đang lấy…" };
+const usage = { quota: "Hạn mức: đang lấy…", at: 0, reading: false };
 const formatCount = (n) => Number(n).toLocaleString("vi-VN");
 function updateUsage() {
   const t = run.tokens || { in: 0, cached: 0, out: 0 };
@@ -957,9 +957,13 @@ function updateUsage() {
   ui.lblTokens.textContent = tokens;
   ui.lblQuota.textContent = usage.quota;
 }
-// Quota beside the run, kept current: read when the window opens, after each run and every minute.
+// Quota beside the run, kept current: read when the window opens, every minute, after each run and, while a run
+// goes, after calls that used tokens.
 async function refreshQuota() {
+  if (usage.reading) return;
+  usage.reading = true;
   const text = await api("quotaSummary").catch(() => "");
+  Object.assign(usage, { reading: false, at: Date.now() });
   if (text) { usage.quota = text; updateUsage(); }
 }
 
@@ -975,7 +979,11 @@ function receive(event) {
     case "Completed": if (run.stages.get(event.Index) !== "Đã xong") run.done++; run.stages.set(event.Index, event.Stage); break;
     case "Failed": run.stages.set(event.Index, event.Stage); run.failure = true; break;
     case "Warning": run.failure = true; break;
-    case "Tokens": run.tokens.in += event.TokensIn; run.tokens.cached += event.TokensCached; run.tokens.out += event.TokensOut; updateUsage(); break;
+    case "Tokens":
+      run.tokens.in += event.TokensIn; run.tokens.cached += event.TokensCached; run.tokens.out += event.TokensOut; updateUsage();
+      // Quota follows the run: re-read it after a call used tokens, at most every 15 seconds.
+      if (!usage.reading && Date.now() - usage.at >= 15000) refreshQuota();
+      break;
   }
   if (event.Text) appendLog(event.Text);
 }

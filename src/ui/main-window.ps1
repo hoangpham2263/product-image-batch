@@ -105,7 +105,11 @@ function Receive-RunLine([string]$line) {
         }
         'Failed' { $script:itemStages[$event.Index] = $event.Stage; $script:hadFailure = $true }
         'Warning' { $script:hadFailure = $true }
-        'Tokens' { $script:runTokens.In += $event.TokensIn; $script:runTokens.Cached += $event.TokensCached; $script:runTokens.Out += $event.TokensOut; Update-UsageLabel }
+        'Tokens' {
+            $script:runTokens.In += $event.TokensIn; $script:runTokens.Cached += $event.TokensCached; $script:runTokens.Out += $event.TokensOut; Update-UsageLabel
+            # Quota follows the run: re-read it after a call used tokens, at most every 15 seconds.
+            if (-not $script:quotaProc -and ((Get-Date) - $script:quotaAt).TotalSeconds -ge 15) { $quotaTimer.Interval = 100 }
+        }
     }
     if ($event.Text) { Append-Log $event.Text }
     Update-RunDisplay
@@ -243,9 +247,10 @@ $updateTimer.Add_Tick({
     $updateTimer.Interval = 6 * 3600 * 1000
 })
 if (-not $BuildOnly) { $updateTimer.Start() }
-# Quota beside the run, kept current: read when the window opens, after each run and every minute (own process, no waiting).
+# Quota beside the run, kept current: read when the window opens, every minute, after each run and, while a run goes,
+# after calls that used tokens (own process, no waiting).
 $quotaOut = Join-Path $workspace.Logs "quota-$PID.out"
-$script:quotaProc = $null
+$script:quotaProc = $null; $script:quotaAt = [datetime]::MinValue
 $quotaTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 2000 }
 $quotaTimer.Add_Tick({
     if (-not $script:quotaProc) {
@@ -255,7 +260,7 @@ $quotaTimer.Add_Tick({
         return
     }
     if (-not $script:quotaProc.HasExited) { return }
-    $script:quotaProc.Dispose(); $script:quotaProc = $null
+    $script:quotaProc.Dispose(); $script:quotaProc = $null; $script:quotaAt = Get-Date
     $text = try { (Get-Content -LiteralPath $quotaOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
     Remove-Item -LiteralPath $quotaOut -Force -ErrorAction SilentlyContinue
     if ($text) { $script:quotaText = $text; Update-UsageLabel }
