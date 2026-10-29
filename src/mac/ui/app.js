@@ -1003,6 +1003,18 @@ function wire() {
   addEventListener("resize", () => renderRows());
 }
 
+// A newer release shows on the button, green with its version, without updating anything: checked a few
+// seconds after the window opens and every 6 hours.
+async function checkUpdate() {
+  const next = await api("updateCheck").catch(() => null);
+  if (next === null) return;
+  ui.btnUpdate.textContent = next ? `Cập nhật ${next}` : "Cập nhật";
+  ui.btnUpdate.style.width = next ? "150px" : "100px";
+  ui.btnUpdate.classList.toggle("primary", !!next);
+}
+
 buildMain();
 wire();
 loadState().catch((e) => appendLog(e.message));
+setTimeout(checkUpdate, 3000);
+setInterval(checkUpdate, 6 * 3600 * 1000);

@@ -197,6 +197,32 @@ $btnUpdate.Add_Click({
         $form.Close()
     }
 })
+# A newer release shows on the button, green with its version, without updating anything: checked in the
+# background a few seconds after the window opens and every 6 hours.
+function Set-UpdateButton([string]$Next) {
+    $btnUpdate.Text = $(if ($Next) { "Cập nhật $Next" } else { 'Cập nhật' })
+    $btnUpdate.Width = $(if ($Next) { 150 } else { 100 })
+    $btnUpdate.Left = $header.ClientSize.Width - 24 - $btnUpdate.Width
+    Set-FlatButton $btnUpdate -Primary:([bool]$Next)
+}
+$updateOut = Join-Path $workspace.Logs "update-check-$PID.out"
+$script:updateProc = $null
+$updateTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 3000 }
+$updateTimer.Add_Tick({
+    if (-not $script:updateProc) {
+        $script:updateProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $updateOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'update.ps1') + '"'), '-Root', ('"' + $root + '"'), '-Check')
+        [void]$script:updateProc.Handle
+        $updateTimer.Interval = 1000
+        return
+    }
+    if (-not $script:updateProc.HasExited) { return }
+    $script:updateProc.WaitForExit(); $code = $script:updateProc.ExitCode; $script:updateProc.Dispose(); $script:updateProc = $null
+    $next = try { (Get-Content -LiteralPath $updateOut -Raw -ErrorAction Stop).Trim() } catch { '' }
+    Remove-Item -LiteralPath $updateOut -Force -ErrorAction SilentlyContinue
+    if ($code -eq 0) { Set-UpdateButton $(if ($next -match '^v\d+(\.\d+)*$') { $next } else { '' }) }
+    $updateTimer.Interval = 6 * 3600 * 1000
+})
+if (-not $BuildOnly) { $updateTimer.Start() }
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 
 $btnOut.Add_Click({
