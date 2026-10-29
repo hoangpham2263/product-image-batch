@@ -219,7 +219,7 @@ function buildMain() {
   ui.lblStatus = at(label("", "muted"), 302, 18, 220, 26);
   ui.lblStatus.style.lineHeight = "26px";
   ui.lblThr = at(label("Luồng:", "muted"), null, 19, 56, 24, { right: 88, left: false });
-  ui.numThr = at(numeric(1, 4, 1), null, 16, 64, 24, { right: 22, left: false });
+  ui.numThr = at(numeric(1, 4, 2), null, 16, 64, 24, { right: 22, left: false });
   ui.lblThr.style.lineHeight = "24px";
   cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblThr, ui.numThr);
 
@@ -341,8 +341,11 @@ function showDrivePicker() {
     const noLogin = "Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.";
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     const groups = at(combo(), 20, 16, 220, 24);
-    const sync = at(button("Tải về máy ▾"), 250, 14, 120, 28);
-    const count = at(label("", "muted"), 382, 18, 358, 24);
+    // Mặc định: the picker opens on this danh mục next time (and loads it at once).
+    const isDefault = at(checkbox("Mặc định"), 250, 18, 86, 24);
+    isDefault.input.disabled = true;
+    const sync = at(button("Tải về máy ▾"), 342, 14, 120, 28);
+    const count = at(label("", "muted"), 474, 18, 266, 24);
     const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
     bar.append(el("span"));
     bar.hidden = true;
@@ -358,7 +361,7 @@ function showDrivePicker() {
     const add = at(button("Thêm", true), 536, 490, 110, 32), cancel = at(button("Hủy"), 656, 490, 84, 32);
     add.disabled = true;
     sync.disabled = !state.drive;
-    view.body.append(groups, sync, count, loadBar, grid, bar, note, add, cancel);
+    view.body.append(groups, isDefault, sync, count, loadBar, grid, bar, note, add, cancel);
     let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0, listing = false, summary = "";
     const picked = new Map();
     view.onClose = () => resolve(result);
@@ -463,7 +466,13 @@ function showDrivePicker() {
       { text: "Danh mục đang chọn", disabled: !groups.value, onClick: () => runSync([groups.value]) },
       { text: `Tất cả danh mục (${all.length})`, onClick: () => runSync(all) },
     ]);
-    groups.onchange = load;
+    let defaultGroup = "";
+    const showDefault = () => { isDefault.input.disabled = !groups.value; isDefault.input.checked = !!groups.value && groups.value === defaultGroup; };
+    groups.onchange = () => { showDefault(); load(); };
+    isDefault.input.onchange = () => {
+      defaultGroup = isDefault.input.checked ? groups.value : "";
+      api("sourceDefaultSet", { group: defaultGroup }).catch(() => {});
+    };
     add.onclick = async () => {
       const chosen = [...picked.values()];
       const missing = chosen.filter((f) => !f.local);
@@ -476,10 +485,12 @@ function showDrivePicker() {
         view.close();
       } catch { count.textContent = "Chưa tải được ảnh đã chọn. Kiểm tra mạng rồi thử lại."; busy(false); }
     };
-    api("groups", { local: false }).then((g) => {
+    Promise.all([api("groups", { local: false }), api("sourceDefault").catch(() => "")]).then(([g, saved]) => {
       all = list(g);
+      defaultGroup = saved || "";
       groups.setItems(["", ...all], ["Chọn danh mục…", ...all]);
-      groups.value = "";
+      groups.value = all.includes(defaultGroup) ? defaultGroup : "";
+      showDefault();
       load();
       if (!all.length) { count.textContent = "Chưa có danh mục nào đang bật."; sync.disabled = true; }
     }).catch(() => { count.textContent = "Chưa tải được danh sách danh mục."; });

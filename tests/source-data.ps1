@@ -35,6 +35,11 @@ if ((@(Get-RemoteSourceGroups @{ ApiUrl = 'https://api.test'; AdminKey = 'k' }) 
 Remove-Item Function:\Invoke-RestMethod
 function Get-RemoteSourceGroups($Drive) { @('Mũ', 'Nội thất'.Normalize([Text.NormalizationForm]::FormD), 'Áo') }
 if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'The picker must show exactly the switched-on groups.' }
+# Mặc định: the picker opens on the saved danh mục; clearing it brings back the empty choice.
+Set-DefaultSourceGroup $project ('Nội thất'.Normalize([Text.NormalizationForm]::FormD))
+if ((Get-DefaultSourceGroup $project) -ne 'Nội thất') { throw 'The default danh mục must be saved (as NFC).' }
+Set-DefaultSourceGroup $project ''
+if (Get-DefaultSourceGroup $project) { throw 'Unticking Mặc định must clear the default danh mục.' }
 function Get-RemoteSourceGroups($Drive) { throw 'offline' }
 if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'Offline, the picker must keep the last switched-on groups.' }
 function Get-RemoteSourceGroups($Drive) { @() }

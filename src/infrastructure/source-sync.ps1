@@ -105,6 +105,19 @@ function Get-SourceOfflinePickerFiles([bool]$SignedIn, [string]$SourceDir, [stri
     return @{ Files = $local; Error = $reason }
 }
 
+# The danh mục the picker opens on, chosen with its Mặc định box (workspace/source-default.txt); '' for none.
+function Get-DefaultSourceGroup([string]$ProjectRoot) {
+    $path = Join-Path $ProjectRoot 'workspace/source-default.txt'
+    if (-not (Test-Path -LiteralPath $path)) { return '' }
+    return (Get-Content -LiteralPath $path -Raw -Encoding UTF8).Trim().Normalize([Text.NormalizationForm]::FormC)
+}
+
+function Set-DefaultSourceGroup([string]$ProjectRoot, [string]$Group) {
+    $path = Join-Path $ProjectRoot 'workspace/source-default.txt'
+    if ($Group) { [IO.File]::WriteAllText($path, $Group.Normalize([Text.NormalizationForm]::FormC), [Text.UTF8Encoding]::new($false)) }
+    else { Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue }
+}
+
 # Local copies an earlier sync or pick recorded, without asking Drive: what the picker shows first.
 function Get-SourceIndexedFiles([string]$SourceDir, [string]$Group) {
     $folder = Join-Path $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)

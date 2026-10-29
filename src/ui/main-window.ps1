@@ -178,7 +178,7 @@ Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
-$numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=1;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
+$numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=2;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
 $cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblThr,$numThr))
 
 $cardLog=New-Card 'CardLog' 'Tiến trình & thông báo' 20 508 1060 282 'Top,Bottom,Left,Right'

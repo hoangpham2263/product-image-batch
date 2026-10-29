@@ -7,7 +7,7 @@ param(
     [string]$OutDir = (Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/output'),
     [int]$MaxTries = 5,
     [Alias('ReferencePhotosPerImage')][int]$PhotosPerImage = 2,
-    [ValidateRange(1, 4)][int]$ThrottleLimit = 1,
+    [ValidateRange(1, 4)][int]$ThrottleLimit = 2,
     [string]$Model = '',
     [string]$ReferenceMapFile = '',
     [switch]$LocalOnly,

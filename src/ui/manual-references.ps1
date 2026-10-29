@@ -322,8 +322,10 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $noLogin='Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.'
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Chọn ảnh review từ kho Drive';ClientSize='760,540';FormBorderStyle='FixedDialog';MinimizeBox=$false;MaximizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,16';Size='220,28';DropDownStyle='DropDownList'}
-    $sync=New-Object Windows.Forms.Button -Property @{Name='DriveSync';Text='Tải về máy ▾';Location='250,14';Size='120,30';Enabled=[bool]$drive}
-    $count=New-Object Windows.Forms.Label -Property @{Location='382,20';Size='358,24';ForeColor=$ui.Muted;AutoEllipsis=$true}
+    # Mặc định: the picker opens on this danh mục next time (and loads it at once).
+    $isDefault=New-Object Windows.Forms.CheckBox -Property @{Name='DriveDefault';Text='Mặc định';Location='250,18';Size='86,24';Enabled=$false}
+    $sync=New-Object Windows.Forms.Button -Property @{Name='DriveSync';Text='Tải về máy ▾';Location='342,14';Size='120,30';Enabled=[bool]$drive}
+    $count=New-Object Windows.Forms.Label -Property @{Location='474,20';Size='266,24';ForeColor=$ui.Muted;AutoEllipsis=$true}
     # Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,
     # then filling as the thumbnails arrive.
     $loadBar=New-Object Windows.Forms.ProgressBar -Property @{Name='DriveLoad';Location='20,46';Size='720,4';Style='Continuous';Visible=$false}
@@ -335,7 +337,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     Set-FlatButton $add -Primary;Set-FlatButton $sync;Set-FlatButton $cancel
     $menu=New-Object Windows.Forms.ContextMenuStrip
     $syncOne=$menu.Items.Add('Danh mục đang chọn');$syncAll=$menu.Items.Add('Tất cả danh mục')
-    $dialog.Controls.AddRange(@($groups,$sync,$count,$loadBar,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
+    $dialog.Controls.AddRange(@($groups,$isDefault,$sync,$count,$loadBar,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
     $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Summary='';Total=0;Done=0;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
     Add-Type -AssemblyName System.Net.Http
     [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -473,6 +475,13 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $syncAll.Add_Click({& $state.Sync @(@($groups.Items)|Select-Object -Skip 1|ForEach-Object{[string]$_})}.GetNewClosure())
     $sync.Add_Click({$syncOne.Enabled=$groups.SelectedIndex -gt 0;$syncAll.Text="Tất cả danh mục ($($groups.Items.Count-1))";$menu.Show($sync,0,$sync.Height)}.GetNewClosure())
     $groups.Add_SelectedIndexChanged($load)
+    $state.DefaultGroup=Get-DefaultSourceGroup $Editor.ProjectRoot
+    $groups.Add_SelectedIndexChanged({$state.Quiet=$true;$isDefault.Enabled=$groups.SelectedIndex -gt 0;$isDefault.Checked=$groups.SelectedIndex -gt 0 -and [string]$groups.SelectedItem -eq $state.DefaultGroup;$state.Quiet=$false}.GetNewClosure())
+    $isDefault.Add_CheckedChanged({
+        if($state.Quiet){return}
+        $state.DefaultGroup=if($isDefault.Checked){[string]$groups.SelectedItem}else{''}
+        Set-DefaultSourceGroup $Editor.ProjectRoot $state.DefaultGroup
+    }.GetNewClosure())
     $add.Add_Click({
         $chosen=@($state.Picked.Values);$missing=@($chosen|Where-Object{-not $_.local})
         $add.Enabled=$false;$dialog.Cursor='WaitCursor';$count.Text=if($missing.Count){"Đang tải $($missing.Count) ảnh đã chọn…"}else{'Đang thêm…'};$dialog.Refresh()
@@ -487,7 +496,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $dialog.Add_Shown({
         [void]$groups.Items.Add('Chọn danh mục…')
         foreach($g in @(Get-SourceGroupChoices $Editor.ProjectRoot)){[void]$groups.Items.Add($g)}
-        $groups.SelectedIndex=0
+        $groups.SelectedIndex=[Math]::Max(0,$groups.Items.IndexOf($state.DefaultGroup))
         if($groups.Items.Count -lt 2){$count.Text='Chưa có danh mục nào đang bật.';$sync.Enabled=$false}
     }.GetNewClosure())
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
