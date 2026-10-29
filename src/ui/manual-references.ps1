@@ -11,6 +11,33 @@ function Set-FlatButton($Button,[switch]$Primary) {
     if($Primary){$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Accent;$Button.ForeColor=[Drawing.Color]::White;$Button.FlatAppearance.BorderSize=0;$Button.FlatAppearance.MouseOverBackColor=$ui.AccentDark}
     else{$Button.FlatStyle='Standard';$Button.UseVisualStyleBackColor=$true}
 }
+# Chevron: one thin rounded mark for every dropdown (lists and menu buttons), drawn the same as on macOS.
+function New-ChevronImage([Drawing.Color]$Color) {
+    $bitmap=New-Object Drawing.Bitmap(12,8);$g=[Drawing.Graphics]::FromImage($bitmap)
+    try{
+        $g.SmoothingMode='AntiAlias';$pen=New-Object Drawing.Pen($Color,1.5)
+        $pen.StartCap='Round';$pen.EndCap='Round';$pen.LineJoin='Round'
+        try{$g.DrawLines($pen,[Drawing.PointF[]]@((New-Object Drawing.PointF(2,2)),(New-Object Drawing.PointF(6,6)),(New-Object Drawing.PointF(10,2))))}finally{$pen.Dispose()}
+    }finally{$g.Dispose()}
+    return $bitmap
+}
+# A list ComboBox draws the system arrow; a small cover in the combo's own colours shows the chevron instead
+# and opens the list like the arrow did. Call it once the combo is on its form (its height follows the font).
+function Set-ComboChevron($Combo) {
+    $ink=New-ChevronImage ([Drawing.Color]::FromArgb(68,68,68));$dim=New-ChevronImage ([Drawing.Color]::FromArgb(160,160,160))
+    $normal=[Drawing.Color]::FromArgb(225,225,225);$hot=[Drawing.Color]::FromArgb(229,241,251);$off=[Drawing.Color]::FromArgb(204,204,204)
+    $cover=New-Object Windows.Forms.Label -Property @{Name='Chevron';ImageAlign='MiddleCenter';Image=$ink;BackColor=$normal}
+    $place={$cover.Bounds=New-Object Drawing.Rectangle(($Combo.Width-21),1,20,($Combo.Height-2))}.GetNewClosure()
+    $look={param([bool]$Hot)$cover.Image=$(if($Combo.Enabled){$ink}else{$dim});$cover.BackColor=$(if(-not $Combo.Enabled){$off}elseif($Hot){$hot}else{$normal})}.GetNewClosure()
+    $Combo.Controls.Add($cover);& $place;& $look $false
+    $Combo.Add_SizeChanged($place);$Combo.Add_EnabledChanged({& $look $false}.GetNewClosure())
+    $Combo.Add_MouseEnter({& $look $true}.GetNewClosure());$Combo.Add_MouseLeave({& $look $false}.GetNewClosure())
+    $cover.Add_MouseDown({if($Combo.Enabled){[void]$Combo.Focus();$Combo.DroppedDown=-not $Combo.DroppedDown}}.GetNewClosure())
+}
+# Menu buttons (Tải về máy) carry the same chevron at the right; a disabled button greys it itself.
+function Set-MenuButtonChevron($Button) {
+    $Button.Image=New-ChevronImage ([Drawing.Color]::FromArgb(68,68,68));$Button.ImageAlign='MiddleRight';$Button.Padding='0,0,8,0'
+}
 function Get-ProductQueueUrls($Editor) {
     @($Editor.Rows|ForEach-Object{$_.Url.Text.Trim()}|Where-Object{$_}|Select-Object -Unique)
 }
@@ -323,11 +350,12 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $drive=Get-DriveConfig (Join-Path $Editor.ProjectRoot 'workspace')
     $noLogin='Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.'
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Chọn ảnh review từ kho Drive';ClientSize='760,540';FormBorderStyle='FixedDialog';MinimizeBox=$false;MaximizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
-    $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,16';Size='220,28';DropDownStyle='DropDownList'}
+    # One toolbar row, 28px tall: danh mục, Mặc định and Tải về máy share its height and centre line.
+    $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,14';Size='220,28';DropDownStyle='DropDownList'}
     # Mặc định: the picker opens on this danh mục next time (and loads it at once).
-    $isDefault=New-Object Windows.Forms.CheckBox -Property @{Name='DriveDefault';Text='Mặc định';Location='250,18';Size='86,24';Enabled=$false}
-    $sync=New-Object Windows.Forms.Button -Property @{Name='DriveSync';Text='Tải về máy ▾';Location='342,14';Size='120,30';Enabled=[bool]$drive}
-    $count=New-Object Windows.Forms.Label -Property @{Location='474,20';Size='266,24';ForeColor=$ui.Muted;AutoEllipsis=$true}
+    $isDefault=New-Object Windows.Forms.CheckBox -Property @{Name='DriveDefault';Text='Mặc định';Location='250,14';Size='86,28';Enabled=$false}
+    $sync=New-Object Windows.Forms.Button -Property @{Name='DriveSync';Text='Tải về máy';Location='342,14';Size='120,28';Enabled=[bool]$drive}
+    $count=New-Object Windows.Forms.Label -Property @{Location='474,14';Size='266,28';TextAlign='MiddleLeft';ForeColor=$ui.Muted;AutoEllipsis=$true}
     # Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,
     # then filling as the thumbnails arrive.
     $loadBar=New-Object Windows.Forms.ProgressBar -Property @{Name='DriveLoad';Location='20,46';Size='720,4';Style='Continuous';Visible=$false}
@@ -338,7 +366,9 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     Set-FlatButton $add -Primary;Set-FlatButton $sync;Set-FlatButton $cancel
     $menu=New-Object Windows.Forms.ContextMenuStrip
     $syncOne=$menu.Items.Add('Danh mục đang chọn');$syncAll=$menu.Items.Add('Tất cả danh mục')
-    $dialog.Controls.AddRange(@($groups,$isDefault,$sync,$count,$loadBar,$grid,$note,$add,$cancel));$dialog.CancelButton=$cancel
+    $dialog.Controls.AddRange(@($groups,$isDefault,$sync,$count,$loadBar,$grid,$note,$add,$cancel))
+    # A list ComboBox sizes itself from its font; match the button to it so the row lines up on any DPI.
+    $sync.Height=$groups.Height;$sync.Top=$groups.Top;Set-ComboChevron $groups;Set-MenuButtonChevron $sync;$isDefault.Top=$groups.Top+[int](($groups.Height-$isDefault.Height)/2);$count.Top=$isDefault.Top;$dialog.CancelButton=$cancel
     $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Summary='';Total=0;Done=0;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
     Add-Type -AssemblyName System.Net.Http
     [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12

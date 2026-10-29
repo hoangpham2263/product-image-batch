@@ -86,7 +86,7 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
     $status=New-Object Windows.Forms.Label -Property @{Name='ReviewSummary';Location='12,668';Size='560,36';TextAlign='MiddleLeft';Anchor='Bottom,Left'}
     $export=New-Object Windows.Forms.Button -Property @{Name='ExportReviews';Text='Xuất file Loox';Location='732,664';Size='180,40';Anchor='Bottom,Right';Enabled=$false}
     Set-FlatButton $export -Primary
-    $dialog.Controls.AddRange(@($batches,$hint,$flow,$status,$export))
+    $dialog.Controls.AddRange(@($batches,$hint,$flow,$status,$export));Set-ComboChevron $batches
     $view=[pscustomobject]@{Form=$dialog;BatchDir='';Items=@();Refresh=$null;List=$flow}
     $view.Refresh={
         $items=@($view.Items);$done=@($items|Where-Object Decision).Count;$good=@($items|Where-Object Decision -eq 'ok').Count

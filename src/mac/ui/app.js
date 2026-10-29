@@ -365,12 +365,15 @@ function showDrivePicker() {
   return new Promise((resolve) => {
     const noLogin = "Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.";
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
-    const groups = at(combo(), 20, 16, 220, 24);
+    // One toolbar row, 28px tall: danh mục, Mặc định and Tải về máy share its height and centre line.
+    const groups = at(combo(), 20, 14, 220, 28);
     // Mặc định: the picker opens on this danh mục next time (and loads it at once).
-    const isDefault = at(checkbox("Mặc định"), 250, 18, 86, 24);
+    const isDefault = at(checkbox("Mặc định"), 250, 14, 86, 28);
     isDefault.input.disabled = true;
-    const sync = at(button("Tải về máy ▾"), 342, 14, 120, 28);
-    const count = at(label("", "muted"), 474, 18, 266, 24);
+    const sync = at(button("Tải về máy"), 342, 14, 120, 28);
+    sync.classList.add("has-chevron");
+    const count = at(label("", "muted"), 474, 14, 266, 28);
+    count.style.lineHeight = "28px";
     const note = at(label(state.drive ? "" : noLogin), 20, 494, 500, 24);
     note.style.color = "var(--error)";
     // Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,

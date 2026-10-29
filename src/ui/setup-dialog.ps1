@@ -19,7 +19,7 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
     $aiTitle = New-Object Windows.Forms.Label -Property @{ Text = 'Model AI · model nhẹ, mức thấp tốn ít token hơn'; Location = '52,306'; Size = '448,22' }
     $aiModel = New-Object Windows.Forms.ComboBox -Property @{ Name = 'AiModel'; Location = '52,332'; Size = '250,28'; DropDownStyle = 'DropDownList' }
     $aiEffort = New-Object Windows.Forms.ComboBox -Property @{ Name = 'AiEffort'; Location = '312,332'; Size = '188,28'; DropDownStyle = 'DropDownList' }
-    $dialog.Controls.AddRange(@($aiTitle, $aiModel, $aiEffort))
+    $dialog.Controls.AddRange(@($aiTitle, $aiModel, $aiEffort)); Set-ComboChevron $aiModel; Set-ComboChevron $aiEffort
     $again = New-Object Windows.Forms.Button -Property @{ Text = 'Kiểm tra lại'; Location = '290,380'; Size = '110,34' }
     $close = New-Object Windows.Forms.Button -Property @{ Text = 'Đóng'; Location = '410,380'; Size = '90,34'; DialogResult = 'Cancel' }
     Set-FlatButton $again; Set-FlatButton $close
