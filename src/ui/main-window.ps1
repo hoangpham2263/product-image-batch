@@ -243,7 +243,7 @@ $updateTimer.Add_Tick({
     $updateTimer.Interval = 6 * 3600 * 1000
 })
 if (-not $BuildOnly) { $updateTimer.Start() }
-# Quota beside the run: read when the window opens, after each run and every 15 minutes (own process, no waiting).
+# Quota beside the run, kept current: read when the window opens, after each run and every minute (own process, no waiting).
 $quotaOut = Join-Path $workspace.Logs "quota-$PID.out"
 $script:quotaProc = $null
 $quotaTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 2000 }
@@ -259,7 +259,7 @@ $quotaTimer.Add_Tick({
     $text = try { (Get-Content -LiteralPath $quotaOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
     Remove-Item -LiteralPath $quotaOut -Force -ErrorAction SilentlyContinue
     if ($text) { $script:quotaText = $text; Update-UsageLabel }
-    $quotaTimer.Interval = 15 * 60 * 1000
+    $quotaTimer.Interval = 60 * 1000
 })
 if (-not $BuildOnly) { $quotaTimer.Start() }
 $script:syncProc = $null; $script:syncHideAt = $null

@@ -942,7 +942,7 @@ function updateUsage() {
   ui.lblTokens.textContent = tokens;
   ui.lblQuota.textContent = usage.quota;
 }
-// Quota beside the run: read when the window opens, after each run and every 15 minutes.
+// Quota beside the run, kept current: read when the window opens, after each run and every minute.
 async function refreshQuota() {
   const text = await api("quotaSummary").catch(() => "");
   if (text) { usage.quota = text; updateUsage(); }
@@ -1111,5 +1111,5 @@ placeSync();
 fetch("/api/sync").then((r) => r.json()).then((r) => { if (r.running) { ui.syncLabel.hidden = false; pollSync(); } }).catch(() => {});
 updateUsage();
 setTimeout(refreshQuota, 2000);
-setInterval(refreshQuota, 15 * 60 * 1000);
+setInterval(refreshQuota, 60 * 1000);
 setInterval(checkUpdate, 6 * 3600 * 1000);

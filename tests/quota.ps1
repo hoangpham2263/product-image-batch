@@ -14,6 +14,9 @@ $data = @'
 $messages = @(Get-QuotaMessages $data)
 Assert ($messages.Count -eq 3 -and $messages[0] -match '5 giờ.*còn 75%.*20:45 23/10.*GMT\+7') 'Wrong remaining percentage, preferred multi-bucket view or reset timezone.'
 Assert ($messages[1] -match '7 ngày.*còn 0%.*Chưa có giờ' -and $messages[2] -match '30 phút.*còn 100%') 'Known zero/full percentages or absent reset are wrong.'
+# Main window: what is left; Kiểm tra cấu hình: only when it resets.
+Assert ((@(Get-QuotaMessages $data -Short) -join ' · ') -eq '5 giờ còn 75% · 7 ngày còn 0% · 30 phút còn 100%') 'The main window line must say what is left per window.'
+Assert ((@(Get-QuotaMessages $data -Reset) -join ' · ') -eq '5 giờ lúc 20:45 23/10 · 7 ngày chưa có giờ · 30 phút chưa có giờ') 'Kiểm tra cấu hình must show only the reset times.'
 Assert (@(Get-QuotaMessages ('{"rateLimits":{"primary":{"usedPercent":null},"secondary":null}}' | ConvertFrom-Json)).Count -eq 0) 'Missing usage must not become zero usage.'
 $legacy = @(Get-QuotaMessages ('{"rateLimits":{"primary":{"usedPercent":12.5,"windowDurationMins":60}}}' | ConvertFrom-Json))
 Assert ($legacy.Count -eq 1 -and $legacy[0] -match '1 giờ.*87.5%') 'Legacy single-bucket view failed.'

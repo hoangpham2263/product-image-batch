@@ -67,7 +67,8 @@ if (Test-Path -LiteralPath $driveFile) {
         else { $driveState = 'warn'; $driveDetail = 'Chưa kiểm tra được (mất mạng); dùng mật khẩu đã lưu.' }
     }
 }
-$quotaText = (@($quotaMessages) -join ' ').Trim()
+# The main window shows what is left; here only when it resets, to keep the step short.
+$quotaText = if ($quotaAvailable -and $quota.Resets) { "Đặt lại: $($quota.Resets)" } else { (@($quotaMessages) -join ' ').Trim() }
 $steps = @(
     [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $driveState; Detail = $driveDetail; Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }

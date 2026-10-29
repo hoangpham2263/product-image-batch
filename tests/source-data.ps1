@@ -8,13 +8,15 @@ $dir = Join-Path $TestWorkspaceRoot ('source-data-' + [Guid]::NewGuid().ToString
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 Copy-Item -LiteralPath (Join-Path $root 'data/source-photos/catalog.json') -Destination $dir
 $entries=@(Get-SampleCatalogEntries $dir)
-if ($entries.Count -ne 3111) { throw 'The regrouped library must preserve all 3111 photos.' }
+# The library only grows (new photos are added from Drive); the 3111 regrouped photos must all stay.
+if ($entries.Count -lt 3111) { throw 'The regrouped library must preserve all 3111 photos.' }
 if ((Get-SourceCatalog $dir).Count) { throw 'Groups not downloaded yet must be skipped, not listed.' }
 $groups=@($entries | ForEach-Object { ($_.file -split '/')[0] } | Sort-Object -Unique)
 if ($groups.Count -ne 12 -or 'Áo' -notin $groups -or 'Nội thất' -notin $groups) { throw 'Shared merchandise folders are missing.' }
 if ((Get-SourcePhotoDirectory $dir 'Nội thất') -ne [IO.Path]::GetFullPath((Join-Path $dir 'Nội thất'))) { throw 'The file picker opens the wrong local folder.' }
 foreach($entry in $entries){
-    if(($entry.file -split '/')[0] -ne $entry.source_group -or -not $entry.previous_file){throw 'Folder grouping lost category or migration provenance.'}
+    # Regrouped photos keep their old name; photos added later carry their own source instead.
+    if(($entry.file -split '/')[0] -ne $entry.source_group -or -not ($entry.previous_file -or $entry.source_page -or $entry.download_url)){throw 'Folder grouping lost category or migration provenance.'}
     if ($entry.file -notmatch '^[\p{L}\p{N}][\p{L}\p{N} -]*/[^/]+\.jpg$') { throw 'Photo is outside product categories or not a library JPEG.' }
     # Identical photos may repeat in the catalog; Get-SourceCatalog keeps the first.
     if ($entry.sha256 -notmatch '^[0-9a-f]{64}$') { throw 'Missing photo hash.' }
