@@ -126,7 +126,7 @@ function openWindow(title, w, h, { white = false } = {}) {
     stack.splice(stack.indexOf(view), 1);
     view.onClose?.();
   };
-  close.onclick = () => view.close();
+  close.onclick = () => (view.cancel || view.close)();
   stack.push(view);
   return view;
 }
@@ -134,6 +134,23 @@ addEventListener("keydown", (e) => {
   const top = stack.at(-1);
   if (e.key === "Escape" && top) { e.preventDefault(); (top.cancel || top.close)(); }
 });
+// ContextMenuStrip shown under a button: [{ text, disabled, onClick }]; a click elsewhere closes it.
+function dropMenu(anchor, items) {
+  const menu = el("div", "menu");
+  const done = () => { menu.remove(); removeEventListener("mousedown", outside, true); removeEventListener("keydown", escape, true); };
+  const outside = (e) => { if (!menu.contains(e.target)) done(); };
+  const escape = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); done(); } };
+  for (const item of items) {
+    const row = el("div", item.disabled ? "off" : "", { text: item.text });
+    if (!item.disabled) row.onclick = () => { done(); item.onClick(); };
+    menu.append(row);
+  }
+  const r = anchor.getBoundingClientRect();
+  Object.assign(menu.style, { left: r.left + "px", top: r.bottom + "px" });
+  document.body.append(menu);
+  addEventListener("mousedown", outside, true);
+  addEventListener("keydown", escape, true);
+}
 // MessageBox.Show: resolves "OK", "Yes" or "No".
 function messageBox(text, title = "", buttons = ["OK"]) {
   return new Promise((resolve) => {
@@ -311,30 +328,37 @@ async function chooseImages(folder) {
   return list(r.paths);
 }
 
-// "Từ kho Drive": every image of a Drive group. Thêm uses the picked ones directly (downloading only those
-// not on this machine yet); Tải cả nhóm về máy brings the whole group over once. Either way nothing is fetched twice.
+// "Từ kho Drive": nothing loads until a danh mục is chosen, so the window opens at once. Thêm uses the picked
+// images directly (downloading only those not on this machine yet); Tải về máy brings the chosen danh mục, or
+// every danh mục, over in one go. Either way nothing is fetched twice.
 function showDrivePicker() {
   return new Promise((resolve) => {
+    const noLogin = "Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.";
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     const groups = at(combo(), 20, 16, 220, 24);
-    const sync = at(button("Tải cả nhóm về máy"), 250, 14, 160, 28);
-    const count = at(label("", "muted"), 422, 18, 318, 24);
+    const sync = at(button("Tải về máy ▾"), 250, 14, 120, 28);
+    const count = at(label("", "muted"), 382, 18, 358, 24);
     const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
     bar.append(el("span"));
     bar.hidden = true;
+    const note = at(label(state.drive ? "" : noLogin), 20, 494, 500, 24);
+    note.style.color = "var(--error)";
     const grid = at(el("div", "flow"), 20, 52, 720, 420);
     Object.assign(grid.style, { background: "#fff", border: "1px solid #000", display: "flex", flexWrap: "wrap", alignContent: "flex-start", gap: "6px", padding: "6px" });
     const add = at(button("Thêm", true), 536, 490, 110, 32), cancel = at(button("Hủy"), 656, 490, 84, 32);
     add.disabled = true;
-    view.body.append(groups, sync, count, grid, bar, add, cancel);
-    let files = [], shown = 0, result = [];
+    sync.disabled = !state.drive;
+    view.body.append(groups, sync, count, grid, bar, note, add, cancel);
+    let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0;
     const picked = new Map();
     view.onClose = () => resolve(result);
-    cancel.onclick = view.close;
-    const busy = (on) => { sync.disabled = on; groups.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
+    view.cancel = () => { if (!syncing) view.close(); };
+    cancel.onclick = view.cancel;
+    const busy = (on) => { syncing = on; sync.disabled = on || !state.drive || !all.length; groups.disabled = on; cancel.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
     const refreshCount = () => {
+      if (!groups.value) { count.textContent = "Chọn danh mục để xem ảnh."; add.disabled = true; return; }
       const local = files.filter((f) => f.local).length;
-      count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh · ${local} ảnh có trên máy` : "Nhóm này chưa có ảnh.";
+      count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh · ${local} ảnh có trên máy` : "Danh mục này chưa có ảnh.";
       add.disabled = !picked.size;
     };
     const showMore = () => {
@@ -358,21 +382,38 @@ function showDrivePicker() {
       }
     };
     const load = async () => {
-      grid.replaceChildren(); picked.clear(); shown = 0;
+      const token = ++loads;
+      grid.replaceChildren(); picked.clear(); shown = 0; files = [];
+      note.textContent = state.drive ? "" : noLogin;
+      if (!groups.value) return refreshCount();
       count.textContent = "Đang tải danh sách…";
-      files = list(await api("sourceFiles", { group: groups.value }).catch(() => []));
+      const listing = await api("sourceFiles", { group: groups.value }).catch(() => ({ Files: [], Error: "Chưa tải được danh sách ảnh." }));
+      if (token !== loads) return;
+      files = list(listing.Files);
+      note.textContent = listing.Error || "";
       showMore(); refreshCount();
     };
-    sync.onclick = async () => {
-      if (!state.drive) return messageBox("Đăng nhập mật khẩu app trước (Kiểm tra cấu hình).", "Kho Drive");
-      busy(true); count.textContent = `Đang tải nhóm ${groups.value} về máy…`;
-      try {
-        const r = await api("sourceSync", { group: groups.value });
-        await load();
-        count.textContent = `Cả nhóm đã có trên máy: ${r.Total} ảnh (vừa tải ${r.Downloaded}, xoá ${r.Removed}).`;
-      } catch { await load(); count.textContent = "Chưa tải được nhóm về máy. Kiểm tra mạng và mật khẩu app rồi thử lại."; }
-      finally { busy(false); }
+    // Tải về máy: one danh mục at a time, so each step shows.
+    const runSync = async (names) => {
+      if (!names.length) return;
+      busy(true); note.textContent = "";
+      let total = 0, downloaded = 0, removed = 0;
+      const failed = [];
+      for (const [i, name] of names.entries()) {
+        count.textContent = names.length > 1 ? `Đang tải về máy: ${name} (${i + 1}/${names.length})…` : `Đang tải ${name} về máy…`;
+        try { const r = await api("sourceSync", { group: name }); total += r.Total; downloaded += r.Downloaded; removed += r.Removed; }
+        catch { failed.push(name); }
+      }
+      busy(false);
+      await load();
+      const ok = names.length - failed.length;
+      if (ok) count.textContent = `${names.length > 1 ? `${ok} danh mục` : names[0]} đã có trên máy: ${total} ảnh (vừa tải ${downloaded}, xoá ${removed}).`;
+      if (failed.length) note.textContent = `Chưa tải được: ${failed.join(", ")}. Kiểm tra mạng rồi thử lại.`;
     };
+    sync.onclick = () => dropMenu(sync, [
+      { text: "Danh mục đang chọn", disabled: !groups.value, onClick: () => runSync([groups.value]) },
+      { text: `Tất cả danh mục (${all.length})`, onClick: () => runSync(all) },
+    ]);
     groups.onchange = load;
     add.onclick = async () => {
       const chosen = [...picked.values()];
@@ -382,16 +423,17 @@ function showDrivePicker() {
         const fetched = missing.length ? list(await api("sourcePick", { group: groups.value, files: missing.map(({ name, md5, url }) => ({ name, md5, url })) })) : [];
         result = [...chosen.filter((f) => f.local).map((f) => f.local), ...fetched];
         state.group = groups.value;
+        busy(false);
         view.close();
       } catch { count.textContent = "Chưa tải được ảnh đã chọn. Kiểm tra mạng rồi thử lại."; busy(false); }
     };
     api("groups", { local: false }).then((g) => {
-      g = list(g);
-      groups.setItems(g);
-      if (!g.length) { count.textContent = "Chưa có nhóm nào đang bật."; return; }
-      groups.value = g.includes(state.group) ? state.group : g[0] || "";
+      all = list(g);
+      groups.setItems(["", ...all], ["Chọn danh mục…", ...all]);
+      groups.value = "";
       load();
-    }).catch(() => { count.textContent = "Chưa tải được danh sách nhóm."; });
+      if (!all.length) { count.textContent = "Chưa có danh mục nào đang bật."; sync.disabled = true; }
+    }).catch(() => { count.textContent = "Chưa tải được danh sách danh mục."; });
   });
 }
 

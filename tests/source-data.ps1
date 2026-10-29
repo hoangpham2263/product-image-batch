@@ -39,6 +39,14 @@ function Get-RemoteSourceGroups($Drive) { throw 'offline' }
 if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'Offline, the picker must keep the last switched-on groups.' }
 function Get-RemoteSourceGroups($Drive) { @() }
 if (@(Get-SourceGroupChoices $project).Count) { throw 'With every group switched off the picker must be empty.' }
+# The picker says why it shows only this machine's photos: no app password, or Drive out of reach.
+$listing = Get-SourcePickerFiles $null $dir 'Áo'
+if ($listing.Error -notmatch 'Chưa đăng nhập mật khẩu app' -or -not @($listing.Files).Count -or @($listing.Files | Where-Object { -not $_.local }).Count) { throw 'Without the app password the picker must list local photos and say to sign in.' }
+function Get-SourceGroupFiles { throw 'offline' }
+$listing = Get-SourcePickerFiles @{ ApiUrl = 'https://api.test'; AdminKey = 'k' } $dir 'Áo'
+if ($listing.Error -notmatch 'Không kết nối được Drive' -or -not @($listing.Files).Count) { throw 'When Drive is out of reach the picker must say so and fall back to local photos.' }
+Remove-Item Function:\Get-SourceGroupFiles
+. (Join-Path $root 'src/infrastructure/source-sync.ps1')
 $blocked=$false;try{Get-SourcePhotoDirectory $dir '../outside'|Out-Null}catch{$blocked=$true}
 if(-not $blocked){throw 'Local group navigation escaped the library.'}
 $expansionPath = Join-Path $root 'data/dining-gallery-expansion.json'

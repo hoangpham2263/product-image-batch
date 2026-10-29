@@ -87,6 +87,19 @@ function Get-LocalSourceFiles([string]$SourceDir, [string]$Group) {
     return @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Extension -match '^\.(png|jpe?g)$' } | Sort-Object Name | ForEach-Object FullName)
 }
 
+# Files for the "Từ kho Drive" picker, the same on Windows and macOS: the Drive listing with local copies, or,
+# without the app password or network, only what is on this machine plus the reason shown under the grid.
+function Get-SourcePickerFiles($Drive, [string]$SourceDir, [string]$Group) {
+    try {
+        if (-not $Drive) { throw 'offline' }
+        return @{ Files = @(Get-SourceGroupFiles $Drive $SourceDir $Group); Error = '' }
+    } catch {
+        $local = @(Get-LocalSourceFiles $SourceDir $Group | ForEach-Object { [pscustomobject]@{ name = [IO.Path]::GetFileName($_); md5 = ''; url = ''; local = $_ } })
+        $reason = if ($Drive) { 'Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy.' } else { 'Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.' }
+        return @{ Files = $local; Error = $reason }
+    }
+}
+
 # A group's images on Drive, each with the local copy when one is already in place (synced or picked).
 function Get-SourceGroupFiles($Drive, [string]$SourceDir, [string]$Group) {
     $Group = $Group.Normalize([Text.NormalizationForm]::FormC)

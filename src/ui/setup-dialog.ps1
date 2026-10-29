@@ -8,7 +8,7 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
     for ($i = 0; $i -lt $titles.Count; $i++) {
         $y = 16 + $i * 58
         $icon = New-Object Windows.Forms.Label -Property @{ Location = (New-Object Drawing.Point(20, $y)); Size = '26,24'; Font = (New-Object Drawing.Font('Segoe UI Symbol', 12)) }
-        $name = New-Object Windows.Forms.Label -Property @{ Text = $titles[$i]; Location = (New-Object Drawing.Point(52, $y)); Size = '448,22' }
+        $name = New-Object Windows.Forms.Label -Property @{ Text = $titles[$i]; Location = (New-Object Drawing.Point(52, $y)); Size = '330,22' }
         $detail = New-Object Windows.Forms.Label -Property @{ Location = (New-Object Drawing.Point(52, ($y + 22))); Size = '330,32'; ForeColor = $ui.Muted; AutoEllipsis = $true }
         $fix = New-Object Windows.Forms.Button -Property @{ Location = (New-Object Drawing.Point(390, ($y + 6))); Size = '110,32'; Visible = $false }
         Set-FlatButton $fix -Primary
