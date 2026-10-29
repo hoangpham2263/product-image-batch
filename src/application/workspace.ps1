@@ -28,7 +28,7 @@ function Get-AppVersion([string]$ProjectRoot) {
 }
 
 # Errors the user would otherwise only see in a dialog, or never: workspace/logs/app-errors.log, rolled over to
-# app-errors.old.log past 1 MB. Gửi log sends both. Writing the log must never raise another error.
+# app-errors.old.log past 1 MB. Gửi lỗi sends both. Writing the log must never raise another error.
 function Write-AppError([string]$LogDir, [string]$Where, $ErrorObject) {
     try {
         New-Item -ItemType Directory -Force -Path $LogDir | Out-Null

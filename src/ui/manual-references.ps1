@@ -556,7 +556,7 @@ function Show-ProductQueueBulkDialog($Editor) {
         $s=try{Get-Content -LiteralPath $st.StatusFile -Raw -Encoding UTF8|ConvertFrom-Json}catch{$null}
         foreach($path in $st.StatusFile,$st.InputFile){Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue}
         $st.Proc.Dispose();$st.Proc=$null;$bar.Visible=$false;$text.ReadOnly=$false;$save.Enabled=$true;$pick.Enabled=$true;$cancel.Text='Đóng'
-        if(-not $s){& $fail 'Chưa nhập được. Thử lại hoặc bấm Gửi log.';return}
+        if(-not $s){& $fail 'Chưa nhập được. Thử lại hoặc bấm Gửi lỗi.';return}
         if(@($s.errors).Count){& $fail ((@($s.errors)|Select-Object -First 3) -join "`n");return}
         Add-ProductQueueLinks $Editor (@($s.links) -join "`n")
         foreach($row in @($Editor.Rows|Where-Object{$_.Url.Text.Trim() -in @($s.links)})){$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}

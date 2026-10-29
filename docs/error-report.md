@@ -1,6 +1,6 @@
 # Báo cáo lỗi – chuẩn `prb-error-report/1`
 
-**Gửi log** trong app tạo một báo cáo lỗi nhỏ (vài KB), cùng một khuôn mỗi lần để AI đọc và kiểm tra. Không có ảnh, không có mật khẩu app hay tài khoản Codex.
+**Gửi lỗi** trong app tạo một báo cáo lỗi nhỏ (vài KB), cùng một khuôn mỗi lần để AI đọc và kiểm tra. Không có ảnh, không có mật khẩu app hay tài khoản Codex.
 
 File gửi lên là một zip gồm:
 
@@ -8,6 +8,7 @@ File gửi lên là một zip gồm:
 |---|---|
 | `report.json` | Báo cáo đầy đủ theo chuẩn dưới đây |
 | `summary.txt` | Tóm tắt vài dòng cho người đọc |
+| `analysis.md` | Codex CLI trên máy đọc báo cáo theo chuẩn này và viết nguyên nhân, cách sửa. Không có khi máy chưa có Codex, chưa đăng nhập, mất mạng hoặc quá 2 phút: báo cáo vẫn được gửi |
 
 ## report.json
 

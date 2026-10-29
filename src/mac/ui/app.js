@@ -99,7 +99,7 @@ function pickFiles(accept, multiple) {
 }
 const imageFiles = (items) => [...items].filter((f) => /^image\/(png|jpeg)$/.test(f.type));
 
-// Errors in this window are logged on the Mac side (workspace/logs/app-errors.log) and go out with Gửi log.
+// Errors in this window are logged on the Mac side (workspace/logs/app-errors.log) and go out with Gửi lỗi.
 const reportError = (message, stack) => fetch("/api/client-error", { method: "POST", body: JSON.stringify({ message: String(message || ""), stack: String(stack || "") }) }).catch(() => {});
 addEventListener("error", (e) => reportError(e.message, e.error?.stack || `${e.filename}:${e.lineno}:${e.colno}`));
 addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || e.reason, e.reason?.stack));
@@ -249,7 +249,7 @@ function buildMain() {
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
   // In the order they are used: review the results, open them, then setup and support.
-  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi log"]];
+  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi lỗi"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -764,7 +764,7 @@ function showBulkDialog() {
   });
   const finish = async (s) => {
     clearInterval(timer); timer = null; busy(false); cancel.textContent = "Đóng";
-    if (!s) return fail("Chưa nhập được. Thử lại hoặc bấm Gửi log.");
+    if (!s) return fail("Chưa nhập được. Thử lại hoặc bấm Gửi lỗi.");
     if (s.errors?.length) return fail(s.errors.slice(0, 3).join("\n"));
     await addLinks(list(s.links));
     const summary = `Đã nhập ${list(s.links).length} link, ${s.products} ảnh gốc, ${s.reviews} ảnh review.`;
@@ -1153,7 +1153,7 @@ async function finish(r) {
   } else {
     setStatus("! Cần thử lại", "var(--warn)");
     appendLog("Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.");
-    appendLog("Nếu lỗi lặp lại, bấm Gửi log để admin kiểm tra.");
+    appendLog("Nếu lỗi lặp lại, bấm Gửi lỗi để admin kiểm tra.");
   }
   updateReviewButton();
 }
@@ -1164,18 +1164,18 @@ setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) 
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
-  // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
+  // Gửi lỗi: packs the logs and uploads them for the admin page; progress shows on the button.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
-    const question = "Gửi báo cáo lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
-    if ((await messageBox(question, "Gửi log", ["Yes", "No"])) !== "Yes") return;
+    const question = "Gửi lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
+    if ((await messageBox(question, "Gửi lỗi", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
     try {
       const r = await api("sendLogs");
-      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi báo cáo lỗi: ${r.name}${r.samples ? ` (kèm ${r.samples} đánh giá đã Bỏ)` : ""}`); }
-      else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được (${r.reason || "không rõ lý do"}); file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
-    } catch { ui.btnLogs.textContent = "Gửi log"; appendLog("Chưa tạo được file log."); }
-    setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);
+      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi lỗi: ${r.name}${r.samples ? ` (kèm ${r.samples} đánh giá đã Bỏ)` : ""}`); }
+      else { ui.btnLogs.textContent = "Gửi lỗi"; appendLog(`Chưa gửi được (${r.reason || "không rõ lý do"}); file lỗi ở: ${r.path}`); api("revealPath", { path: r.path }); }
+    } catch { ui.btnLogs.textContent = "Gửi lỗi"; appendLog("Chưa tạo được báo cáo lỗi."); }
+    setTimeout(() => { ui.btnLogs.textContent = "Gửi lỗi"; ui.btnLogs.disabled = run.active; }, 2500);
   };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };

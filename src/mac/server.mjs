@@ -28,7 +28,7 @@ const extraPath = ["/opt/homebrew/bin", "/usr/local/bin", join(homedir(), ".npm-
 const toolEnv = { ...process.env, PATH: [...new Set([...(process.env.PATH || "").split(":"), ...extraPath, dirname(process.execPath)])].filter(Boolean).join(":") };
 const findTool = (name) => toolEnv.PATH.split(":").map((d) => join(d, name)).find((p) => existsSync(p));
 // Errors from the window, this server and PowerShell go to workspace/logs (app-errors.log as Write-AppError
-// writes it, mac-rpc.err.log), past 1 MB rolled over to *.old.log; Gửi log sends them.
+// writes it, mac-rpc.err.log), past 1 MB rolled over to *.old.log; Gửi lỗi sends them.
 mkdirSync(logs, { recursive: true });
 function logFile(name) {
   const file = join(logs, name);

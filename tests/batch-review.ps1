@@ -21,7 +21,7 @@ try{
     $project=Join-Path $temp 'project';$rejected=Join-Path $project 'workspace/rejected'
     Set-BatchReviewDecision $temp '001-tee' ok $rejected
     Set-BatchReviewDecision $temp '002-tee' bad $rejected
-    # A review marked Bỏ is kept with its photos and text as data, and goes out with the next Gửi log.
+    # A review marked Bỏ is noted with its text and reason, and goes out with the next Gửi lỗi.
     $sample=Join-Path $rejected ((Split-Path $temp -Leaf)+'__002-tee')
     Assert (@(Get-ChildItem -LiteralPath $sample -File).Name -join ',' -eq 'sample.json' -and (Get-Content -LiteralPath (Join-Path $sample 'sample.json') -Raw -Encoding UTF8|ConvertFrom-Json).body -eq 'b2') 'A rejected review is noted with its text only, no image copies.'
     Set-BatchReviewDecision $temp '002-tee' ok $rejected
@@ -30,7 +30,7 @@ try{
     . (Join-Path $root 'src/application/support-logs.ps1')
     $bundle=New-SupportLogBundle $project
     try{
-        Assert (@($bundle.Samples).Count -eq 1) 'Gửi log must carry the rejected reviews not sent yet.'
+        Assert (@($bundle.Samples).Count -eq 1) 'Gửi lỗi must carry the rejected reviews not sent yet.'
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip=[IO.Compression.ZipFile]::OpenRead($bundle.Path)
         try{

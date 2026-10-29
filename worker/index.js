@@ -247,7 +247,7 @@ const readEnabled = async (env) => new Set(((await env.STORE.get(ENABLED_KEY, "j
 const writeEnabled = (env, set) => env.STORE.put(ENABLED_KEY, JSON.stringify([...set].sort((a, b) => a.localeCompare(b, "vi"))));
 
 // ---------- Support logs ----------
-// "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
+// "Gửi lỗi" in the app uploads one zip here; the management page lists and downloads them.
 const LOGS_FOLDER = "Logs";
 const logsRoot = async (env) => folder(env, LOGS_FOLDER, await appRoot(env));
 async function handleLogs(req, env, url, id) {

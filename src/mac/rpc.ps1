@@ -7,6 +7,7 @@ $root = Split-Path $srcDir -Parent
 . (Join-Path $srcDir 'application/workspace.ps1')
 . (Join-Path $srcDir 'application/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
+. (Join-Path $srcDir 'infrastructure/codex.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'infrastructure/source-catalog.ps1')
@@ -124,7 +125,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         }
         'rejectedCount' { return @(Get-UnsentRejectedSamples $root).Count }
         'sendLogs' {
-            $bundle = New-SupportLogBundle $root
+            $bundle = New-SupportLogBundle $root -Analyze
             $drive = Get-DriveConfig $workspace.Root
             try {
                 if (-not $drive) { throw 'no app password' }

@@ -116,13 +116,13 @@ function Receive-RunLine([string]$line) {
     Update-RunDisplay
 }
 
-# An error in a button or window handler goes to workspace/logs/app-errors.log (sent with Gửi log) instead of
+# An error in a button or window handler goes to workspace/logs/app-errors.log (sent with Gửi lỗi) instead of
 # WinForms' generic dialog; the user sees a short message and the app keeps going.
 if (-not $BuildOnly) {
     [Windows.Forms.Application]::add_ThreadException({
         param($sender, $e)
         Write-AppError $workspace.Logs 'Giao diện Windows' $e.Exception
-        [void][Windows.Forms.MessageBox]::Show("Có lỗi: $($e.Exception.Message)`r`n`r`nLỗi đã được ghi lại. Bấm Gửi log để gửi cho admin.", 'Product Review Batch', 'OK', 'Warning')
+        [void][Windows.Forms.MessageBox]::Show("Có lỗi: $($e.Exception.Message)`r`n`r`nLỗi đã được ghi lại. Bấm Gửi lỗi để gửi cho admin.", 'Product Review Batch', 'OK', 'Warning')
     }.GetNewClosure())
 }
 $form = New-Object Windows.Forms.Form
@@ -174,7 +174,7 @@ $cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
 $btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất file';Location='14,36';Size='196,32'}
 $btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,73';Size='196,32'}
 $btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra cấu hình';Location='14,110';Size='196,32'}
-$btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi log';Location='14,147';Size='196,32'}
+$btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi lỗi';Location='14,147';Size='196,32'}
 foreach ($b in @($btnReview,$btnOut,$btnSetup,$btnLogs)) { Set-FlatButton $b }
 $cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnSetup,$btnLogs))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
@@ -331,25 +331,25 @@ $btnSetup.Add_Click({
     }
 })
 # The list saves itself on every change; Bắt đầu checks that every link is ready.
-# Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
+# Gửi lỗi: packs the logs and uploads them for the admin page; progress shows on the button.
 $script:logsProc = $null
 $logsOut = Join-Path $workspace.Logs "send-logs-$PID.out"; $logsErr = Join-Path $workspace.Logs "send-logs-$PID.err"
 $logsTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
 $logsReset = New-Object Windows.Forms.Timer -Property @{ Interval = 2500 }
-$logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi log'; $btnLogs.Enabled = -not $script:proc })
+$logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi lỗi'; $btnLogs.Enabled = -not $script:proc })
 $logsTimer.Add_Tick({
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
     $result = try { (Get-Content -LiteralPath $logsOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
-    if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi báo cáo lỗi: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) đánh giá đã Bỏ)" })" }
-    elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
-    else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
+    if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi lỗi: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) đánh giá đã Bỏ)" })" }
+    elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi lỗi'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file lỗi ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
+    else { $btnLogs.Text = 'Gửi lỗi'; Append-Log 'Chưa tạo được báo cáo lỗi.' }
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
     $rejected = @(Get-UnsentRejectedSamples $root).Count
-    $question = "Gửi báo cáo lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
-    if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
+    $question = "Gửi lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
+    if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi lỗi', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
     [void]$script:logsProc.Handle
@@ -416,7 +416,7 @@ $timer.Add_Tick({
         else {
             $lblStatus.Text = '! Cần thử lại'; $lblStatus.ForeColor = $ui.Warn
             Append-Log 'Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.'
-            Append-Log 'Nếu lỗi lặp lại, bấm Gửi log để admin kiểm tra.'
+            Append-Log 'Nếu lỗi lặp lại, bấm Gửi lỗi để admin kiểm tra.'
         }
         Update-ReviewButton
     }

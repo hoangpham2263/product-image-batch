@@ -1,14 +1,16 @@
-﻿# Gửi log: one small error report (docs/error-report.md), the same shape every time so an AI can read and check it.
+﻿# Gửi lỗi: one small error report (docs/error-report.md), the same shape every time so an AI can read and check it.
 #   report.json   format prb-error-report/1: app, tools, setup check, config, and only the errors since the last
-#                 Gửi log (first time: 7 days): app errors, error lines of the logs and runs, reviews marked Bỏ with
+#                 Gửi lỗi (first time: 7 days): app errors, error lines of the logs and runs, reviews marked Bỏ with
 #                 the reason typed when rejecting them
 #   summary.txt   the same in a few lines for a person
+#   analysis.md   with -Analyze and errors to look at: Codex CLI reads the report by docs/error-report.md and writes
+#                 cause and fix (skipped when Codex is missing, signed out or slow: the report goes anyway)
 # No images and never drive.json (the app password) or the Codex sign-in. Packed as one ZIP so the upload and the
 # management page stay the same. Returns the zip and the Bỏ samples it reports.
 $script:SupportImageTypes = @('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
 $script:SupportErrorPattern = '(?i)error|exception|failed|fatal|lỗi|thất bại|không (tải|tạo|đọc|gửi) được|\[CAUSE:'
 
-function New-SupportLogBundle([string]$ProjectRoot) {
+function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze) {
     $workspace = Join-Path $ProjectRoot 'workspace'
     $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
     $system = if (($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows) { 'windows' } else { 'mac' }
@@ -29,7 +31,7 @@ function New-SupportLogBundle([string]$ProjectRoot) {
         $rejected = @(Get-UnsentRejectedSamples $ProjectRoot)
         $logs = Join-Path $workspace 'logs'
         $errors = [Collections.Generic.List[object]]::new()
-        # App errors are errors through and through: their last 20 KB since the last Gửi log.
+        # App errors are errors through and through: their last 20 KB since the last Gửi lỗi.
         $appErrors = Join-Path $logs 'app-errors.log'
         if ((Test-Path -LiteralPath $appErrors) -and (Get-Item -LiteralPath $appErrors).LastWriteTime -ge $since) {
             $text = Get-SupportTail $appErrors 20KB
@@ -63,7 +65,12 @@ function New-SupportLogBundle([string]$ProjectRoot) {
             app = $info; tools = Get-SupportToolInfo; setup = $setupJson; config = Get-SupportConfig $ProjectRoot $rejected.Count
             runs = @($runs | ForEach-Object Name); errors = $errors.ToArray(); rejected = $samples; skipped = $bundle.Skipped.ToArray()
         }
-        Add-SupportText $bundle 'report.json' (ConvertTo-Json -InputObject $report -Depth 8)
+        $reportText = ConvertTo-Json -InputObject $report -Depth 8
+        Add-SupportText $bundle 'report.json' $reportText
+        if ($Analyze -and ($errors.Count -or $samples.Count)) {
+            $analysis = Get-SupportAnalysis $ProjectRoot $reportText
+            if ($analysis) { Add-SupportText $bundle 'analysis.md' $analysis -Bom }
+        }
         $summary = Get-SupportSummary $info $setup $runs $appErrors
         $summary += "Lỗi từ: $($since.ToString('yyyy-MM-dd HH:mm')) · $($errors.Count) nguồn có lỗi"
         $summary += "Ảnh đã Bỏ báo kèm: $($samples.Count)$(if (@($samples | Where-Object reason).Count) { " (có lý do: $(@($samples | Where-Object reason).Count))" })"
@@ -76,6 +83,21 @@ function New-SupportLogBundle([string]$ProjectRoot) {
     }
 }
 
+# Codex CLI sums the report up by the standard (docs/error-report.md): read-only, low effort, at most 2 minutes.
+# '' when it cannot (not installed, signed out, offline, too slow): the report is sent without it.
+function Get-SupportAnalysis([string]$ProjectRoot, [string]$ReportText) {
+    try {
+        $guide = Get-Content -LiteralPath (Join-Path $ProjectRoot 'docs/error-report.md') -Raw -Encoding UTF8
+        $temp = Join-Path $ProjectRoot 'workspace/temp'
+        $out = Join-Path $temp ('analysis-' + [Guid]::NewGuid().ToString('N') + '.md')
+        $prompt = "$guide`n`nLàm theo mục 'Dành cho AI kiểm tra' với báo cáo dưới đây. Trả lời bằng tiếng Việt, markdown, ngắn gọn: Nguyên nhân, Cách sửa cho người dùng, Việc cần sửa trong app.`n`n``````json`n$ReportText`n``````"
+        $execution = Invoke-CodexProcess $prompt @('exec', '--skip-git-repo-check', '-s', 'read-only', '-C', $temp, '-c', 'model_reasoning_effort=low', '-o', $out) "$out.console.log" 120
+        $text = if ($execution.ExitCode -eq 0 -and (Test-Path -LiteralPath $out)) { [IO.File]::ReadAllText($out, [Text.Encoding]::UTF8).Trim() } else { '' }
+        return $text
+    } catch { return '' }
+    finally { if ($out) { Remove-Item -LiteralPath $out, "$out.console.log" -Force -ErrorAction SilentlyContinue } }
+}
+
 # The end of a text file (shared read, so a log being written is fine).
 function Get-SupportTail([string]$Path, [long]$Bytes) {
     $stream = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
@@ -86,7 +108,7 @@ function Get-SupportTail([string]$Path, [long]$Bytes) {
     } finally { $stream.Dispose() }
 }
 
-# Logs since the last sent Gửi log, with an hour of overlap; the first time, the last 7 days.
+# Logs since the last sent Gửi lỗi, with an hour of overlap; the first time, the last 7 days.
 function Get-SupportLogSince([string]$ProjectRoot) {
     $mark = Join-Path $ProjectRoot 'workspace/support-sent.txt'
     $last = try { [datetime]::Parse((Get-Content -LiteralPath $mark -Raw).Trim(), [Globalization.CultureInfo]::InvariantCulture, 'RoundtripKind') } catch { $null }
@@ -94,7 +116,7 @@ function Get-SupportLogSince([string]$ProjectRoot) {
     return (Get-Date).AddDays(-7)
 }
 
-# After an upload, the next Gửi log starts from now.
+# After an upload, the next Gửi lỗi starts from now.
 function Complete-SupportLogSend([string]$ProjectRoot) {
     [IO.File]::WriteAllText((Join-Path $ProjectRoot 'workspace/support-sent.txt'), (Get-Date).ToUniversalTime().ToString('o'))
 }
@@ -106,7 +128,7 @@ function Add-SupportText($Bundle, [string]$Entry, [string]$Text, [switch]$Bom) {
     $Bundle.Size += $bytes.Length
 }
 
-# Every value is best effort: a missing tool or permission leaves that field empty, never stops Gửi log.
+# Every value is best effort: a missing tool or permission leaves that field empty, never stops Gửi lỗi.
 function Get-SupportSystemInfo([string]$ProjectRoot, [string]$Version, [string]$System, [string]$Machine) {
     $try = { param($Block) try { & $Block } catch { '' } }
     $git = Test-Path -LiteralPath (Join-Path $ProjectRoot '.git')

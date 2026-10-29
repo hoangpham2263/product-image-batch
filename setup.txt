@@ -18,7 +18,7 @@ LỖI THƯỜNG GẶP
   Không đăng nhập được          Chạy codex logout rồi codex login.
   Hết hạn mức                   Xem giờ đặt lại ở dòng hạn mức, hoặc đổi model nhẹ hơn trong Kiểm tra cấu hình.
   Chạy nhiều luồng bị chậm/lỗi  Giảm ô Luồng xuống 1-2.
-  Lỗi khác                      Bấm Gửi log để gửi thông tin lỗi.
+  Lỗi khác                      Bấm Gửi lỗi để gửi cho admin.
 
 BẢO MẬT
   Đăng nhập Codex và mật khẩu app lưu riêng trên từng máy. Không chép chúng sang máy khác

@@ -4,7 +4,7 @@ $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
 . (Join-Path $root 'src/application/support-logs.ps1')
 function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
-# Gửi log carries what is needed to look into a problem, never the app password or images other than Bỏ samples.
+# Gửi lỗi sends one small error report, never the app password or images.
 $temp=Join-Path $TestWorkspaceRoot ('support-logs-'+[Guid]::NewGuid().ToString('N'))
 try{
     $ws=Join-Path $temp 'workspace'
@@ -39,7 +39,7 @@ try{
 
     $bundle=New-SupportLogBundle $temp
     $tempAfter=@(Get-ChildItem -LiteralPath ([IO.Path]::GetTempPath()) -Directory -Filter 'prb-log-*' -ErrorAction SilentlyContinue).Count
-    Assert ($tempAfter -le $tempBefore) 'Gửi log must not stage files in a temp folder.'
+    Assert ($tempAfter -le $tempBefore) 'Gửi lỗi must not stage files in a temp folder.'
     Assert ((Test-Path -LiteralPath $bundle.Path) -and (Split-Path $bundle.Path -Parent) -eq (Join-Path $ws 'temp')) 'The ZIP stays in workspace/temp, ready to send by hand if the upload fails.'
     # Read the ZIP in memory: extracting it would itself hit the 260-character limit on Windows.
     Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
@@ -52,7 +52,7 @@ try{
             try{$entries[$relative]=[pscustomobject]@{Length=$e.Length;Text=$(if($e.Length -lt 1MB){$reader.ReadToEnd()}else{''})}}finally{$reader.Dispose()}
         }
     }finally{$zip.Dispose()}
-    Assert (@($entries.Keys).Count -eq 2 -and $entries.ContainsKey('report.json') -and $entries.ContainsKey('summary.txt')) "Gửi log is one error report: report.json and summary.txt (got $(@($entries.Keys) -join ', '))."
+    Assert (@($entries.Keys).Count -eq 2 -and $entries.ContainsKey('report.json') -and $entries.ContainsKey('summary.txt')) "Gửi lỗi is one error report: report.json and summary.txt (got $(@($entries.Keys) -join ', '))."
     Assert ((Get-Item -LiteralPath $bundle.Path).Length -lt 200KB) 'The error report must stay small.'
     Assert (-not @($entries.Keys|Where-Object{$entries[$_].Text -match 'never-send-this'}).Count) 'The app password must never leave the machine.'
     $report=$entries['report.json'].Text|ConvertFrom-Json
@@ -72,4 +72,4 @@ try{
     $bundle=$next
     Remove-Item -LiteralPath $bundle.Path -Force
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
-Write-Host 'PASS: Gửi log is one small error report (report.json + summary.txt) since the last one, without the password or images.'
+Write-Host 'PASS: Gửi lỗi is one small error report (report.json + summary.txt) since the last one, without the password or images.'

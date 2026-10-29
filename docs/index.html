@@ -286,7 +286,7 @@
       <div class="crumbs"><button class="back" type="button" data-go="">← Quản lý</button><h2 id="logsTitle">Log người dùng</h2></div>
     </div>
     <div id="logList" class="log-list"></div>
-    <p id="logsEmpty" class="empty" hidden>Chưa có log nào. Người dùng bấm Gửi log trong app thì log hiện ở đây.</p>
+    <p id="logsEmpty" class="empty" hidden>Chưa có log nào. Người dùng bấm Gửi lỗi trong app thì báo cáo hiện ở đây.</p>
   </section>
 
   <section id="api" class="card" hidden>
@@ -483,7 +483,7 @@ const go = (hash) => {
 const num = (n) => n.toLocaleString("vi-VN");
 
 // ----- Home: counts only, no images -----
-// ----- Support logs sent from the app (Gửi log) -----
+// ----- Support logs sent from the app (Gửi lỗi) -----
 async function loadLogs() {
   state.logs = (await api("/api/logs")).logs;
   renderHome();

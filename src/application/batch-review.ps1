@@ -26,7 +26,7 @@ function Get-BatchReview([string]$BatchDir) {
 }
 
 # $RejectedRoot defaults to workspace/rejected next to workspace/output (see Save-RejectedSample).
-# $Reason: what is wrong, typed when choosing Bỏ; it goes with the sample into the error report of Gửi log.
+# $Reason: what is wrong, typed when choosing Bỏ; it goes with the sample into the error report of Gửi lỗi.
 function Set-BatchReviewDecision([string]$BatchDir, [string]$Id, [ValidateSet('ok', 'bad', '')][string]$Decision, [string]$RejectedRoot, [string]$Reason = '') {
     $path = Join-Path $BatchDir 'review.json'
     $saved = [ordered]@{}
@@ -44,7 +44,7 @@ function Set-BatchReviewDecision([string]$BatchDir, [string]$Id, [ValidateSet('o
 }
 
 # A review marked Bỏ is noted in workspace/rejected/<run>__<id>/sample.json (what was written and the reason typed)
-# for the next Gửi log, which reports the notes not sent yet and marks them with .sent. Choosing again before that
+# for the next Gửi lỗi, which reports the notes not sent yet and marks them with .sent. Choosing again before that
 # drops the note.
 function Save-RejectedSample($Item, [string]$BatchDir, [string]$Folder, [string]$Reason = '') {
     New-Item -ItemType Directory -Force -Path $Folder | Out-Null
@@ -53,7 +53,7 @@ function Save-RejectedSample($Item, [string]$BatchDir, [string]$Folder, [string]
     [IO.File]::WriteAllText((Join-Path $Folder 'sample.json'), (ConvertTo-Json -InputObject $info), [Text.UTF8Encoding]::new($false))
 }
 
-# Samples marked Bỏ that Gửi log has not sent yet, oldest first.
+# Samples marked Bỏ that Gửi lỗi has not sent yet, oldest first.
 function Get-UnsentRejectedSamples([string]$ProjectRoot) {
     $root = Join-Path $ProjectRoot 'workspace/rejected'
     if (-not (Test-Path -LiteralPath $root)) { return @() }
