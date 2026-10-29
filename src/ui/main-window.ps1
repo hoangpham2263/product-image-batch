@@ -20,6 +20,7 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/agent-lessons.ps1')
 . (Join-Path $srcDir 'application/image-feedback.ps1')
 . (Join-Path $srcDir 'application/manual-references.ps1')
+. (Join-Path $srcDir 'application/batch-import.ps1')
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
 . (Join-Path $srcDir 'application/support-logs.ps1')

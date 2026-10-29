@@ -217,7 +217,7 @@ function buildMain() {
   cardList.append(at(label("Link sản phẩm & ảnh"), 14, 10, null, 20));
   const editor = at(el("div", "panel"), 14, 36, null, 296, { right: 14 });
   ui.btnAdd = at(button("+ Thêm sản phẩm", true), 0, 0, 160, 34);
-  ui.btnBulk = at(button("Thêm nhiều link"), 172, 0, 150, 34);
+  ui.btnBulk = at(button("Nhập hàng loạt"), 172, 0, 150, 34);
   ui.flow = at(el("div", "flow"), 0, 44, null, null, { right: 0, bottom: 0 });
   Object.assign(ui.flow.style, { background: "#fff", border: "1px solid #000", padding: "10px 10px 6px 10px" });
   editor.append(ui.btnAdd, ui.btnBulk, ui.flow);
@@ -657,35 +657,80 @@ async function showProductDialog(target = null) {
   urlBox.focus();
 }
 
-// ----- Thêm nhiều link -----
+// ----- Nhập hàng loạt (Show-ProductQueueBulkDialog): plain links join the list at once; a table (docs/import.md)
+// runs src/import-batch.ps1 in the background, which downloads and attaches the images -----
+const IMPORT_GUIDE = "https://hoangpham.is-a.dev/product-review-batch/#nhap";
+async function addLinks(urls) {
+  const added = [];
+  for (const url of urls) {
+    const known = state.rows.find((r) => r.url.trim() === url);
+    if (known) { added.push(known); continue; }
+    const empty = state.rows.find((r) => !r.url.trim());
+    if (empty) { empty.url = url; added.push(empty); } else { const row = { url, info: null }; state.rows.push(row); added.push(row); }
+  }
+  const infos = list(await api("rows", { urls: added.map((r) => r.url) }));
+  added.forEach((r, i) => { r.info = normInfo(infos[i]); });
+  renderRows();
+  persist();
+  updateStatus();
+}
 function showBulkDialog() {
-  const view = openWindow("Thêm nhiều link", 700, 420);
-  const text = at(el("textarea", "text"), 16, 66, 668, 258);
-  const status = at(label(""), 16, 334, 668, 30);
-  status.style.color = "var(--error)";
-  const save = at(button("Thêm vào danh sách"), 376, 372, 186, 32);
-  const cancel = at(button("Hủy"), 574, 372, 110, 32);
-  const hint = at(label("Mỗi dòng một link. Thêm xong, bấm từng dòng trong danh sách để gắn ảnh."), 16, 16, 668, 44);
+  const view = openWindow("Nhập hàng loạt", 760, 480);
+  const hint = at(label("Dán link (mỗi dòng một link), hoặc bảng có cột product_url, product_image, review_images để app tự tải và gắn ảnh."), 16, 14, 728, 40);
   hint.style.whiteSpace = "normal";
-  view.body.append(hint, text, status, save, cancel);
-  cancel.onclick = view.close;
+  const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 56, 200, 22);
+  const pick = at(button("Chọn file…"), 634, 50, 110, 30);
+  const text = at(el("textarea", "text mono"), 16, 88, 728, 270);
+  text.wrap = "off";
+  const bar = at(el("div", "progress marquee"), 16, 368, 728, 6);
+  bar.append(el("span"));
+  bar.hidden = true;
+  const status = at(label(""), 16, 380, 728, 48);
+  status.style.whiteSpace = "pre-line";
+  const save = at(button("Nhập", true), 520, 436, 110, 32);
+  const cancel = at(button("Hủy"), 640, 436, 104, 32);
+  view.body.append(hint, guide, pick, text, bar, status, save, cancel);
+  let timer = null;
+  const fail = (message) => { status.style.color = "var(--error)"; status.textContent = message; };
+  const busy = (on) => { text.readOnly = on; save.disabled = on; pick.disabled = on; bar.hidden = !on; };
+  pick.onclick = async () => {
+    const [file] = await pickFiles(".csv,.tsv,.txt,text/csv,text/plain", false);
+    if (file) text.value = await file.text();
+  };
+  const finish = async (s) => {
+    clearInterval(timer); timer = null; busy(false); cancel.textContent = "Đóng";
+    if (!s) return fail("Chưa nhập được. Thử lại hoặc bấm Gửi log.");
+    if (s.errors?.length) return fail(s.errors.slice(0, 3).join("\n"));
+    await addLinks(list(s.links));
+    const summary = `Đã nhập ${list(s.links).length} link, ${s.products} ảnh gốc, ${s.reviews} ảnh review.`;
+    const failed = list(s.failed);
+    if (!failed.length) { view.close(); return; }
+    fail(`${summary} Lỗi ${failed.length} ảnh:\n` + failed.slice(0, 2).map((f) => `Dòng ${f.line}: ${f.reason}`).join("; "));
+    text.value = ["# Ảnh chưa nhập được (sửa rồi nhập lại các dòng này):", ...failed.map((f) => `# Dòng ${f.line}: ${f.image} - ${f.reason}`)].join("\n");
+  };
   save.onclick = async () => {
+    status.style.color = ""; status.textContent = "";
     try {
-      if (!text.value.trim()) throw new Error("Nhập ít nhất một link.");
-      const urls = list(await api("parseLinks", { text: text.value }));
-      const added = [];
-      for (const url of urls) {
-        if (state.rows.some((r) => r.url.trim() === url)) continue;
-        const empty = state.rows.find((r) => !r.url.trim());
-        if (empty) { empty.url = url; added.push(empty); } else { const row = { url, info: null }; state.rows.push(row); added.push(row); }
-      }
-      const infos = list(await api("rows", { urls: added.map((r) => r.url) }));
-      added.forEach((r, i) => { r.info = normInfo(infos[i]); });
-      view.close();
-      renderRows();
-      persist();
-      updateStatus();
-    } catch (e) { status.textContent = e.message; }
+      if (!text.value.trim()) throw new Error("Dán link hoặc bảng nhập trước.");
+      const parsed = await api("importParse", { text: text.value });
+      if (list(parsed.errors).length) throw new Error(list(parsed.errors).slice(0, 3).join("\n"));
+      if (!parsed.images) { await addLinks(list(parsed.links)); view.close(); return; }
+      const r = await fetch("/api/import", { method: "POST", body: JSON.stringify({ text: text.value }) });
+      if (!r.ok) throw new Error((await r.json()).error);
+      busy(true);
+      bar.classList.add("marquee");
+      status.textContent = "Đang tải và gắn ảnh…";
+      timer = setInterval(async () => {
+        const { running, status: s } = await (await fetch("/api/import")).json();
+        if (s?.total) { bar.classList.remove("marquee"); bar.firstChild.style.width = `${Math.round((100 * s.done) / s.total)}%`; status.textContent = `Đang tải và gắn ảnh ${s.done}/${s.total}…`; }
+        if (!running && timer) finish(s);
+      }, 600);
+    } catch (e) { fail(e.message); }
+  };
+  // Hủy while importing stops it; images already attached stay on their links.
+  view.cancel = cancel.onclick = async () => {
+    if (timer) { await fetch("/api/import", { method: "DELETE" }); clearInterval(timer); timer = null; }
+    view.close();
   };
   text.focus();
 }

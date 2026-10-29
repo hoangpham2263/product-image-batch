@@ -265,6 +265,10 @@
       <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg></span>
       <span class="menu-text"><span>API</span><span class="muted small">Tài liệu để AI tải ảnh lên</span></span>
     </button>
+    <button class="block" type="button" data-go="nhap">
+      <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
+      <span class="menu-text"><span>Nhập hàng loạt</span><span class="muted small">Chuẩn file nhập sản phẩm và ảnh vào app</span></span>
+    </button>
   </section>
 
   <section id="logs" class="card" hidden>
@@ -303,6 +307,17 @@
       </aside>
       <div id="apiDoc" class="doc"><p class="muted">Đang tải…</p></div>
     </div>
+  </section>
+
+  <section id="nhap" class="card" hidden>
+    <div class="sec-head">
+      <div class="crumbs"><button id="nhapBack" class="back" type="button" data-go="">← Quản lý</button><h2>Nhập hàng loạt</h2></div>
+      <div class="filters">
+        <a class="btn" href="import-sample.csv" download>Tải file mẫu</a>
+        <button id="importCopy" class="primary" type="button">Copy tài liệu</button>
+      </div>
+    </div>
+    <div id="importDoc" class="doc"><p class="muted">Đang tải…</p></div>
   </section>
 
   <section id="manage" class="card" hidden>
@@ -682,12 +697,28 @@ function downloadCsv() {
 
 // ----- Navigation (#anh, #nguon, #nguon/<group>) -----
 // API: docs/api.md, the full guide a person or an AI needs to fill the photo library.
+// Nhập hàng loạt: docs/import.md, the table format the app's Nhập hàng loạt reads. Open to everyone (the app links here).
+async function loadImportDoc() {
+  if (state.importDoc) return;
+  try { state.importDoc = await (await fetch("import.md", { cache: "no-store" })).text(); }
+  catch { $("importDoc").textContent = "Chưa tải được tài liệu. Thử lại sau."; return; }
+  $("importDoc").innerHTML = renderMarkdown(state.importDoc);
+  bindCodeCopy($("importDoc"));
+}
+$("importCopy").onclick = async () => {
+  if (!state.importDoc) return;
+  try { await navigator.clipboard.writeText(`${state.importDoc}\n\nLink tài liệu: ${new URL("import.md", location.href).href}\n`); toast("Đã copy tài liệu nhập hàng loạt"); }
+  catch { toast("Chưa copy được, chọn và copy tay."); }
+};
 async function loadApiDoc() {
   if (state.apiDoc) return;
   try { state.apiDoc = await (await fetch("api.md", { cache: "no-store" })).text(); }
   catch { $("apiDoc").textContent = "Chưa tải được tài liệu. Thử lại sau."; return; }
   $("apiDoc").innerHTML = renderMarkdown(state.apiDoc);
-  for (const b of $("apiDoc").querySelectorAll(".code button")) b.onclick = async () => {
+  bindCodeCopy($("apiDoc"));
+}
+function bindCodeCopy(box) {
+  for (const b of box.querySelectorAll(".code button")) b.onclick = async () => {
     try { await navigator.clipboard.writeText(b.nextElementSibling.textContent); b.textContent = "Đã copy"; setTimeout(() => (b.textContent = "Copy"), 1500); }
     catch { toast("Chưa copy được, chọn và copy tay."); }
   };
@@ -792,11 +823,14 @@ $("apiCopy").onclick = async () => {
 function route() {
   const signedIn = !!store.get();
   const [view, group] = location.hash.slice(1).split("/");
-  state.view = signedIn && ["anh", "nguon", "log", "api"].includes(view) ? view : "";
+  state.view = view === "nhap" || (signedIn && ["anh", "nguon", "log", "api"].includes(view)) ? view : "";
   const nextGroup = state.view === "nguon" && group ? decodeURIComponent(group) : "";
   const groupChanged = nextGroup !== state.group;
   state.group = nextGroup;
-  $("download").hidden = signedIn;
+  $("download").hidden = signedIn || state.view === "nhap";
+  $("nhap").hidden = state.view !== "nhap";
+  $("nhapBack").textContent = signedIn ? "← Quản lý" : "← Trang chính";
+  if (state.view === "nhap") loadImportDoc();
   $("home").hidden = !signedIn || state.view !== "";
   $("manage").hidden = !signedIn || state.view !== "anh";
   $("sources").hidden = !signedIn || state.view !== "nguon";

@@ -124,3 +124,7 @@ textarea.text { resize: none; padding: 2px 4px; line-height: 1.3; overflow-y: sc
 .list div { padding: 0 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 17px; line-height: 17px; }
 .list div.on { background: #0078d7; color: #fff; }
 
+
+/* Nhập hàng loạt: the table reads as columns; the guide link looks like a link. */
+.text.mono { font: 12px/1.45 Menlo, Consolas, monospace; white-space: pre; overflow: auto; }
+.label.link { color: #0066cc; text-decoration: underline; cursor: pointer; }

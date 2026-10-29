@@ -15,6 +15,7 @@ Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật
 ## Chức năng
 
 - **Thêm sản phẩm:** dán link, gắn ảnh sản phẩm gốc và ảnh review (từ máy, kho Drive hoặc dán Ctrl/Cmd+V). Một link có thể có nhiều ảnh gốc, mỗi ảnh gốc nhiều ảnh review.
+- **Nhập hàng loạt:** dán hoặc chọn file bảng `product_url`, `product_image`, `review_images`; app tự tải ảnh và gắn đúng sản phẩm ([chuẩn file](docs/import.md)).
 - **Tạo ảnh:** mỗi cặp ảnh gốc + ảnh review cho một ảnh kết quả, giữ đúng sản phẩm; logo thật được thay bằng brand giả, watermark bị xoá.
 - **Viết review:** nội dung dựa trên ảnh, học cách viết từ kho review mẫu cùng danh mục; tên, sao, email và ngày được tạo ngẫu nhiên.
 - **Duyệt & xuất file:** Giữ/Bỏ từng ảnh, xong thì tạo `loox_import.csv` (chọn **Custom File** khi import vào Loox).
@@ -32,6 +33,7 @@ Luồng xử lý mặc định 2, tối đa 4. Link lỗi được giữ lại �
 - **Nguồn ảnh:** tạo danh mục, tải ảnh lên, bật/tắt danh mục hiện trong app.
 - **Log người dùng:** tải về hoặc xoá log app gửi lên.
 - **API:** tài liệu cho AI và **mã tạm** có thời hạn để AI tự tải ảnh lên kho ([docs/api.md](docs/api.md)).
+- **Nhập hàng loạt:** chuẩn file nhập và file mẫu, xem được không cần đăng nhập.
 
 ## Mật khẩu
 

@@ -14,6 +14,7 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/agent-lessons.ps1')
 . (Join-Path $srcDir 'application/image-feedback.ps1')
 . (Join-Path $srcDir 'application/manual-references.ps1')
+. (Join-Path $srcDir 'application/batch-import.ps1')
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
 . (Join-Path $srcDir 'ui/progress.ps1')
@@ -134,6 +135,11 @@ function Invoke-Rpc([string]$Cmd, $A) {
             } catch { return [pscustomobject]@{ sent = $false; path = $bundle.Path } }
         }
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
+        # Nhập hàng loạt: problems by line, the links, and whether any row brings images (then src/import-batch.ps1 runs).
+        'importParse' {
+            $parsed = ConvertFrom-ProductBatch ([string]$A.text)
+            return @{ errors = @($parsed.Errors); links = @($parsed.Rows | ForEach-Object Url | Select-Object -Unique); images = [bool]@($parsed.Rows | Where-Object { $_.Product -or @($_.Reviews).Count }).Count }
+        }
         'parseLinks' {
             $urls = @(([string]$A.text) -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique)
             foreach ($url in $urls) { if (-not (Test-HttpUrl $url)) { throw "Link không hợp lệ: $url" } }

@@ -515,16 +515,70 @@ function Show-ProductQueueDialog($Editor,$Target=$null) {
     try{[void]$dialog.ShowDialog($Editor.Panel.FindForm())}finally{$dialog.Dispose()}
 }
 
+# Nhập hàng loạt: plain links (one per line) are added at once; a table (docs/import.md) runs src/import-batch.ps1 in
+# the background, which downloads and attaches the images, then its links join the list.
+$script:ImportGuideUrl='https://hoangpham.is-a.dev/product-review-batch/#nhap'
 function Show-ProductQueueBulkDialog($Editor) {
-    $dialog=New-Object Windows.Forms.Form -Property @{Text='Thêm nhiều link';ClientSize='700,420';MinimumSize='600,380';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
-    $hint=New-Object Windows.Forms.Label -Property @{Text='Mỗi dòng một link. Thêm xong, bấm từng dòng trong danh sách để gắn ảnh.';Location='16,16';Size='668,44';Anchor='Top,Left,Right'}
-    $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Vertical';Location='16,66';Size='668,258';Anchor='Top,Bottom,Left,Right'}
-    $status=New-Object Windows.Forms.Label -Property @{Location='16,334';Size='668,30';Anchor='Bottom,Left,Right';ForeColor=[Drawing.Color]::Firebrick}
-    $save=New-Object Windows.Forms.Button -Property @{Text='Thêm vào danh sách';Location='376,372';Size='186,32';Anchor='Bottom,Right'}
-    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='574,372';Size='110,32';Anchor='Bottom,Right';DialogResult='Cancel'}
-    $dialog.Controls.AddRange(@($hint,$text,$status,$save,$cancel));$dialog.CancelButton=$cancel
-    $save.Add_Click({try{if(-not $text.Text.Trim()){throw 'Nhập ít nhất một link.'};Add-ProductQueueLinks $Editor $text.Text;$dialog.Close()}catch{$status.Text=$_.Exception.Message}}.GetNewClosure())
-    try{[void]$dialog.ShowDialog($Editor.Panel.FindForm())}finally{$dialog.Dispose()}
+    $dialog=New-Object Windows.Forms.Form -Property @{Text='Nhập hàng loạt';ClientSize='760,480';MinimumSize='640,420';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
+    $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc bảng có cột product_url, product_image, review_images để app tự tải và gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
+    $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,56';Size='200,22'}
+    $pick=New-Object Windows.Forms.Button -Property @{Text='Chọn file…';Location='634,50';Size='110,30';Anchor='Top,Right'}
+    $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,88';Size='728,270';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
+    $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='16,368';Size='728,6';Anchor='Bottom,Left,Right';Visible=$false}
+    $status=New-Object Windows.Forms.Label -Property @{Location='16,380';Size='728,48';Anchor='Bottom,Left,Right'}
+    $save=New-Object Windows.Forms.Button -Property @{Text='Nhập';Location='520,436';Size='110,32';Anchor='Bottom,Right'}
+    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='640,436';Size='104,32';Anchor='Bottom,Right'}
+    Set-FlatButton $save -Primary;Set-FlatButton $pick;Set-FlatButton $cancel
+    $dialog.Controls.AddRange(@($hint,$guide,$pick,$text,$bar,$status,$save,$cancel))
+    $st=@{Proc=$null;StatusFile='';InputFile=''}
+    $timer=New-Object Windows.Forms.Timer -Property @{Interval=500}
+    $fail={param($Message)$status.ForeColor=$script:Ui.Error;$status.Text=$Message}
+    $guide.Add_LinkClicked({Start-Process $script:ImportGuideUrl})
+    $pick.Add_Click({
+        $open=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Bảng nhập (*.csv;*.tsv;*.txt)|*.csv;*.tsv;*.txt|Tất cả|*.*'}
+        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=[IO.File]::ReadAllText($open.FileName)}}finally{$open.Dispose()}
+    }.GetNewClosure())
+    $finish={
+        $timer.Stop()
+        $s=try{Get-Content -LiteralPath $st.StatusFile -Raw -Encoding UTF8|ConvertFrom-Json}catch{$null}
+        foreach($path in $st.StatusFile,$st.InputFile){Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue}
+        $st.Proc.Dispose();$st.Proc=$null;$bar.Visible=$false;$text.ReadOnly=$false;$save.Enabled=$true;$pick.Enabled=$true;$cancel.Text='Đóng'
+        if(-not $s){& $fail 'Chưa nhập được. Thử lại hoặc bấm Gửi log.';return}
+        if(@($s.errors).Count){& $fail ((@($s.errors)|Select-Object -First 3) -join "`n");return}
+        Add-ProductQueueLinks $Editor (@($s.links) -join "`n")
+        foreach($row in @($Editor.Rows|Where-Object{$_.Url.Text.Trim() -in @($s.links)})){$row.BoundUrl=$null;Update-ProductQueueRow $Editor $row}
+        $summary="Đã nhập $(@($s.links).Count) link, $($s.products) ảnh gốc, $($s.reviews) ảnh review."
+        if(@($s.failed).Count){
+            & $fail ("$summary Lỗi $(@($s.failed).Count) ảnh:`n"+((@($s.failed)|Select-Object -First 2|ForEach-Object{"Dòng $($_.line): $($_.reason)"}) -join '; '))
+            $text.Text=(@('# Ảnh chưa nhập được (sửa rồi nhập lại các dòng này):')+@($s.failed|ForEach-Object{"# Dòng $($_.line): $($_.image) - $($_.reason)"})) -join "`r`n"
+        }else{$status.ForeColor=$script:Ui.Ok;$status.Text=$summary;$dialog.Close()}
+    }.GetNewClosure()
+    $timer.Add_Tick({
+        $s=try{Get-Content -LiteralPath $st.StatusFile -Raw -Encoding UTF8 -ErrorAction Stop|ConvertFrom-Json}catch{$null}
+        if($s -and $s.total){$bar.Style='Continuous';$bar.Value=[Math]::Min(100,[int](100*$s.done/$s.total));$status.Text="Đang tải và gắn ảnh $($s.done)/$($s.total)…"}
+        if($st.Proc.HasExited){& $finish}
+    }.GetNewClosure())
+    $save.Add_Click({
+        $status.ForeColor=$script:Ui.Ink;$status.Text=''
+        try{
+            if(-not $text.Text.Trim()){throw 'Dán link hoặc bảng nhập trước.'}
+            $parsed=ConvertFrom-ProductBatch $text.Text
+            if(@($parsed.Errors).Count){throw ((@($parsed.Errors)|Select-Object -First 3) -join "`n")}
+            if(-not @($parsed.Rows|Where-Object{$_.Product -or @($_.Reviews).Count}).Count){
+                Add-ProductQueueLinks $Editor (@($parsed.Rows|ForEach-Object Url) -join "`n");$dialog.Close();return
+            }
+            $temp=Join-Path $Editor.Root 'workspace/temp';New-Item -ItemType Directory -Force -Path $temp|Out-Null
+            $id=[Guid]::NewGuid().ToString('N');$st.InputFile=Join-Path $temp "import-$id.csv";$st.StatusFile=Join-Path $temp "import-$id.json"
+            [IO.File]::WriteAllText($st.InputFile,$text.Text,[Text.UTF8Encoding]::new($false))
+            $st.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.Root 'src\import-batch.ps1')+'"'),'-File',('"'+$st.InputFile+'"'),'-StatusFile',('"'+$st.StatusFile+'"'))
+            [void]$st.Proc.Handle
+            $text.ReadOnly=$true;$save.Enabled=$false;$pick.Enabled=$false;$bar.Style='Marquee';$bar.Visible=$true;$status.Text='Đang tải và gắn ảnh…'
+            $timer.Start()
+        }catch{& $fail $_.Exception.Message}
+    }.GetNewClosure())
+    # Hủy while importing stops it; images already attached stay on their links.
+    $cancel.Add_Click({if($st.Proc -and -not $st.Proc.HasExited){$st.Proc.Kill();& $finish};$dialog.Close()}.GetNewClosure())
+    try{[void]$dialog.ShowDialog($Editor.Panel.FindForm())}finally{$timer.Dispose();$dialog.Dispose()}
 }
 
 function Set-ProductQueueUrls($Editor,[string[]]$Urls) {
@@ -560,7 +614,7 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $toolbar=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=44}
     $flow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='ProductRows';Dock='Fill';FlowDirection='TopDown';WrapContents=$false;AutoScroll=$true;Padding='10,10,10,6'}
     $add=New-Object Windows.Forms.Button -Property @{Name='AddProduct';Text='+ Thêm sản phẩm';Location='0,0';Size='160,34'}
-    $bulk=New-Object Windows.Forms.Button -Property @{Text='Thêm nhiều link';Location='172,0';Size='150,34'}
+    $bulk=New-Object Windows.Forms.Button -Property @{Text='Nhập hàng loạt';Location='172,0';Size='150,34'}
     Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk
     # SourceGroup: the Drive group last opened in "Từ kho Drive", offered first next time.
     $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Tip=(New-Object Windows.Forms.ToolTip);Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');OnChanged=$null;SourceGroup=(Read-ManualReferenceMap (Join-Path $ProjectRoot 'workspace/reference-inputs/references.json')).preferred_source_group}
