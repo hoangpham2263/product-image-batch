@@ -21,6 +21,9 @@ try{
     Set-UpdateButton 'v9.9.9'
     Assert ($btnUpdate.Text -eq 'Cập nhật v9.9.9' -and $header.ClientSize.Width - $btnUpdate.Right -eq 24 -and $btnUpdate.Left -gt $title.Right) 'A newer release must show on the update button, still 24px from the right edge.'
     Set-UpdateButton ''
+    $script:runTokens = @{ In = 15600L; Cached = 8000L; Out = 2250L }; $script:quotaText = 'Hạn mức: 5 giờ còn 72%'; Update-UsageLabel
+    Assert ($lblTokens.Text -match '^Token: 17.850 · vào 15.600 · ra 2.250$' -and $lblQuota.Text -eq 'Hạn mức: 5 giờ còn 72%') "Token and quota must each have their own line: '$($lblTokens.Text)' / '$($lblQuota.Text)'"
+    Assert ($lblTokens.Bottom -le $lblQuota.Top -and $lblQuota.Bottom -le $lblQuota.Parent.ClientSize.Height -and $lblTokens.Right -lt $lblThr.Left) 'The token and quota lines must fit in the run card without overlapping.'
     Assert ($btnUpdate.Text -eq 'Cập nhật' -and $btnUpdate.Width -eq 100) 'Without a newer release the button is plain Cập nhật.'
     Assert ($queueEditor.Rows.Count -eq 2 -and $queueEditor.Rows[0].Preview.Image -and -not $queueEditor.Rows[1].Preview.Image) 'Main screen lost link/image pairing or missing-reference state.'
     Assert ($queueEditor.Rows[0].Card.Height -le 64 -and $queueEditor.Rows[0].Url.ReadOnly) 'Main queue must use compact rows.'

@@ -180,16 +180,17 @@ Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
 # Tokens this run has used (added up from each Codex call) and the quota left, refreshed in the background.
-$lblUsage=New-Object Windows.Forms.Label -Property @{Name='RunUsage';Location='530,9';Size='370,44';ForeColor=$muted;Font=(New-Object Drawing.Font('Segoe UI',9));TextAlign='MiddleLeft';Anchor='Top,Left,Right';AutoEllipsis=$true}
+$lblTokens=New-Object Windows.Forms.Label -Property @{Name='RunTokens';Location='530,11';Size='370,20';ForeColor=$muted;Font=(New-Object Drawing.Font('Segoe UI',9));TextAlign='MiddleLeft';Anchor='Top,Left,Right';AutoEllipsis=$true}
+$lblQuota=New-Object Windows.Forms.Label -Property @{Name='RunQuota';Location='530,31';Size='370,20';ForeColor=$muted;Font=(New-Object Drawing.Font('Segoe UI',9));TextAlign='MiddleLeft';Anchor='Top,Left,Right';AutoEllipsis=$true}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
 $numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=2;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
-$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblUsage,$lblThr,$numThr))
+$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblTokens,$lblQuota,$lblThr,$numThr))
 $script:runTokens = @{ In = 0L; Cached = 0L; Out = 0L }; $script:quotaText = 'Hạn mức: đang lấy…'
 function Format-Count([long]$Value) { $Value.ToString('N0', [Globalization.CultureInfo]::GetCultureInfo('vi-VN')) }
 function Update-UsageLabel {
     $t = $script:runTokens
     $tokens = if ($t.In -or $t.Out) { "Token: $(Format-Count ($t.In + $t.Out)) · vào $(Format-Count $t.In) · ra $(Format-Count $t.Out)" } else { 'Token: chưa chạy' }
-    $lblUsage.Text = "$tokens`n$($script:quotaText)"
+    $lblTokens.Text = $tokens; $lblQuota.Text = $script:quotaText
 }
 Update-UsageLabel
 

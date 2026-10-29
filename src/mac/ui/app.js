@@ -222,9 +222,10 @@ function buildMain() {
   ui.numThr = at(numeric(1, 4, 2), null, 16, 64, 24, { right: 22, left: false });
   ui.lblThr.style.lineHeight = "24px";
   // Tokens this run has used (added up from each Codex call) and the quota left, refreshed in the background.
-  ui.lblUsage = at(label("", "muted"), 530, 9, 370, 44);
-  Object.assign(ui.lblUsage.style, { whiteSpace: "pre-line", fontSize: "12px", lineHeight: "17px", display: "flex", alignItems: "center", right: "204px", width: "auto" });
-  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblUsage, ui.lblThr, ui.numThr);
+  ui.lblTokens = at(label("", "muted"), 530, 11, 370, 20);
+  ui.lblQuota = at(label("", "muted"), 530, 31, 370, 20);
+  for (const l of [ui.lblTokens, ui.lblQuota]) Object.assign(l.style, { fontSize: "12px", lineHeight: "20px" });
+  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblTokens, ui.lblQuota, ui.lblThr, ui.numThr);
 
   // Tiến trình & thông báo (20,508 1060x282, all anchors).
   const cardLog = at(el("div", "card"), 20, 508, null, null, { right: 24, bottom: 10 });
@@ -944,7 +945,8 @@ const formatCount = (n) => Number(n).toLocaleString("vi-VN");
 function updateUsage() {
   const t = run.tokens || { in: 0, cached: 0, out: 0 };
   const tokens = t.in || t.out ? `Token: ${formatCount(t.in + t.out)} · vào ${formatCount(t.in)} · ra ${formatCount(t.out)}` : "Token: chưa chạy";
-  ui.lblUsage.textContent = `${tokens}\n${usage.quota}`;
+  ui.lblTokens.textContent = tokens;
+  ui.lblQuota.textContent = usage.quota;
 }
 // Quota beside the run: read when the window opens, after each run and every 15 minutes.
 async function refreshQuota() {
