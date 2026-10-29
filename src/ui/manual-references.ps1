@@ -122,11 +122,19 @@ function Get-DroppedImages($Data) {
     return @()
 }
 
+# Every thumbnail in a popup row, including those in its wrapping review area.
+function Get-DraftPictures($Control) {
+    foreach($child in @($Control.Controls)){
+        if($child -is [Windows.Forms.PictureBox]){$child}
+        Get-DraftPictures $child
+    }
+}
+
 # Popup rows: one per product image, its review images beside it, then a row to add a product image.
 # Every product + review pair becomes one generated image. Thumbnails are small; a click shows them large.
 function Update-ProductDraftRows($State) {
     $ui=$script:Ui;$flow=$State.Rows;$url=$State.Url.Text.Trim()
-    foreach($old in @($flow.Controls)){foreach($pic in @($old.Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})){if($pic.Image){$pic.Image.Dispose()}};$old.Dispose()}
+    foreach($old in @($flow.Controls)){foreach($pic in @(Get-DraftPictures $old)){if($pic.Image){$pic.Image.Dispose()}};$old.Dispose()}
     $flow.Controls.Clear()
     $entry=@((Read-ManualReferenceMap $State.Editor.MapPath).entries|Where-Object product_url -eq $url)
     $products=@(if($entry.Count){Get-ManualProducts $entry[0]})
@@ -135,40 +143,46 @@ function Update-ProductDraftRows($State) {
     $width=[Math]::Max(600,$flow.ClientSize.Width-24)
     # Closures get their own copy of the state: GetNewClosure keeps only this block's variables.
     $newThumb={param($path,$title,$onRemove,$st)
-        $pic=New-Object Windows.Forms.PictureBox -Property @{Size='56,56';SizeMode='Zoom';BorderStyle='FixedSingle';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,6,0';Cursor='Hand';Tag=$path}
+        $pic=New-Object Windows.Forms.PictureBox -Property @{Size='56,56';SizeMode='Zoom';BorderStyle='FixedSingle';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,6,6';Cursor='Hand';Tag=$path}
         try{if($path -and (Test-Path -LiteralPath $path)){$pic.Image=New-ThumbnailImage $path 56}}catch{}
         $pic.Add_Click({if($pic.Image){Show-ImagePreview $st.Dialog $path $title}}.GetNewClosure())
         Add-RemoveOverlay $pic $onRemove
         $pic
     }
     $newAdd={param([scriptblock]$onPick)
-        $add=New-Object Windows.Forms.Button -Property @{Text='+';Size='56,56';Margin='0,0,6,0';Font=(New-Object Drawing.Font('Segoe UI',14));ForeColor=$ui.Muted}
+        $add=New-Object Windows.Forms.Button -Property @{Text='+';Size='56,56';Margin='0,0,6,6';Font=(New-Object Drawing.Font('Segoe UI',14));ForeColor=$ui.Muted}
         Set-FlatButton $add;$add.Add_Click($onPick);$add
     }
     for($i=0;$i -lt $products.Count;$i++){
         $index=$i;$product=$products[$i]
-        $row=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';Margin='0,0,0,1';WrapContents=$false;AllowDrop=$true;BackColor=$(if($i -eq $State.Active){$ui.Hover}else{[Drawing.Color]::White})}
-        if($product.file){$row.Controls.Add((& $newThumb $product.file "Ảnh gốc #$($i+1)" {Remove-ManualProduct $State.Editor.MapPath $State.Url.Text.Trim() $index;Update-ProductDraftRows $State}.GetNewClosure() $State))}
-        else{$row.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='Ảnh từ link';Size='56,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted;Margin='0,0,6,0'}))}
-        $row.Controls.Add((New-Object Windows.Forms.Label -Property @{Text='→';Size='18,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted;Margin='0,0,6,0'}))
+        # Product image, arrow, then its reviews; many reviews wrap onto more lines so the add tiles stay visible.
         $scenes=@($product.scenes)
+        $reviewWidth=$width-98;$perLine=[Math]::Max(1,[Math]::Floor($reviewWidth/62));$lines=[Math]::Ceiling(($scenes.Count+3)/$perLine)
+        $row=New-Object Windows.Forms.Panel -Property @{Size=(New-Object Drawing.Size($width,([int]$lines*62+6)));Margin='0,0,0,1';AllowDrop=$true;BackColor=$(if($i -eq $State.Active){$ui.Hover}else{[Drawing.Color]::White})}
+        $reviews=New-Object Windows.Forms.FlowLayoutPanel -Property @{Location='92,6';Size=(New-Object Drawing.Size($reviewWidth,([int]$lines*62)));WrapContents=$true;AllowDrop=$true;BackColor=[Drawing.Color]::Transparent}
+        if($product.file){$head=& $newThumb $product.file "Ảnh gốc #$($i+1)" {Remove-ManualProduct $State.Editor.MapPath $State.Url.Text.Trim() $index;Update-ProductDraftRows $State}.GetNewClosure() $State}
+        else{$head=New-Object Windows.Forms.Label -Property @{Text='Ảnh từ link';Size='56,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted}}
+        $head.Location='6,6'
+        $row.Controls.AddRange(@($head,(New-Object Windows.Forms.Label -Property @{Text='→';Location='68,6';Size='18,56';TextAlign='MiddleCenter';ForeColor=$ui.Muted}),$reviews))
         for($k=0;$k -lt $scenes.Count;$k++){
             $scene=$k
-            $row.Controls.Add((& $newThumb $scenes[$k].file "Ảnh review $($k+1) · ảnh gốc #$($i+1)" {Remove-ManualScene $State.Editor.MapPath $State.Url.Text.Trim() $scene $index;Update-ProductDraftRows $State}.GetNewClosure() $State))
+            $reviews.Controls.Add((& $newThumb $scenes[$k].file "Ảnh review $($k+1) · ảnh gốc #$($i+1)" {Remove-ManualScene $State.Editor.MapPath $State.Url.Text.Trim() $scene $index;Update-ProductDraftRows $State}.GetNewClosure() $State))
         }
-        # Review images for this product image: from this computer or from the Drive library.
+        # Review images for this product image: from this computer, the Drive library or the clipboard.
         $fromComputer=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Select-ImageFiles $true (Get-ReviewLibraryFolder $State.Editor)) $index}.GetNewClosure()
         $fromDrive=& $newAdd {$State.Active=$index;Add-ProductDraftImages $State (Show-DriveSourcePicker $State.Dialog $State.Editor) $index}.GetNewClosure()
         $fromClipboard=& $newAdd {$State.Active=$index;Paste-ProductDraftImage $State $index}.GetNewClosure()
         foreach($b in @($fromComputer,$fromDrive,$fromClipboard)){$b.Font=New-Object Drawing.Font('Segoe UI',8)}
         $fromComputer.Text='+ Máy';$fromDrive.Text='+ Drive';$fromClipboard.Text='Dán'
-        $row.Controls.AddRange(@($fromComputer,$fromDrive,$fromClipboard))
+        $reviews.Controls.AddRange(@($fromComputer,$fromDrive,$fromClipboard))
         # The row under the pointer (or clicked) receives pasted images.
         $select={$State.Active=$index;foreach($r in @($State.Rows.Controls)){$r.BackColor=[Drawing.Color]::White};$row.BackColor=$script:Ui.Hover}.GetNewClosure()
-        $row.Add_Click($select);$row.Add_MouseEnter($select)
-        foreach($child in @($row.Controls)){$child.Add_MouseEnter($select)}
-        $row.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
-        $row.Add_DragDrop({$State.Active=$index;Add-ProductDraftImages $State (Get-DroppedImages $_.Data) $index}.GetNewClosure())
+        $row.Add_Click($select);$row.Add_MouseEnter($select);$reviews.Add_Click($select)
+        foreach($child in @($row.Controls)+@($reviews.Controls)){$child.Add_MouseEnter($select)}
+        foreach($target in @($row,$reviews)){
+            $target.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
+            $target.Add_DragDrop({$State.Active=$index;Add-ProductDraftImages $State (Get-DroppedImages $_.Data) $index}.GetNewClosure())
+        }
         $flow.Controls.Add($row)
     }
     $addRow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Size=(New-Object Drawing.Size($width,70));Padding='6,6,6,6';WrapContents=$false;AllowDrop=$true;BackColor=[Drawing.Color]::White}
@@ -272,7 +286,7 @@ function New-ProductQueueDialog($Editor,$Target=$null) {
     $rows.Add_DragEnter({if($_.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)){$_.Effect='Copy'}})
     $rows.Add_DragDrop({Add-ProductDraftImages $state (Get-DroppedImages $_.Data) -1}.GetNewClosure())
     $save.Add_Click({try{Save-ProductQueueDraft $Editor $state $Target;$dialog.DialogResult='OK';$dialog.Close()}catch{$status.Text=$_.Exception.Message;$status.ForeColor=[Drawing.Color]::Firebrick}}.GetNewClosure())
-    $dialog.Add_Disposed({foreach($r in @($rows.Controls)){foreach($pic in @($r.Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})){if($pic.Image){$pic.Image.Dispose()}}};Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}.GetNewClosure())
+    $dialog.Add_Disposed({foreach($pic in @(Get-DraftPictures $rows)){if($pic.Image){$pic.Image.Dispose()}};Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}.GetNewClosure())
     $urlBox.Text=if($Target){$Target.Url.Text}else{''}
     Update-ProductDraftRows $state
     return $dialog

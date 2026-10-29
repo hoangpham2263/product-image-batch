@@ -38,7 +38,7 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
                     default { $row.Icon.Text = '○'; $row.Icon.ForeColor = $ui.Muted }
                 }
                 $row.Detail.Text = [string]$steps[$i].Detail
-                if ($steps[$i].Action) { $row.Fix.Tag = $steps[$i].Action; $row.Fix.Text = $(if ($steps[$i].Action -eq 'install') { 'Cài' } elseif ($steps[$i].Action -eq 'drive' -and $steps[$i].State -eq 'ok') { 'Đổi' } else { 'Đăng nhập' }); $row.Fix.Visible = $true }
+                if ($steps[$i].Action) { $row.Fix.Tag = $steps[$i].Action; $row.Fix.Text = $(if ($steps[$i].Action -eq 'install') { 'Cài' } elseif ($steps[$i].Action -eq 'drive' -and $steps[$i].State -eq 'ok') { 'Đổi' } else { 'Đăng nhập' }); $row.Fix.Visible = $true; Set-FlatButton $row.Fix -Primary:($steps[$i].State -ne 'ok') }
             }
         } catch { $rows[0].Detail.Text = 'Chưa kiểm tra được. Bấm Kiểm tra lại.' }
         finally { $dialog.Cursor = 'Default'; $again.Enabled = $true }

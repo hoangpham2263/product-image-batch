@@ -458,13 +458,17 @@ async function showProductDialog(target = null) {
     } catch { products = []; }
     if (active >= products.length) active = products.length - 1;
     const rows = products.map((p, i) => {
-      const row = el("div", "", { style: { display: "flex", alignItems: "center", gap: "6px", padding: "6px", borderBottom: "1px solid var(--line)" } });
+      // Product image, arrow, then its reviews; many reviews wrap onto more lines so the add tiles stay visible.
+      const row = el("div", "", { style: { display: "flex", alignItems: "flex-start", gap: "6px", padding: "6px", borderBottom: "1px solid var(--line)" } });
       if (i === active) row.style.background = "var(--hover)";
       const product = p.file
         ? thumb(p.file, p.ok, async () => { await api("draftRemoveProduct", { root, url, productIndex: i }).catch(fail); refresh(); }, `Ảnh gốc #${i + 1}`)
         : el("div", "label muted", { text: "Ảnh từ link", style: { position: "static", width: "56px", whiteSpace: "normal", fontSize: "11px" } });
-      const arrow = el("div", "label muted", { text: "→", style: { position: "static", width: "16px", textAlign: "center" } });
-      row.append(product, arrow, ...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
+      const arrow = el("div", "label muted", { text: "→", style: { position: "static", width: "16px", height: "56px", lineHeight: "56px", textAlign: "center", flex: "none" } });
+      product.style.flex = "none";
+      const reviews = el("div", "", { style: { display: "flex", flexWrap: "wrap", gap: "6px", flex: "1", minWidth: "0" } });
+      row.append(product, arrow, reviews);
+      reviews.append(...p.scenes.map((s, k) => thumb(s.file, s.ok, async () => {
         await api("draftRemoveScene", { root, url, productIndex: i, index: k }).catch(fail); refresh();
       }, `Ảnh review ${k + 1} · ảnh gốc #${i + 1}`)), addTile("+ Máy", async () => { active = i; attachPaths(await chooseImages(await api("reviewFolder", { group: state.group }).catch(() => "")), i); }),
         addTile("+ Drive", async () => { active = i; attachPaths(await showDrivePicker(), i); }),
@@ -577,6 +581,7 @@ async function showReviewDialog() {
   const status = at(label(""), 12, null, 560, 36, { bottom: 17, top: false });
   status.style.lineHeight = "36px";
   const exportBtn = at(button("Xuất file Loox", true), null, null, 180, 40, { right: 12, left: false, bottom: 17, top: false });
+  exportBtn.disabled = true;
   b.append(batches, hint, flow, status, exportBtn);
   let items = [], batch = "";
   const refresh = () => {
@@ -670,6 +675,7 @@ async function showSetupDialog() {
     const icon = at(label("○"), 20, y, 26, 24);
     icon.style.fontSize = "16px";
     const detail = at(label("", "muted"), 52, y + 22, 330, 32);
+    Object.assign(detail.style, { whiteSpace: "normal", lineHeight: "16px", display: "-webkit-box", webkitLineClamp: "2", webkitBoxOrient: "vertical" });
     const fix = at(button("", true), 390, y + 6, 110, 32);
     fix.hidden = true;
     view.body.append(icon, at(label(title), 52, y, 330, 22), detail, fix);
@@ -690,7 +696,7 @@ async function showSetupDialog() {
         const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
         row.icon.textContent = mark; row.icon.style.color = color;
         row.detail.textContent = step.Detail || "";
-        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.onclick = () => fix(step.Action, row); }
+        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.classList.toggle("primary", step.State !== "ok"); row.fix.onclick = () => fix(step.Action, row); }
       });
     } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
     finally { again.disabled = false; }

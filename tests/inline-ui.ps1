@@ -51,7 +51,7 @@ try{
     $popup=New-ProductQueueDialog $queueEditor $queueEditor.Rows[2]
     try{
         $popup.StartPosition='Manual';$popup.Location=[Drawing.Point]::new(-32000,-32000);$popup.Show();$popup.Refresh()
-        $thumbs=@($popup.Tag.Rows.Controls[0].Controls|Where-Object{$_ -is [Windows.Forms.PictureBox]})
+        $thumbs=@(Get-DraftPictures $popup.Tag.Rows.Controls[0])
         Assert ($thumbs.Count -eq 2 -and $thumbs[0].Width -le 64) 'Popup rows must show small product and review thumbnails.'
         $bitmap=[Drawing.Bitmap]::new($popup.Width,$popup.Height)
         try{$popup.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save((Join-Path $TestWorkspaceRoot 'product-popup-preview.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}

@@ -53,10 +53,23 @@ $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
 # The app's Kiểm tra cấu hình window shows these in order (app password first); each step only matters once the one before it is done.
 # State: ok, fail, warn (works but unconfirmed) or wait (blocked by an earlier step). Action names the fix button.
 $node = Get-Command node -ErrorAction SilentlyContinue
-$driveReady = Test-Path -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/drive.json')
+# The saved app password is tried against the server, so a changed password shows up here.
+$driveFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/drive.json'
+$driveState = 'fail'; $driveDetail = 'Chưa nhập; cần để tải ảnh lên Drive và dùng kho Drive.'
+if (Test-Path -LiteralPath $driveFile) {
+    try {
+        $saved = Get-Content -LiteralPath $driveFile -Raw -Encoding UTF8 | ConvertFrom-Json
+        Invoke-WebRequest -Uri (([string]$saved.apiUrl).TrimEnd('/') + '/api/app-check') -Headers @{ 'x-admin-key' = [string]$saved.adminKey } -UseBasicParsing -TimeoutSec 10 | Out-Null
+        $driveState = 'ok'; $driveDetail = 'Đã đăng nhập; ảnh tạo xong tự tải lên Drive.'
+    } catch {
+        $code = 0; if ($_.Exception.Response) { try { $code = [int]$_.Exception.Response.StatusCode } catch {} }
+        if ($code -in @(401, 403)) { $driveDetail = 'Mật khẩu đã đổi; bấm Đăng nhập để nhập lại.' }
+        else { $driveState = 'warn'; $driveDetail = 'Chưa kiểm tra được (mất mạng); dùng mật khẩu đã lưu.' }
+    }
+}
 $quotaText = (@($quotaMessages) -join ' ').Trim()
 $steps = @(
-    [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $(if ($driveReady) { 'ok' } else { 'fail' }); Detail = $(if ($driveReady) { 'Đã đăng nhập; ảnh tạo xong tự tải lên Drive.' } else { 'Chưa nhập; cần để tải ảnh lên Drive và dùng kho Drive.' }); Action = 'drive' }
+    [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $driveState; Detail = $driveDetail; Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
     [pscustomobject]@{ Id = 'codex'; Title = 'Codex'; State = $(if ($engine) { 'ok' } else { 'fail' }); Detail = $(if ($engine) { 'Đã cài.' } else { 'Chưa cài công cụ tạo ảnh.' }); Action = $(if ($engine) { '' } else { 'install' }) }
     [pscustomobject]@{ Id = 'login'; Title = 'Đăng nhập ChatGPT'; State = $(if (-not $engine) { 'wait' } elseif ($loggedIn) { 'ok' } else { 'fail' })

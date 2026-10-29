@@ -74,7 +74,7 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
     $hint=New-Object Windows.Forms.Label -Property @{Text='Mỗi dòng một đánh giá. Bấm ảnh để xem lớn; Giữ/Bỏ chỉ áp dụng cho dòng đó.';Location='12,46';Size='900,22';ForeColor=$script:Ui.Muted}
     $flow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='ReviewList';Location='12,72';Size='900,580';AutoScroll=$true;FlowDirection='TopDown';WrapContents=$false;Anchor='Top,Bottom,Left,Right'}
     $status=New-Object Windows.Forms.Label -Property @{Name='ReviewSummary';Location='12,668';Size='560,36';TextAlign='MiddleLeft';Anchor='Bottom,Left'}
-    $export=New-Object Windows.Forms.Button -Property @{Name='ExportReviews';Text='Xuất file Loox';Location='732,664';Size='180,40';Anchor='Bottom,Right'}
+    $export=New-Object Windows.Forms.Button -Property @{Name='ExportReviews';Text='Xuất file Loox';Location='732,664';Size='180,40';Anchor='Bottom,Right';Enabled=$false}
     Set-FlatButton $export -Primary
     $dialog.Controls.AddRange(@($batches,$hint,$flow,$status,$export))
     $view=[pscustomobject]@{Form=$dialog;BatchDir='';Items=@();Refresh=$null;List=$flow}
