@@ -22,6 +22,7 @@
   /* Header to content is 80px (40px on phones), set only by this row gap (no margins on either side). */
   .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; row-gap: 80px; }
   @media (max-width: 639px) { .wrap { row-gap: 40px; } }
+  @media (min-width: 640px) and (max-width: 1023px) { .wrap { row-gap: 60px; } }
   @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; } }
   @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; } }
   .top { display: flex; align-items: center; gap: 12px; }
