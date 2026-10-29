@@ -38,13 +38,16 @@
   .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .primary:hover { background: var(--primary); filter: brightness(.92); }
   .icon { width: 36px; padding: 0; flex: none; }
+  /* Header and help buttons carry their name next to the icon, so each one says what it does. */
+  .labeled { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; flex: none; }
+  .labeled svg { flex: none; }
   a.btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
   a.btn:hover { background: var(--soft); }
   a.btn.primary:hover { background: var(--primary); filter: brightness(.92); }
   .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
   /* Settings (manage mode), as in memories */
   .settings-btn { position: relative; }
-  .settings-btn.warn::after { content: ""; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+  .settings-btn.warn::after { content: ""; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
   .settings-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .settings-status { display: flex; align-items: center; gap: 8px; font-size: 14px; overflow-wrap: anywhere; margin: 0; }
   .admin-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none; }
@@ -81,6 +84,17 @@
   .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   .doc th { font-weight: 500; color: var(--muted); }
   .doc-wrap { overflow-x: auto; }
+  .tmp-box { margin: 16px 0 8px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; }
+  .tmp-box p { margin: 8px 0 0; }
+  .tmp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .tmp-row strong { font-weight: 500; margin-right: auto; }
+  .tmp-row select { width: auto; }
+  #tmpResult { margin-top: 12px; }
+  #tmpKey { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); border-radius: 6px; padding: 6px 10px; user-select: all; word-break: break-all; }
+  .tmp-list { margin-top: 10px; font-size: 13px; }
+  .tmp-list div { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+  .tmp-list span { flex: 1; color: var(--muted); }
+  .tmp-list button { height: 28px; padding: 0 10px; font-size: 12px; }
   .group-block { position: relative; cursor: pointer; }
   .group-block.off .menu-text { opacity: .5; }
   .switch { position: absolute; top: 14px; right: 14px; width: 36px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--muted) 45%, var(--bg)); cursor: pointer; transition: background .15s; }
@@ -181,14 +195,14 @@
       <h1>Product Review Batch</h1>
     </a>
     <div class="top-text"></div>
-    <a id="dlIcon" class="icon btn" hidden href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip" title="Tải app" aria-label="Tải app">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+    <a id="dlIcon" class="btn labeled" hidden href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip" title="Tải app" aria-label="Tải app">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Tải app
     </a>
-    <button id="lockBtn" class="icon" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    <button id="lockBtn" class="labeled" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Đăng nhập
     </button>
-    <button id="settingsBtn" class="icon settings-btn" type="button" title="Cài đặt" aria-label="Cài đặt" hidden>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <button id="settingsBtn" class="labeled settings-btn" type="button" title="Cài đặt" aria-label="Cài đặt" hidden>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Cài đặt
     </button>
   </header>
 
@@ -265,7 +279,19 @@
         <button id="apiCopy" class="primary" type="button">Copy tài liệu</button>
       </div>
     </div>
-    <p class="muted small">Gửi link hoặc nội dung này cho AI để nó tự tạo danh mục và tải ảnh lên. Mật khẩu admin đưa riêng (biến <code>PRB_ADMIN_KEY</code>), không dán vào tài liệu.</p>
+    <div class="tmp-box">
+      <div class="tmp-row">
+        <strong>Mã tạm cho AI</strong>
+        <select id="tmpHours" aria-label="Thời hạn"><option value="1">1 giờ</option><option value="24" selected>24 giờ</option><option value="168">7 ngày</option></select>
+        <button id="tmpMake" class="primary" type="button">Tạo mã</button>
+      </div>
+      <p class="muted small">Mã chỉ xem và thêm ảnh vào kho, tự hết hạn. Bấm Copy lời nhắn rồi dán cho AI là đủ, không cần mật khẩu admin.</p>
+      <div id="tmpResult" class="tmp-row" hidden>
+        <code id="tmpKey"></code><span id="tmpExp" class="muted small"></span>
+        <button id="tmpCopy" class="primary" type="button">Copy lời nhắn cho AI</button>
+      </div>
+      <div id="tmpList" class="tmp-list"></div>
+    </div>
     <div id="apiDoc" class="doc"><p class="muted">Đang tải…</p></div>
   </section>
 
@@ -287,7 +313,7 @@
       <div class="crumbs"><button id="srcBack" class="back" type="button">← Quản lý</button><h2 id="srcTitle">Nguồn ảnh</h2></div>
       <div class="filters">
         <button id="newGroupBtn" type="button">Tạo nhóm</button>
-        <button id="srcHelpBtn" class="icon" type="button" title="Hướng dẫn" aria-label="Hướng dẫn">?</button>
+        <button id="srcHelpBtn" class="labeled" type="button" title="Hướng dẫn"><span aria-hidden="true">?</span>Hướng dẫn</button>
         <button id="uploadBtn" class="primary" type="button">Tải ảnh lên</button>
         <input id="uploadInput" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden />
       </div>
@@ -299,7 +325,7 @@
     <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
   </section>
 
-  <footer class="muted small">Làm bởi Phạm Quốc Hoàng</footer>
+  <footer class="muted small">© <span id="year">2026</span> Product Review Batch</footer>
 </main>
 
 <dialog id="loginDlg" class="dlg">
@@ -697,6 +723,40 @@ function renderMarkdown(text) {
   return out.join("\n");
 }
 $("apiLink").href = new URL("api.md", location.href).href;
+// Mã tạm: a key that expires, sent to an AI with the guide instead of the admin password. Shown once.
+const when = (iso) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+async function loadTempKeys() {
+  try {
+    const { keys } = await api("/api/temp-keys");
+    $("tmpList").replaceChildren(...keys.map((k) => {
+      const row = document.createElement("div"), text = document.createElement("span"), cancel = document.createElement("button");
+      text.textContent = `Mã …${k.hint} · hết hạn ${when(k.expiresAt)}`;
+      cancel.type = "button"; cancel.textContent = "Huỷ";
+      cancel.onclick = async () => { await api(`/api/temp-keys/${k.id}`, { method: "DELETE" }).catch(() => {}); loadTempKeys(); };
+      row.append(text, cancel);
+      return row;
+    }));
+  } catch { $("tmpList").replaceChildren(); }
+}
+$("tmpMake").onclick = async () => {
+  $("tmpMake").disabled = true;
+  try {
+    const made = await api("/api/temp-keys", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hours: Number($("tmpHours").value) }) });
+    state.tempKey = made;
+    $("tmpKey").textContent = made.key;
+    $("tmpExp").textContent = `hết hạn ${when(made.expiresAt)}`;
+    $("tmpResult").hidden = false;
+    loadTempKeys();
+  } catch (e) { toast(e.message); }
+  finally { $("tmpMake").disabled = false; }
+};
+$("tmpCopy").onclick = async () => {
+  const k = state.tempKey;
+  if (!k) return;
+  const text = `Dùng API kho ảnh Product Review Batch để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến PRB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
+  try { await navigator.clipboard.writeText(text); toast("Đã copy lời nhắn cho AI"); }
+  catch { toast("Chưa copy được, chọn và copy tay."); }
+};
 $("apiCopy").onclick = async () => {
   if (!state.apiDoc) return;
   try { await navigator.clipboard.writeText(`${state.apiDoc}\n\nLink tài liệu: ${$("apiLink").href}\n`); toast("Đã copy tài liệu API"); }
@@ -717,7 +777,7 @@ function route() {
   $("logs").hidden = !signedIn || state.view !== "log";
   $("api").hidden = !signedIn || state.view !== "api";
   if (!signedIn) return;
-  if (state.view === "api") loadApiDoc();
+  if (state.view === "api") { loadApiDoc(); loadTempKeys(); }
   if (state.view === "log") loadLogs().catch((e) => toast(e.message));
   if (state.view === "anh") { state.imgShown = PAGE; render(); }
   if (state.view === "nguon") {
@@ -829,6 +889,7 @@ function showGuide(os) {
 for (const b of document.querySelectorAll("[data-os]")) b.onclick = () => showGuide(b.dataset.os);
 showGuide(/Mac/i.test(navigator.platform || navigator.userAgent) ? "mac" : "win");
 $("srcHelpBtn").onclick = () => $("srcHelpDlg").showModal();
+$("year").textContent = new Date().getFullYear();
 $("copyCmdBtn").onclick = async () => { try { await navigator.clipboard.writeText($("srcCmd").textContent); toast("Đã copy lệnh"); } catch { toast("Không copy được"); } };
 $("newGroupBtn").onclick = () => { $("groupError").hidden = true; $("groupInput").value = ""; $("groupDlg").showModal(); };
 document.querySelector("[data-close-group]").onclick = () => $("groupDlg").close();

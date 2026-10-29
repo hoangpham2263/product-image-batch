@@ -243,3 +243,31 @@ test("the app password reaches only the app's calls; the admin password reaches 
   assert.equal((await call("/api/app-check", { headers: { "x-admin-key": "wrong" } })).status, 401);
 });
 
+
+test("a temporary key adds images to the library until it expires, and reaches nothing else", async () => {
+  const { call, kv } = setup();
+  const admin = { "x-admin-key": "secret", "content-type": "application/json" };
+  assert.equal((await call("/api/temp-keys", { method: "POST", headers: { "x-admin-key": "app-pass" }, body: "{}" })).status, 403, "the app password cannot make keys");
+  assert.equal((await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 5 }) })).status, 400);
+  const made = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 24 }) })).json();
+  assert.match(made.key, /^prb_tmp_[0-9a-f]{40}$/);
+  assert.ok(![...kv.values()].some((v) => String(v).includes(made.key)), "only the hash of the key is stored");
+  const tmp = { "x-admin-key": made.key };
+  assert.equal((await call("/api/sources", { method: "POST", headers: { ...tmp, "content-type": "application/json" }, body: JSON.stringify({ name: "Đèn" }) })).status, 201);
+  assert.equal((await call(`/api/sources/${encodeURIComponent("Đèn")}?name=a.jpg`, { method: "POST", headers: { ...tmp, "content-type": "image/jpeg" }, body: "x" })).status, 201);
+  const listed = await (await call(`/api/sources/${encodeURIComponent("Đèn")}`, { headers: tmp })).json();
+  assert.equal(listed.files.length, 1, "a switched-off group is still reachable for adding images");
+  assert.equal((await call(`/api/sources/${encodeURIComponent("Đèn")}/${listed.files[0].id}`, { method: "DELETE", headers: tmp })).status, 403, "no deleting");
+  assert.equal((await call("/api/images", { headers: tmp })).status, 403);
+  assert.equal((await call("/api/temp-keys", { headers: tmp })).status, 403);
+  const live = await (await call("/api/temp-keys", { headers: admin })).json();
+  assert.equal(live.keys.length, 1);
+  assert.equal(live.keys[0].hint, made.key.slice(-4));
+  // Expired keys stop working even before KV drops them; cancelling removes them at once.
+  const name = [...kv.keys()].find((k) => k.startsWith("tmpkey:"));
+  kv.set(name, JSON.stringify({ ...JSON.parse(kv.get(name)), exp: Date.now() - 1 }));
+  assert.equal((await call("/api/sources", { headers: tmp })).status, 401);
+  const again = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 1 }) })).json();
+  assert.equal((await call("/api/temp-keys", { method: "DELETE", headers: admin })).status, 200);
+  assert.equal((await call("/api/sources", { headers: { "x-admin-key": again.key } })).status, 401);
+});

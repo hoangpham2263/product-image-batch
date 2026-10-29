@@ -33,11 +33,50 @@ export function sameKey(a = "", b = "") {
 const isAdmin = (req, env) => !!env.ADMIN_PASSWORD && sameKey(req.headers.get("x-admin-key") || "", env.ADMIN_PASSWORD);
 // Two passwords: ADMIN_PASSWORD signs in to the management page; APP_PASSWORD is typed into the desktop
 // app and only reaches what the app needs, so sharing the app never exposes the management page.
-const keyRole = (req, env) => {
+// A temporary key (made on the API page, prb_tmp_…) lets an AI add images to the library until it expires.
+const keyRole = async (req, env) => {
   if (isAdmin(req, env)) return "admin";
   const key = req.headers.get("x-admin-key") || "";
-  return env.APP_PASSWORD && sameKey(key, env.APP_PASSWORD) ? "app" : "";
+  if (env.APP_PASSWORD && sameKey(key, env.APP_PASSWORD)) return "app";
+  if (key.startsWith(TEMP_PREFIX)) {
+    const found = await env.STORE.get(`tmpkey:${await sha256(key)}`, "json");
+    if (found && found.exp > Date.now()) return "upload";
+  }
+  return "";
 };
+const TEMP_PREFIX = "prb_tmp_";
+const TEMP_HOURS = [1, 24, 168];
+async function sha256(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+// Temporary keys reach only the image library: list danh mục and images, create a danh mục, add images.
+export function uploadAllowed(method, path) {
+  return (method === "GET" || method === "POST") && /^\/api\/sources(\/[^/]+)?$/.test(path);
+}
+// Admin only: make a key (shown once; only its hash is kept), list the live ones, cancel one or all.
+async function handleTempKeys(req, env, id) {
+  if (req.method === "POST" && !id) {
+    const hours = Number((await req.json().catch(() => ({}))).hours) || 24;
+    if (!TEMP_HOURS.includes(hours)) return json({ error: "Thời hạn chỉ là 1 giờ, 24 giờ hoặc 7 ngày." }, 400);
+    const key = TEMP_PREFIX + [...crypto.getRandomValues(new Uint8Array(20))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    const hash = await sha256(key), exp = Date.now() + hours * 3600_000;
+    const record = { exp, createdAt: new Date().toISOString(), hint: key.slice(-4) };
+    await env.STORE.put(`tmpkey:${hash}`, JSON.stringify(record), { expirationTtl: hours * 3600, metadata: record });
+    return json({ key, id: hash.slice(0, 16), expiresAt: new Date(exp).toISOString() }, 201);
+  }
+  const { keys } = await env.STORE.list({ prefix: "tmpkey:" });
+  const live = keys.filter((k) => k.metadata?.exp > Date.now());
+  if (req.method === "GET" && !id) {
+    return json({ keys: live.map((k) => ({ id: k.name.slice(7, 23), hint: k.metadata.hint, createdAt: k.metadata.createdAt, expiresAt: new Date(k.metadata.exp).toISOString() })) }, 200, { "cache-control": "no-store" });
+  }
+  if (req.method === "DELETE") {
+    const gone = keys.filter((k) => !id || k.name.slice(7, 23) === id);
+    await Promise.all(gone.map((k) => env.STORE.delete(k.name)));
+    return json({ ok: true, removed: gone.length });
+  }
+  return json({ error: "Not found" }, 404);
+}
 export function appAllowed(method, path) {
   return (method === "GET" && path === "/api/app-check")
     || (method === "POST" && path === "/api/images")
@@ -240,7 +279,7 @@ async function handleSources(req, env, url, parts, role) {
   if (!rawGroup) {
     if (req.method === "GET") {
       let folders = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}'`);
-      if (role !== "admin") folders = folders.filter((f) => enabled.has(nfc(f.name)));
+      if (role === "app") folders = folders.filter((f) => enabled.has(nfc(f.name)));
       const groups = await Promise.all(folders.map(async (f) => ({ name: f.name, count: (await listChildren(env, f.id, `mimeType != '${FOLDER_MIME}'`)).length, enabled: enabled.has(nfc(f.name)) })));
       return json({ groups: groups.sort((a, b) => a.name.localeCompare(b.name, "vi")) }, 200, { "cache-control": "no-store" });
     }
@@ -255,7 +294,7 @@ async function handleSources(req, env, url, parts, role) {
   }
   const group = nfc(decodeURIComponent(rawGroup));
   if (!GROUP_RE.test(group)) return json({ error: "Tên nhóm không hợp lệ." }, 400);
-  if (role !== "admin" && !enabled.has(nfc(group))) return json({ error: "Không tìm thấy nhóm." }, 404);
+  if (role === "app" && !enabled.has(nfc(group))) return json({ error: "Không tìm thấy nhóm." }, 404);
   const parent = await groupFolder(env, group);
   if (!parent) return json({ error: "Không tìm thấy nhóm." }, 404);
 
@@ -380,9 +419,13 @@ async function handle(req, env, ctx) {
 
   // ----- signed in below: admin for everything, app password for the app's own calls -----
   if (!path.startsWith("/api/")) return new Response("Not found", { status: 404 });
-  const role = keyRole(req, env);
-  if (!role) return json({ error: "Sai mật khẩu." }, 401);
+  const role = await keyRole(req, env);
+  if (!role) return json({ error: (req.headers.get("x-admin-key") || "").startsWith(TEMP_PREFIX) ? "Mã tạm sai hoặc đã hết hạn." : "Sai mật khẩu." }, 401);
   if (role === "app" && !appAllowed(req.method, path)) return json({ error: "Mật khẩu app không dùng được cho trang quản lý." }, 403);
+  if (role === "upload" && !uploadAllowed(req.method, path)) return json({ error: "Mã tạm chỉ dùng để xem và thêm ảnh vào kho." }, 403);
+
+  const temp = path.match(/^\/api\/temp-keys(?:\/(\w+))?$/);
+  if (temp) return handleTempKeys(req, env, temp[1]);
   if (path === "/api/app-check" && req.method === "GET") return json({ ok: true, role });
 
   if (path === "/api/images" && req.method === "GET") {
