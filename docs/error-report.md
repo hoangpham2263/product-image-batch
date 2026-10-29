@@ -17,13 +17,13 @@ Bấm **Gửi lỗi** trong app thì chỉ **một file** được gửi lên tr
 Một hai câu: chuyện gì đang hỏng.
 
 ## Nguyên nhân
-- Từng nguyên nhân, nêu nguồn (bước cấu hình, file log) và số lần lặp.
+- Giờ xảy ra (yyyy-MM-dd HH:mm) · từng nguyên nhân, nêu nguồn (bước cấu hình, file log) và số lần lặp.
 
 ## Cách sửa cho người dùng
 1. Việc người dùng tự làm được, theo thứ tự.
 
 ## Đánh giá đã Bỏ
-- Gom theo lý do: lý do – số lần – ví dụ.
+- Gom theo lý do: lý do – số lần – giờ gần nhất – ví dụ.
 
 ## Cần sửa trong app
 - Việc cho admin / dev, nếu có. Không có thì ghi "Không".
@@ -32,6 +32,6 @@ Một hai câu: chuyện gì đang hỏng.
 ## Dành cho AI viết file
 
 1. Bước cấu hình chưa đạt là nguyên nhân đầu tiên cần nêu.
-2. Gom lỗi giống nhau, ghi số lần; bỏ dòng trùng.
+2. Gom lỗi giống nhau, ghi số lần và giờ (trường `at`, dòng log có giờ thì lấy giờ đó); bỏ dòng trùng.
 3. Đánh giá đã Bỏ: gom theo lý do để thấy ảnh hay sai ở đâu.
 4. Tiếng Việt, ngắn gọn, không chép nguyên log dài; không bịa thông tin không có trong dữ liệu.

@@ -29,7 +29,7 @@ function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze, [scriptblo
     $appErrors = Join-Path $logs 'app-errors.log'
     if ((Test-Path -LiteralPath $appErrors) -and (Get-Item -LiteralPath $appErrors).LastWriteTime -ge $since) {
         $text = (Get-SupportTail $appErrors 20KB).Trim()
-        if ($text) { $errors.Add([ordered]@{ source = 'logs/app-errors.log'; lines = @($text -split '\r?\n') }) }
+        if ($text) { $errors.Add([ordered]@{ source = 'logs/app-errors.log'; at = (Get-Item -LiteralPath $appErrors).LastWriteTime.ToString('yyyy-MM-dd HH:mm'); lines = @($text -split '\r?\n') }) }
     }
     # Other logs and the runs since then: only their error lines (the last 50 of each file).
     $files = @(if (Test-Path -LiteralPath $logs) { Get-ChildItem -LiteralPath $logs -File | Where-Object { $_.Name -ne 'app-errors.log' -and $_.LastWriteTime -ge $since } | ForEach-Object { @{ Source = "logs/$($_.Name)"; File = $_ } } })
@@ -43,13 +43,13 @@ function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze, [scriptblo
     foreach ($f in $files) {
         try {
             $lines = @((Get-SupportTail $f.File.FullName 2MB) -split '\r?\n' | Where-Object { $_ -match $script:SupportErrorPattern } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Last 50)
-            if ($lines.Count) { $errors.Add([ordered]@{ source = $f.Source; lines = $lines }) }
+            if ($lines.Count) { $errors.Add([ordered]@{ source = $f.Source; at = $f.File.LastWriteTime.ToString('yyyy-MM-dd HH:mm'); lines = $lines }) }
         } catch { Write-Verbose $_ }
     }
     $samples = @($rejected | ForEach-Object {
         $json = Join-Path $_.FullName 'sample.json'
         $sample = if (Test-Path -LiteralPath $json) { Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json } else { [pscustomobject]@{ id = $_.Name } }
-        [ordered]@{ run = $sample.run; id = $sample.id; product = $sample.product_handle; reason = [string]$sample.reason; body = $sample.body }
+        [ordered]@{ run = $sample.run; id = $sample.id; product = $sample.product_handle; reason = [string]$sample.reason; body = $sample.body; at = $(try { ([datetime]$sample.decided_at).ToString('yyyy-MM-dd HH:mm') } catch { '' }) }
     })
     $facts = [ordered]@{ app = $info; tools = Get-SupportToolInfo; since = $since.ToString('o'); setup = @($steps | Where-Object { $_.State -ne 'ok' }); config = Get-SupportConfig $ProjectRoot $rejected.Count
         errors = $errors.ToArray(); rejected = $samples }
@@ -71,11 +71,11 @@ function ConvertTo-SupportErrorText($Facts) {
     if (@($Facts.setup).Count) { $out.Add(''); $out.Add('## Cấu hình chưa đạt'); foreach ($s in $Facts.setup) { $out.Add("- $($s.Title): $($s.Detail)") } }
     if (@($Facts.errors).Count) {
         $out.Add(''); $out.Add('## Lỗi')
-        foreach ($e in $Facts.errors) { $out.Add("### $($e.source)"); foreach ($l in @($e.lines | Select-Object -Last 20)) { $out.Add("- $l") } }
+        foreach ($e in $Facts.errors) { $out.Add("### $($e.source) · $($e.at)"); foreach ($l in @($e.lines | Select-Object -Last 20)) { $out.Add("- $l") } }
     }
     if (@($Facts.rejected).Count) {
         $out.Add(''); $out.Add('## Đánh giá đã Bỏ')
-        foreach ($r in $Facts.rejected) { $out.Add("- $($r.run) / $($r.id)$(if ($r.product) { " ($($r.product))" }): $(if ($r.reason) { $r.reason } else { 'không ghi lý do' })") }
+        foreach ($r in $Facts.rejected) { $out.Add("- $($r.at) · $($r.run) / $($r.id)$(if ($r.product) { " ($($r.product))" }): $(if ($r.reason) { $r.reason } else { 'không ghi lý do' })") }
     }
     if ($out.Count -eq 1) { $out.Add(''); $out.Add('Không có lỗi nào từ lần gửi trước.') }
     return ($out -join "`n")
