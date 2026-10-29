@@ -30,6 +30,9 @@ $project = Join-Path $dir 'project'
 New-Item -ItemType Directory -Force -Path (Join-Path $project 'workspace') | Out-Null
 if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất') { throw 'Without the app password the picker starts with Áo and Nội thất.' }
 '{"apiUrl":"https://api.test","adminKey":"k"}' | Set-Content -LiteralPath (Join-Path $project 'workspace/drive.json') -Encoding UTF8
+function Invoke-RestMethod { [pscustomobject]@{ groups = @([pscustomobject]@{ name = 'Áo'; enabled = $true }, [pscustomobject]@{ name = 'Đồ bếp'; enabled = $false }) } }
+if ((@(Get-RemoteSourceGroups @{ ApiUrl = 'https://api.test'; AdminKey = 'k' }) -join '|') -ne 'Áo') { throw 'With the admin password the app must still hide switched-off groups.' }
+Remove-Item Function:\Invoke-RestMethod
 function Get-RemoteSourceGroups($Drive) { @('Mũ', 'Nội thất'.Normalize([Text.NormalizationForm]::FormD), 'Áo') }
 if ((@(Get-SourceGroupChoices $project) -join '|') -ne 'Áo|Nội thất|Mũ') { throw 'The picker must show exactly the switched-on groups.' }
 function Get-RemoteSourceGroups($Drive) { throw 'offline' }

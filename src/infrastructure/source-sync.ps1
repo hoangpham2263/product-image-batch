@@ -2,7 +2,8 @@
 # only the chosen group into data/source-photos/<group>/ and fetches only new or changed files (md5).
 function Get-RemoteSourceGroups($Drive) {
     $result = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 15
-    return @($result.groups | ForEach-Object { [string]$_.name })
+    # The admin password lists every group; the app shows only the switched-on ones either way.
+    return @($result.groups | Where-Object { $_.enabled -ne $false } | ForEach-Object { [string]$_.name })
 }
 
 # Groups for the picker: only the groups switched on in the management page, read each time the picker
