@@ -24,5 +24,12 @@ try{
         git -C $repo init --quiet;git -C $repo -c user.name=t -c user.email=t@t commit --quiet --allow-empty -m init;git -C $repo tag v1.0.14
         Assert ((Get-AppUpdate $repo) -eq 'v1.0.15') 'A git checkout must be offered the newer version by name, not just told there is one.'
     }
+    # Opening the app never updates it: only the Cập nhật dialog's button installs (Windows: update-dialog.ps1
+    # runs -Apply; macOS: the dialog posts /api/update). Launchers and background checks only run -Check.
+    $installers=@(Get-ChildItem -LiteralPath (Join-Path $root 'src') -Recurse -File -Include *.ps1,*.mjs,*.js,*.cmd,*.command|Where-Object{$_.Name -ne 'update.ps1' -and (Get-Content -LiteralPath $_.FullName -Raw) -match "Update-App|'-Apply'|/api/update"}|ForEach-Object Name|Sort-Object -Unique)
+    foreach($launcher in @('start-app.cmd','start-app.command')){Assert ((Get-Content -LiteralPath (Join-Path $root $launcher) -Raw) -notmatch 'update') "$launcher must not update the app."}
+    Assert (($installers -join ',') -eq 'app.js,server.mjs,update-dialog.ps1') "Only the Cập nhật dialog may install an update, found in: $($installers -join ', ')"
+    $js=Get-Content -LiteralPath (Join-Path $root 'src/mac/ui/app.js') -Raw;$button=$js.IndexOf('go.onclick = async');$install=$js.IndexOf('fetch("/api/update"')
+    Assert ([regex]::Matches($js,'/api/update').Count -eq 1 -and $button -ge 0 -and $install -gt $button -and $install - $button -lt 400) 'macOS installs only from the dialog button.'
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
 Write-Host 'PASS: updates replace app files and keep workspace and lessons; the check names the new version.'
