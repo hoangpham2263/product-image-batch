@@ -1,5 +1,5 @@
 {
-  "name": "product-image-bridge",
+  "name": "product-review-bridge",
   "private": true,
   "type": "module",
   "description": "Local bridge between Product Review Batch and the browser extension.",

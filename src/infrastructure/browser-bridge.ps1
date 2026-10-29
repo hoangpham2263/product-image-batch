@@ -18,7 +18,7 @@ function Start-ImageBridge([string]$ProjectRoot) {
         if (Test-ImageBridge) { return }
         Start-Sleep -Milliseconds 750
     }
-    throw '[CAUSE:BRIDGE] Extension product-image-bridge chưa kết nối. Mở Chrome có cài extension và giữ tab ChatGPT/Flow đã đăng nhập.'
+    throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Chrome có cài extension và giữ tab ChatGPT/Flow đã đăng nhập.'
 }
 
 # Browser backends cannot write files themselves; drop the file-delivery lines meant for Codex.

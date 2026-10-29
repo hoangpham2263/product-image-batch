@@ -23,7 +23,7 @@ export function createBridge({ fetchImpl = fetch } = {}) {
       const job = JSON.parse(raw);
       if (!["chatgpt", "flow"].includes(job.platform)) return send(400, { error: "platform must be chatgpt or flow" });
       if (!job.prompt || !job.output) return send(400, { error: "prompt and output are required" });
-      if (!extension) return send(503, { error: "Extension chưa kết nối. Mở Chrome có cài product-image-bridge." });
+      if (!extension) return send(503, { error: "Extension chưa kết nối. Mở Chrome có cài product-review-bridge." });
       const images = await Promise.all((job.images || []).map(async (path, index) => ({
         name: `ref-${index + 1}${extname(path).toLowerCase()}`,
         mime: MIME[extname(path).toLowerCase()] || "application/octet-stream",

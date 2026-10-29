@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "product-image-bridge",
+  "name": "product-review-bridge",
   "version": "0.1.0",
   "description": "Cầu nối local: nhận lệnh tạo ảnh từ Product Review Batch, gửi trong tab ChatGPT/Google Flow đang đăng nhập và trả ảnh về máy.",
   "background": { "service_worker": "background.js" },
@@ -14,5 +14,5 @@
     { "matches": ["https://chatgpt.com/*"], "js": ["content-common.js", "content-chatgpt.js"], "run_at": "document_idle" },
     { "matches": ["https://flow.google.com/*"], "js": ["content-common.js", "content-flow.js"], "run_at": "document_idle" }
   ],
-  "action": { "default_title": "product-image-bridge", "default_popup": "popup.html" }
+  "action": { "default_title": "product-review-bridge", "default_popup": "popup.html" }
 }
