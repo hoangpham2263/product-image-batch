@@ -6,6 +6,7 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 . (Join-Path $PSScriptRoot 'drive-login.ps1')
 . (Join-Path $PSScriptRoot 'setup-dialog.ps1')
 . (Join-Path $PSScriptRoot 'update-dialog.ps1')
+. (Join-Path $PSScriptRoot 'app-icon.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
@@ -118,6 +119,11 @@ $form.Font = New-Object Drawing.Font('Segoe UI', 10)
 $form.BackColor=[Drawing.SystemColors]::Control
 $ui=$script:Ui; $ink=$ui.Ink; $muted=$ui.Muted
 $form.ForeColor=$ink
+$appIcon = New-StarIcon
+$form.Icon = $appIcon
+$tray = New-AppTray $form $appIcon
+$tray.Visible = -not $BuildOnly
+$form.Add_FormClosed({ $tray.Visible = $false; $tray.Dispose() })
 # Each region is a bordered panel on the system-grey page so areas read as separate blocks.
 function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H,[string]$Anchor='Top,Left') {
     $card=New-Object Windows.Forms.Panel -Property @{Name=$Name;Location=(New-Object Drawing.Point($X,$Y));Size=(New-Object Drawing.Size($W,$H));BackColor=$ui.Page;Anchor=$Anchor}

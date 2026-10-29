@@ -120,6 +120,15 @@ async function handle(req, res) {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
   if (path === "/api/root") return send(res, 200, { root });
+  // Menu bar star: Mở cửa sổ / Thoát.
+  if (path === "/api/open" && req.method === "POST") { openWindow(); return send(res, 200, { ok: true }); }
+  if (path === "/api/quit" && req.method === "POST") {
+    send(res, 200, { ok: true });
+    stopRun();
+    rpcProc?.kill();
+    setTimeout(() => process.exit(0), 200);
+    return;
+  }
   if (path === "/api/rpc" && req.method === "POST") {
     const { cmd, args } = JSON.parse((await body(req)).toString("utf8"));
     try { return send(res, 200, { result: await rpc(cmd, args) }); }
@@ -205,6 +214,15 @@ return out`;
 }
 
 // Open as its own window (Chrome app mode) when Chrome is installed, else the default browser.
+// A star in the macOS menu bar while the app runs (src/mac/menubar.js); it goes away with the server.
+let menuBar = null;
+function startMenuBar() {
+  if (process.platform !== "darwin" || process.env.PRB_NO_MENUBAR) return;
+  menuBar = spawn("osascript", ["-l", "JavaScript", join(here, "menubar.js")], { env: { ...process.env, PRB_PORT: String(PORT) }, stdio: "ignore" });
+  menuBar.on("error", () => { menuBar = null; });
+}
+process.on("exit", () => { try { menuBar?.kill(); } catch {} });
+
 function openWindow() {
   const target = `http://127.0.0.1:${PORT}/`;
   execFile("open", ["-na", "Google Chrome", "--args", `--app=${target}`, "--window-size=1120,840"], (err) => { if (err) execFile("open", [target]); });
@@ -229,7 +247,7 @@ function listen(attempt = 0) {
     }
     throw e;
   });
-  server.listen(PORT, "127.0.0.1", () => { if (!process.argv.includes("--no-open")) openWindow(); });
+  server.listen(PORT, "127.0.0.1", () => { startMenuBar(); if (!process.argv.includes("--no-open")) openWindow(); });
 }
 startRpc();
 listen();
