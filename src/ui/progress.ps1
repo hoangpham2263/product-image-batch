@@ -13,6 +13,8 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         $event.Kind = 'Rows'; $event.Rows = @($Matches[1] -split ',' | ForEach-Object { [int]$_ })
     } elseif ($line -match '^Batch:\s*(.+)') {
         $event.Kind = 'Output'; $event.Path = $Matches[1].Trim()
+    } elseif ($line -match '^Model AI: (.+)$') {
+        $event.Kind = 'Info'; $event.Text = "Model AI: $($Matches[1])"
     } elseif ($line -match '^Missing data: (\d+)') {
         $event.Kind = 'Info'
         $event.Text = "$($Matches[1]) sản phẩm thiếu ảnh mẫu (xem missing-data.csv)."

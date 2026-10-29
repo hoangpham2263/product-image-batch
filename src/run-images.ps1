@@ -42,6 +42,7 @@ if($script:Config.DriveRequired){
 $script:Config.ImageBackend = $ImageBackend
 if ($ImageBackend -ne 'codex') { Start-ImageBridge $ProjectRoot }
 if($ReferenceMapFile){$script:Config.ManualReferences=Read-ManualReferenceMap $ReferenceMapFile}
+Write-Host "Model AI: $(Get-AiModelSummary $ProjectRoot)"
 try {
     Invoke-BatchWorkflow $ProjectRoot $List $OutDir $ThrottleLimit $script:WorkflowModuleFiles
 } catch {

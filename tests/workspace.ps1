@@ -2,6 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $project = Split-Path $PSScriptRoot -Parent
 . (Join-Path $project 'src/bootstrap.ps1')
+. (Join-Path $project 'src/ui/progress.ps1')
 $fixture = Join-Path $TestWorkspaceRoot ('workspace-test-' + [Guid]::NewGuid().ToString('N'))
 function Assert($Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 try {
@@ -28,7 +29,13 @@ try {
     Assert ($ai.model -eq 'gpt-5.5' -and $ai.effort -eq 'low') 'The chosen model and reasoning level must be kept.'
     $refused = $false; try { Set-AiSettings $fixture 'gpt 5; rm' 'low' } catch { $refused = $true }
     Assert $refused 'An invalid model name must be refused.'
+    $env:CODEX_HOME = Join-Path $fixture 'codex'; New-Item -ItemType Directory -Force $env:CODEX_HOME | Out-Null
+    "model = `"gpt-5.6-sol`"`nmodel_reasoning_effort = `"high`"`nmodel_provider = `"9router`"`n[profiles.x]`nmodel = `"other`"" | Set-Content (Join-Path $env:CODEX_HOME 'config.toml')
+    Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.5 · suy nghĩ thấp (chọn trong Kiểm tra cấu hình) · qua 9router') "A run must name the chosen model: $(Get-AiModelSummary $fixture)"
     Set-AiSettings $fixture '' ''
+    Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.6-sol · suy nghĩ cao (mặc định của Codex) · qua 9router') "Without a choice a run must name Codex's own model: $(Get-AiModelSummary $fixture)"
+    Assert ((ConvertTo-UiEvent 'Model AI: gpt-5.5 · suy nghĩ thấp').Text -eq 'Model AI: gpt-5.5 · suy nghĩ thấp') 'The model line must show in the app log.'
+    Remove-Item Env:\CODEX_HOME
     Assert (-not (Get-AiSettings $fixture).model) 'Choosing the default again must clear the model.'
     foreach ($key in @('Output', 'Logs', 'Temp')) {
         Assert ($paths[$key].StartsWith($paths.Root)) "Runtime path outside workspace: $key"

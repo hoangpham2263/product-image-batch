@@ -36,3 +36,21 @@ function Get-AiModels {
             })
     } catch { return @() }
 }
+
+# What a run really uses, shown when it starts: the Model AI choice, or else Codex's own top-level settings in
+# config.toml ($CODEX_HOME or ~/.codex), so a run never goes on an unexpected model unnoticed.
+function Get-AiModelSummary([string]$ProjectRoot) {
+    $chosen = Get-AiSettings $ProjectRoot
+    $home_ = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+    $toml = try { ((Get-Content -LiteralPath (Join-Path $home_ 'config.toml') -Raw -Encoding UTF8) -split '(?m)^\s*\[')[0] } catch { '' }
+    $read = { param($Key) if ($toml -match "(?m)^\s*$Key\s*=\s*[""']([^""']*)[""']") { $Matches[1] } else { '' } }
+    $model = if ($chosen.model) { $chosen.model } else { & $read 'model' }
+    $effort = if ($chosen.effort) { $chosen.effort } else { & $read 'model_reasoning_effort' }
+    $provider = & $read 'model_provider'
+    $names = @{ low = 'thấp'; medium = 'vừa'; high = 'cao'; xhigh = 'rất cao'; max = 'tối đa'; ultra = 'siêu cao' }
+    $text = $(if ($model) { $model } else { 'model mặc định của Codex' })
+    if ($effort) { $text += " · suy nghĩ $(if ($names[$effort]) { $names[$effort] } else { $effort })" }
+    $text += $(if ($chosen.model -or $chosen.effort) { ' (chọn trong Kiểm tra cấu hình)' } else { ' (mặc định của Codex)' })
+    if ($provider -and $provider -ne 'openai') { $text += " · qua $provider" }
+    return $text
+}
