@@ -144,7 +144,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $parsed = ConvertFrom-ProductBatch ([string]$A.text) ([string]$A.folder)
             return @{ errors = @($parsed.Errors); links = @($parsed.Rows | ForEach-Object Url | Select-Object -Unique); images = [bool]@($parsed.Rows | Where-Object { $_.Product -or @($_.Reviews).Count }).Count }
         }
-        'importZip' { $folder = Expand-ProductBatchZip ([string]$A.path) (Split-Path -Parent ([string]$A.path)); $csv = Get-ChildItem -LiteralPath $folder -Filter *.csv -File | Sort-Object { $_.Name -ne 'products.csv' } | Select-Object -First 1; return @{ folder = $folder; text = [IO.File]::ReadAllText($csv.FullName) } }
+        'importArchive' { $folder = Expand-ProductBatchArchive ([string]$A.path) (Split-Path -Parent ([string]$A.path)); $csv = Get-ChildItem -LiteralPath $folder -Filter *.csv -File | Sort-Object { $_.Name -ne 'products.csv' } | Select-Object -First 1; return @{ folder = $folder; text = [IO.File]::ReadAllText($csv.FullName) } }
         'importFile' { return [IO.File]::ReadAllText([string]$A.path) }
         'parseLinks' {
             $urls = @(([string]$A.text) -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique)

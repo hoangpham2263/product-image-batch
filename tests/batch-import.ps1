@@ -25,9 +25,16 @@ try{
     Assert (@((ConvertFrom-ProductBatch $csv '').Errors|Where-Object{$_ -match 'Chọn file'}).Count) 'A table without its folder must ask for the file.'
     Assert (@((ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,missing.jpg," $img).Errors|Where-Object{$_ -match "^Dòng 2: không có ảnh 'missing.jpg'"}).Count) 'A missing image must be named with its line.'
     # The sample zip unpacks to its product-import folder and reads without errors.
-    $zipFolder=Expand-ProductBatchZip (Join-Path $root 'docs/product-import-sample.zip') $temp
+    $zipFolder=Expand-ProductBatchArchive (Join-Path $root 'docs/product-import-sample.zip') $temp
     $sample=ConvertFrom-ProductBatch ([IO.File]::ReadAllText((Join-Path $zipFolder 'products.csv'))) $zipFolder
     Assert ((Split-Path -Leaf $zipFolder) -eq 'product-import-sample' -and -not @($sample.Errors).Count -and @($sample.Rows).Count -eq 3) 'The sample zip must unpack and read as a product-import folder.'
+    # .7z too (when this tar can write one to test with).
+    $seven=Join-Path $temp 'sample.7z'
+    Push-Location (Split-Path $zipFolder -Parent);try{& tar --format 7zip -cf $seven (Split-Path -Leaf $zipFolder) 2>$null}finally{Pop-Location}
+    if(-not $LASTEXITCODE -and (Test-Path $seven)){
+        $sevenFolder=Expand-ProductBatchArchive $seven $temp
+        Assert ((Split-Path -Leaf $sevenFolder) -eq 'product-import-sample' -and (Test-Path (Join-Path $sevenFolder 'images/polo-shirt-navy.jpg'))) 'A .7z of the folder must unpack the same way.'
+    }
     $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x" $img
     Assert (@($wrong.Errors|Where-Object{$_ -match '^Dòng 1: cột lạ'}).Count -and @($wrong.Errors|Where-Object{$_ -match '^Dòng 2: link'}).Count) 'Problems must name their line.'
 
