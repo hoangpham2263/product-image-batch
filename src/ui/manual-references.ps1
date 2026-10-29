@@ -536,7 +536,7 @@ function Show-ProductQueueBulkDialog($Editor) {
     $guide.Add_LinkClicked({Start-Process $script:ImportGuideUrl})
     $pick.Add_Click({
         $open=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Bảng nhập (*.csv;*.tsv;*.txt)|*.csv;*.tsv;*.txt|Tất cả|*.*'}
-        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=[IO.File]::ReadAllText($open.FileName)}}finally{$open.Dispose()}
+        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=Read-ProductBatchFile $open.FileName}}finally{$open.Dispose()}
     }.GetNewClosure())
     $finish={
         $timer.Stop()

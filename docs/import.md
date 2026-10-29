@@ -29,6 +29,25 @@ https://shop.com/products/ao-polo,,https://cdn.shop.com/polo-review.jpg
 
 Dòng 1–2: bàn ăn có hai màu, mỗi màu có ảnh review riêng (tạo 3 ảnh). Dòng 3: áo polo lấy ảnh gốc từ trang, một ảnh review.
 
+## Dùng ảnh trên máy (thư mục)
+
+Không cần link ảnh trực tuyến: để file bảng và ảnh chung một thư mục, trong bảng chỉ ghi **tên file ảnh**.
+
+```
+nhap-hang/
+  nhap.csv
+  ban-an-nau.jpg
+  review-1.jpg
+  review-2.jpg
+```
+
+```csv
+product_url,product_image,review_images
+https://shop.com/products/ban-an-go,ban-an-nau.jpg,"review-1.jpg,review-2.jpg"
+```
+
+Trong app bấm **Chọn file…** và chọn `nhap.csv`: tên ảnh được đổi thành đường dẫn đầy đủ trên máy, rồi bấm **Nhập**. Ảnh trong thư mục con ghi kèm thư mục, ví dụ `review/review-1.jpg`.
+
 ## Kết quả
 
 - App kiểm tra cả bảng trước khi tải: link sai, cột lạ… được báo theo số dòng, chưa nhập gì.

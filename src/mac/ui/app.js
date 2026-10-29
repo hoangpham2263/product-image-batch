@@ -353,8 +353,8 @@ function showImagePreview(path, title) {
 }
 
 // Native macOS file dialog opened at a folder; returns the picked files' real paths.
-async function chooseImages(folder) {
-  const r = await fetch("/api/choose-images", { method: "POST", body: JSON.stringify({ folder }) }).then((x) => x.json()).catch(() => ({ paths: [] }));
+async function chooseImages(folder, table = false) {
+  const r = await fetch("/api/choose-images", { method: "POST", body: JSON.stringify({ folder, table }) }).then((x) => x.json()).catch(() => ({ paths: [] }));
   return list(r.paths);
 }
 
@@ -694,8 +694,9 @@ function showBulkDialog() {
   const fail = (message) => { status.style.color = "var(--error)"; status.textContent = message; };
   const busy = (on) => { text.readOnly = on; save.disabled = on; pick.disabled = on; bar.hidden = !on; };
   pick.onclick = async () => {
-    const [file] = await pickFiles(".csv,.tsv,.txt,text/csv,text/plain", false);
-    if (file) text.value = await file.text();
+    // Real path, so image file names in the table resolve against its folder.
+    const [path] = await chooseImages("", true);
+    if (path) text.value = await api("importFile", { path });
   };
   const finish = async (s) => {
     clearInterval(timer); timer = null; busy(false); cancel.textContent = "Đóng";

@@ -2,6 +2,8 @@
 # its review images; several rows with the same link give that link several product images. Plain links, one per
 # line, still work and only add the links. Images are downloaded and attached exactly as if picked by hand.
 $script:ImportColumns = @('product_url', 'product_image', 'review_images')
+# Several review images in one cell: | or a new line, or a comma before the next link or image file.
+$script:ReviewSeparator = '[|\r\n]|,\s*(?=https?://|[^,|]+\.(?:jpe?g|png)\s*(?:[,|]|$))'
 
 # Rows of the table, or the problems found in it (with line numbers) so nothing is half imported by mistake.
 function ConvertFrom-ProductBatch([string]$Text) {
@@ -21,7 +23,7 @@ function ConvertFrom-ProductBatch([string]$Text) {
         for ($i = 0; $i -lt $records.Count; $i++) {
             $r = $records[$i]
             $get = { param($n) $p = $r.PSObject.Properties | Where-Object { $_.Name.Trim().ToLowerInvariant() -eq $n } | Select-Object -First 1; if ($p) { ([string]$p.Value).Trim() } else { '' } }
-            $reviews = @((& $get 'review_images') -split '[|\r\n]|,\s*(?=https?://)' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $reviews = @((& $get 'review_images') -split $script:ReviewSeparator | ForEach-Object { $_.Trim() } | Where-Object { $_ })
             $rows.Add([pscustomobject]@{ Line = $i + 2; Url = (& $get 'product_url'); Product = (& $get 'product_image'); Reviews = $reviews })
         }
     }
@@ -32,6 +34,26 @@ function ConvertFrom-ProductBatch([string]$Text) {
         }
     }
     return @{ Rows = $rows.ToArray(); Errors = $errors.ToArray() }
+}
+
+# A table picked from disk may sit in a folder with its images and name them by file name (or a path relative to the
+# table). Those become full paths, so the import still finds them once the text is copied into the dialog.
+function Read-ProductBatchFile([string]$Path) {
+    $text = [IO.File]::ReadAllText($Path) -replace '^\uFEFF', ''
+    $lines = @($text -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
+    if (-not $lines.Count -or $lines[0] -notmatch 'product_url') { return $text }
+    $dir = Split-Path -Parent ([IO.Path]::GetFullPath($Path))
+    $delimiter = if ($lines[0].Contains("`t")) { "`t" } else { ',' }
+    $full = { param($v) if ($v -and -not (Test-ImportLink $v) -and -not [IO.Path]::IsPathRooted($v) -and (Test-Path -LiteralPath (Join-Path $dir $v) -PathType Leaf)) { Join-Path $dir $v } else { $v } }
+    $records = foreach ($r in @($lines | ConvertFrom-Csv -Delimiter $delimiter)) {
+        $get = { param($n) $p = $r.PSObject.Properties | Where-Object { $_.Name.Trim().ToLowerInvariant() -eq $n } | Select-Object -First 1; if ($p) { ([string]$p.Value).Trim() } else { '' } }
+        [pscustomobject]@{
+            product_url = & $get 'product_url'
+            product_image = & $full (& $get 'product_image')
+            review_images = (@((& $get 'review_images') -split $script:ReviewSeparator | ForEach-Object { $_.Trim() } | Where-Object { $_ } | ForEach-Object { & $full $_ }) -join '|')
+        }
+    }
+    return (@($records | ConvertTo-Csv -NoTypeInformation) -join "`n")
 }
 
 function Test-ImportLink([string]$Value) {

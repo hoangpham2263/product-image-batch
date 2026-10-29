@@ -22,6 +22,11 @@ try{
     Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The CSV table must parse.'
     $comma=ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,,`"https://cdn.test/r1.jpg,https://cdn.test/r2.jpg|https://cdn.test/r3.jpg`""
     Assert (-not @($comma.Errors).Count -and @($comma.Rows[0].Reviews).Count -eq 3) 'Review images may be separated by commas (quoted cell) as well as |.'
+    # A folder with the table and its images: file names in the table resolve against the table's folder.
+    $folder=Split-Path -Parent $p1;$table=Join-Path $folder 'nhap.csv'
+    [IO.File]::WriteAllText($table,"product_url,product_image,review_images`nhttps://shop.test/f,p1.png,`"r1.jpg,r2.png`"")
+    $local=ConvertFrom-ProductBatch (Read-ProductBatchFile $table)
+    Assert (-not @($local.Errors).Count -and $local.Rows[0].Product -eq $p1 -and ($local.Rows[0].Reviews -join '|') -eq "$r1|$r2") 'Image file names next to the table must become full paths.'
     $tsv=ConvertFrom-ProductBatch ("product_url`tproduct_image`treview_images`nhttps://shop.test/a`t$p1`t$r1")
     Assert (-not @($tsv.Errors).Count -and $tsv.Rows[0].Product -eq $p1) 'Rows pasted from a spreadsheet (tabs) must parse.'
     $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x"

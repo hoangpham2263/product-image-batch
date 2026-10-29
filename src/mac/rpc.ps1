@@ -140,6 +140,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $parsed = ConvertFrom-ProductBatch ([string]$A.text)
             return @{ errors = @($parsed.Errors); links = @($parsed.Rows | ForEach-Object Url | Select-Object -Unique); images = [bool]@($parsed.Rows | Where-Object { $_.Product -or @($_.Reviews).Count }).Count }
         }
+        'importFile' { return (Read-ProductBatchFile ([string]$A.path)) }
         'parseLinks' {
             $urls = @(([string]$A.text) -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique)
             foreach ($url in $urls) { if (-not (Test-HttpUrl $url)) { throw "Link không hợp lệ: $url" } }
