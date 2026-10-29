@@ -11,10 +11,11 @@ product-import/
     ├── dining-table-review-1.jpg
     ├── dining-table-review-2.jpg
     ├── dining-table-review-3.jpg
+    ├── polo-shirt-navy.jpg
     └── polo-shirt-review.jpg
 ```
 
-Trong app bấm **Nhập hàng loạt**, **kéo thả thư mục `product-import`** vào hộp (hoặc **Chọn file…** → `products.csv`), rồi bấm **Nhập**.
+Tải **thư mục mẫu** (`product-import-sample.zip`) về, giải nén rồi thay bằng sản phẩm của bạn. Trong app bấm **Nhập hàng loạt**, **kéo thả thư mục `product-import`** vào hộp (hoặc **Chọn file…** → `products.csv`), rồi bấm **Nhập**.
 
 ## products.csv
 
@@ -30,10 +31,10 @@ File CSV (UTF-8, cột cách bằng dấu phẩy). Dòng đầu là tên cột:
 product_url,product_image,review_images
 https://shop.com/products/wooden-dining-table,dining-table-brown.jpg,"dining-table-review-1.jpg,dining-table-review-2.jpg"
 https://shop.com/products/wooden-dining-table,dining-table-black.jpg,dining-table-review-3.jpg
-https://shop.com/products/polo-shirt,,polo-shirt-review.jpg
+https://shop.com/products/polo-shirt,polo-shirt-navy.jpg,polo-shirt-review.jpg
 ```
 
-Dòng 1–2: bàn ăn có hai màu, mỗi màu có ảnh review riêng (tạo 3 ảnh). Dòng 3: áo polo lấy ảnh gốc từ trang, một ảnh review.
+Dòng 1–2: bàn ăn có hai màu, mỗi màu có ảnh review riêng (tạo 3 ảnh). Dòng 3: áo polo một ảnh gốc, một ảnh review.
 
 - **Mỗi dòng là một ảnh gốc** cùng các ảnh review của nó. Một sản phẩm có nhiều ảnh gốc (nhiều màu) thì viết nhiều dòng cùng `product_url`.
 - Mỗi cặp ảnh gốc + ảnh review tạo một ảnh kết quả.
