@@ -125,6 +125,10 @@
   .dt-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 36px; }
   .dt-bar .dt-count { margin-right: auto; font-size: 13px; color: var(--muted); }
   .dt-search { width: 260px; max-width: 100%; }
+  .dt-foot { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+  .dt-foot select { width: auto; margin-right: auto; }
+  .dt-foot .dt-page { font-size: 13px; color: var(--muted); margin: 0 6px; }
+  .dt-foot button { width: 36px; padding: 0; }
   .dt-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
   .dt table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .dt th { height: 40px; padding: 0 12px; text-align: left; font-weight: 500; color: var(--muted); white-space: nowrap; border-bottom: 1px solid var(--border); }
@@ -346,7 +350,6 @@
       </div>
     </div>
     <div id="grid"></div>
-    <button id="imgMore" class="more" type="button" hidden>Xem thêm</button>
     <p id="empty" class="empty" hidden></p>
   </section>
 
@@ -362,7 +365,6 @@
     </div>
     <div id="groupList"></div>
     <div id="srcGrid"></div>
-    <button id="srcMore" class="more" type="button" hidden>Xem thêm</button>
     <p id="srcEmpty" class="empty" hidden></p>
     <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
   </section>
@@ -443,11 +445,10 @@
 
 <script>
 const API = "https://product-review-batch-api.hoangpham2263.workers.dev";
-const PAGE = 120;
 const $ = (id) => document.getElementById(id);
 // view: home (menu), anh (generated images) or nguon (source groups; group = the open one).
 // list says which images the viewer steps through.
-const state = { images: null, sources: [], groups: null, group: "", view: "", shown: PAGE, imgShown: PAGE, list: "images", current: -1, connected: false };
+const state = { images: null, sources: [], groups: null, group: "", view: "", list: "images", current: -1, connected: false };
 
 const store = {
   get: () => { try { return sessionStorage.getItem("pib-key") || ""; } catch { return ""; } },
@@ -474,12 +475,15 @@ async function api(path, init = {}) {
 
 // ----- Data table (like shadcn's): pick rows, act on the picked ones, action buttons on each row -----
 // columns: [{ label, cell(row) -> text or node, cls }]; bulk / menu: [{ label, danger, run(rows) }]; search(row) -> text
-// adds a search box. A click on a row picks it; the toolbar then offers the bulk actions.
+// adds a search box. A click on a row picks it; the toolbar then offers the bulk actions. 20 rows a page by default.
 function dataTable(box, { rows: all, key, columns, bulk = [], menu = [], search, empty = "Không có dòng nào khớp." }) {
   const picked = box.picked || (box.picked = new Set());
   for (const id of [...picked]) if (!all.some((r) => key(r) === id)) picked.delete(id);
   const q = (box.query || "").trim().toLowerCase();
-  const rows = q && search ? all.filter((r) => search(r).toLowerCase().includes(q)) : all;
+  const found = q && search ? all.filter((r) => search(r).toLowerCase().includes(q)) : all;
+  const size = box.size || 20, pages = Math.max(1, Math.ceil(found.length / size));
+  box.page = Math.min(box.page || 0, pages - 1);
+  const rows = found.slice(box.page * size, box.page * size + size);
   const draw = () => dataTable(box, { rows: all, key, columns, bulk, menu, search, empty });
   const chosen = () => rows.filter((r) => picked.has(key(r)));
   const check = (on, change) => { const c = document.createElement("input"); c.type = "checkbox"; c.checked = on; c.onclick = (e) => e.stopPropagation(); c.onchange = () => change(c.checked); return c; };
@@ -488,10 +492,10 @@ function dataTable(box, { rows: all, key, columns, bulk = [], menu = [], search,
   if (search) {
     const input = Object.assign(document.createElement("input"), { type: "search", placeholder: "Tìm…", value: box.query || "", className: "dt-search" });
     input.setAttribute("aria-label", "Tìm");
-    input.oninput = () => { box.query = input.value; draw(); const again = box.querySelector(".dt-search"); again.focus(); again.setSelectionRange(again.value.length, again.value.length); };
+    input.oninput = () => { box.query = input.value; box.page = 0; draw(); const again = box.querySelector(".dt-search"); again.focus(); again.setSelectionRange(again.value.length, again.value.length); };
     bar.append(input);
   }
-  bar.append(Object.assign(document.createElement("span"), { className: "dt-count", textContent: picked.size ? `Đã chọn ${picked.size}/${all.length}` : `${rows.length} dòng` }));
+  bar.append(Object.assign(document.createElement("span"), { className: "dt-count", textContent: picked.size ? `Đã chọn ${picked.size}/${all.length}` : `${found.length} dòng` }));
   if (picked.size) for (const a of bulk) {
     const b = Object.assign(document.createElement("button"), { type: "button", textContent: a.label, className: a.danger ? "danger" : "" });
     b.onclick = async () => { b.disabled = true; try { if ((await a.run(chosen())) !== false) picked.clear(); } catch (e) { toast(e.message); } draw(); };
@@ -534,7 +538,19 @@ function dataTable(box, { rows: all, key, columns, bulk = [], menu = [], search,
   const wrap = document.createElement("div");
   wrap.className = "dt";
   const none = Object.assign(document.createElement("p"), { className: "empty", textContent: empty, hidden: rows.length > 0 });
-  wrap.append(bar, scroll, none);
+  // Pages: rows per page, Trang x/y, first / previous / next / last.
+  const foot = document.createElement("div");
+  foot.className = "dt-foot";
+  foot.hidden = found.length <= 20;
+  const per = document.createElement("select");
+  per.setAttribute("aria-label", "Số dòng mỗi trang");
+  for (const n of [20, 50, 100]) per.append(new Option(`${n} dòng / trang`, n, false, n === size));
+  per.onchange = () => { box.size = Number(per.value); box.page = 0; draw(); };
+  const nav = (label, title, page, off) => { const b = Object.assign(document.createElement("button"), { type: "button", textContent: label, title, disabled: off }); b.setAttribute("aria-label", title); b.onclick = () => { box.page = page; draw(); }; return b; };
+  foot.append(per, Object.assign(document.createElement("span"), { className: "dt-page", textContent: `Trang ${box.page + 1}/${pages}` }),
+    nav("«", "Trang đầu", 0, box.page === 0), nav("‹", "Trang trước", box.page - 1, box.page === 0),
+    nav("›", "Trang sau", box.page + 1, box.page >= pages - 1), nav("»", "Trang cuối", pages - 1, box.page >= pages - 1));
+  wrap.append(bar, scroll, none, foot);
   scroll.hidden = !rows.length;
   wrap.hidden = !all.length;
   box.replaceChildren(wrap);
@@ -598,9 +614,8 @@ function render() {
   $("listTitle").textContent = `Ảnh đã tạo (${items.length})`;
   $("empty").hidden = items.length > 0;
   $("empty").textContent = (state.images || []).length ? "Không có ảnh khớp bộ lọc." : "Chưa có ảnh nào được tải lên.";
-  $("imgMore").hidden = items.length <= state.imgShown;
   dataTable($("grid"), {
-    rows: items.slice(0, state.imgShown), key: (i) => i.id,
+    rows: items, key: (i) => i.id,
     columns: [{ label: "", cell: (i) => thumb(i.url) }, { label: "Sản phẩm", cell: (i) => i.product || i.name, cls: "dt-name" }, { label: "Lần chạy", cell: (i) => i.batch, cls: "dt-muted" }, { label: "Ngày tạo", cell: (i) => at(i.createdAt), cls: "dt-muted" }],
     bulk: [{ label: "Copy link", run: copyLinks }, { label: "Tải CSV", run: (rows) => { downloadCsv(rows); return false; } }, { label: "Xoá", danger: true, run: deleteImages }],
     menu: [{ label: "Xem", run: ([i]) => openViewer("images", state.images.indexOf(i)) }, { label: "Copy link", run: copyLinks }, { label: "Mở ảnh", run: ([i]) => window.open(i.url, "_blank", "noopener") }, { label: "Xoá", danger: true, run: deleteImages }],
@@ -638,9 +653,8 @@ function renderSources() {
   $("srcEmpty").hidden = !empty || (inGroup && state.loading);
   $("srcEmpty").textContent = inGroup ? "Nhóm chưa có ảnh. Bấm Tải ảnh lên, kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào đây." : "Chưa có nhóm nào. Bấm Tạo nhóm để bắt đầu.";
   $("deleteGroupBtn").hidden = !inGroup || state.loading || state.sources.length > 0;
-  $("srcMore").hidden = !inGroup || state.sources.length <= state.shown;
   dataTable($("srcGrid"), {
-    rows: inGroup ? state.sources.slice(0, state.shown) : [], key: (f) => f.id, search: (f) => f.name,
+    rows: inGroup ? state.sources : [], key: (f) => f.id, search: (f) => f.name,
     columns: [{ label: "", cell: (f) => thumb(f.url) }, { label: "Tên ảnh", cell: (f) => f.name, cls: "dt-name" }, { label: "Dung lượng", cell: (f) => kb(f.size), cls: "dt-muted" }],
     bulk: [{ label: "Copy link", run: copyLinks }, { label: "Xoá", danger: true, run: deleteSources }],
     menu: [{ label: "Xem", run: ([f]) => openViewer("sources", state.sources.indexOf(f)) }, { label: "Copy link", run: copyLinks }, { label: "Xoá", danger: true, run: deleteSources }],
@@ -680,7 +694,7 @@ async function loadGroups() {
 async function loadGroup() {
   const group = state.group;
   state.sources = [];
-  state.shown = PAGE;
+  $("srcGrid").page = 0;
   state.loading = true;
   renderSources();
   try {
@@ -934,7 +948,7 @@ function route() {
   if (!signedIn) return;
   if (state.view === "api") { loadApiDoc(); loadTempKeys(); }
   if (state.view === "log") loadLogs().catch((e) => toast(e.message));
-  if (state.view === "anh") { state.imgShown = PAGE; render(); }
+  if (state.view === "anh") render();
   if (state.view === "nguon") {
     if (state.group && groupChanged) loadGroup().catch((e) => toast(e.message));
     else renderSources();
@@ -1011,16 +1025,14 @@ $("logoutBtn").onclick = () => {
 };
 $("connectBtn").onclick = () => window.open(`${API}/oauth/start?key=${encodeURIComponent(store.get())}`, "_blank", "noopener");
 $("csvBtn").onclick = () => { $("settingsDlg").close(); downloadCsv(); };
-$("search").oninput = () => { state.imgShown = PAGE; render(); };
-$("batch").onchange = () => { state.imgShown = PAGE; render(); };
-$("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
+$("search").oninput = () => { $("grid").page = 0; render(); };
+$("batch").onchange = () => { $("grid").page = 0; render(); };
 for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
 // Logo and name go back to the management home (or the download page when signed out).
 $("homeLink").onclick = (e) => { e.preventDefault(); go(""); };
 $("srcBack").onclick = () => go(state.group ? "nguon" : "");
 window.addEventListener("hashchange", route);
 window.addEventListener("popstate", route);
-$("srcMore").onclick = () => { state.shown += PAGE; renderSources(); };
 $("uploadBtn").onclick = () => $("uploadInput").click();
 $("uploadInput").onchange = () => { upload($("uploadInput").files); $("uploadInput").value = ""; };
 $("sources").addEventListener("dragover", (e) => { if (!state.group) return; e.preventDefault(); $("sources").classList.add("drop-on"); });
