@@ -690,13 +690,13 @@ function showBulkDialog() {
   const save = at(button("Nhập", true), 520, 436, 110, 32);
   const cancel = at(button("Hủy"), 640, 436, 104, 32);
   view.body.append(hint, guide, pick, text, bar, status, save, cancel);
-  let timer = null;
+  let timer = null, folder = "";
   const fail = (message) => { status.style.color = "var(--error)"; status.textContent = message; };
   const busy = (on) => { text.readOnly = on; save.disabled = on; pick.disabled = on; bar.hidden = !on; };
   pick.onclick = async () => {
-    // Real path, so image file names in the table resolve against its folder.
+    // nhap.csv names its images by file name: they are files in its folder.
     const [path] = await chooseImages("", true);
-    if (path) text.value = await api("importFile", { path });
+    if (path) { text.value = await api("importFile", { path }); folder = path.slice(0, path.lastIndexOf("/")); }
   };
   const finish = async (s) => {
     clearInterval(timer); timer = null; busy(false); cancel.textContent = "Đóng";
@@ -713,10 +713,10 @@ function showBulkDialog() {
     status.style.color = ""; status.textContent = "";
     try {
       if (!text.value.trim()) throw new Error("Dán link hoặc bảng nhập trước.");
-      const parsed = await api("importParse", { text: text.value });
+      const parsed = await api("importParse", { text: text.value, folder });
       if (list(parsed.errors).length) throw new Error(list(parsed.errors).slice(0, 3).join("\n"));
       if (!parsed.images) { await addLinks(list(parsed.links)); view.close(); return; }
-      const r = await fetch("/api/import", { method: "POST", body: JSON.stringify({ text: text.value }) });
+      const r = await fetch("/api/import", { method: "POST", body: JSON.stringify({ text: text.value, folder }) });
       if (!r.ok) throw new Error((await r.json()).error);
       busy(true);
       bar.classList.add("marquee");

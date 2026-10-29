@@ -12,24 +12,19 @@ try{
     $p1=& $make 'p1.png' $png 'p1';$p2=& $make 'p2.jpg' $jpg 'p2';$r1=& $make 'r1.jpg' $jpg 'r1';$r2=& $make 'r2.png' $png 'r2';$r3=& $make 'r3.jpg' $jpg 'r3'
     $bad=& $make 'bad.jpg' ([byte[]](0x3C,0x68,0x74,0x6D)) 'html'
 
-    # Plain links still work: one per line, nothing downloaded.
+    # Plain links still work: one per line, nothing attached.
     $plain=ConvertFrom-ProductBatch "https://shop.test/a`n# note`nhttps://shop.test/b"
     Assert (@($plain.Rows).Count -eq 2 -and -not @($plain.Errors).Count -and -not $plain.Rows[0].Product) 'Plain links must parse as links without images.'
 
-    # The table: one row per product image; two rows of one link give it two product images.
-    $csv="product_url,product_image,review_images`nhttps://shop.test/a,$p1,$r1|$r2`nhttps://shop.test/a,$p2,$r3`nhttps://shop.test/b,,$r1"
-    $parsed=ConvertFrom-ProductBatch $csv
-    Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The CSV table must parse.'
-    $comma=ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,,`"https://cdn.test/r1.jpg,https://cdn.test/r2.jpg|https://cdn.test/r3.jpg`""
-    Assert (-not @($comma.Errors).Count -and @($comma.Rows[0].Reviews).Count -eq 3) 'Review images may be separated by commas (quoted cell) as well as |.'
-    # A folder with the table and its images: file names in the table resolve against the table's folder.
-    $folder=Split-Path -Parent $p1;$table=Join-Path $folder 'nhap.csv'
-    [IO.File]::WriteAllText($table,"product_url,product_image,review_images`nhttps://shop.test/f,p1.png,`"r1.jpg,r2.png`"")
-    $local=ConvertFrom-ProductBatch (Read-ProductBatchFile $table)
-    Assert (-not @($local.Errors).Count -and $local.Rows[0].Product -eq $p1 -and ($local.Rows[0].Reviews -join '|') -eq "$r1|$r2") 'Image file names next to the table must become full paths.'
-    $tsv=ConvertFrom-ProductBatch ("product_url`tproduct_image`treview_images`nhttps://shop.test/a`t$p1`t$r1")
-    Assert (-not @($tsv.Errors).Count -and $tsv.Rows[0].Product -eq $p1) 'Rows pasted from a spreadsheet (tabs) must parse.'
-    $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x"
+    # The folder: nhap.csv names its images by file name; one row per product image, two rows of one link give it two
+    # product images, several review images in one cell are separated by commas.
+    $img="$temp/img"
+    $csv="product_url,product_image,review_images`nhttps://shop.test/a,p1.png,`"r1.jpg,r2.png`"`nhttps://shop.test/a,p2.jpg,r3.jpg`nhttps://shop.test/b,,r1.jpg"
+    $parsed=ConvertFrom-ProductBatch $csv $img
+    Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and $parsed.Rows[0].Product -eq (Join-Path $img 'p1.png') -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The table must parse with its images as files of the folder.'
+    Assert (@((ConvertFrom-ProductBatch $csv '').Errors|Where-Object{$_ -match 'Chọn file'}).Count) 'A table without its folder must ask for the file.'
+    Assert (@((ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,missing.jpg," $img).Errors|Where-Object{$_ -match "^Dòng 2: không có ảnh 'missing.jpg'"}).Count) 'A missing image must be named with its line.'
+    $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x" $img
     Assert (@($wrong.Errors|Where-Object{$_ -match '^Dòng 1: cột lạ'}).Count -and @($wrong.Errors|Where-Object{$_ -match '^Dòng 2: link'}).Count) 'Problems must name their line.'
 
     $seen=@()
@@ -43,7 +38,7 @@ try{
     Assert ($script:seen[-1] -eq '6/6') 'Progress must reach every image.'
 
     # A product image that is not a picture skips its row's reviews; a bad review is reported on its own.
-    $broken=ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/c,$bad,$r1`nhttps://shop.test/d,$p1,$bad|$r2"
+    $broken=ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/c,bad.jpg,r1.jpg`nhttps://shop.test/d,p1.png,`"bad.jpg,r2.png`"" $img
     $result=Import-ProductBatch "$temp/project" $broken.Rows $null
     $map=Read-ManualReferenceMap "$temp/project/workspace/reference-inputs/references.json"
     Assert (-not @($map.entries|Where-Object product_url -eq 'https://shop.test/c').Count) 'Reviews of a failed product image must not be attached elsewhere.'
@@ -51,10 +46,10 @@ try{
 
     # The background script writes its result to the status file.
     $file="$temp/batch.csv";$status="$temp/status.json"
-    [IO.File]::WriteAllText($file,"product_url,product_image,review_images`nhttps://shop.test/e,$p2,$r3")
+    [IO.File]::WriteAllText($file,"product_url,product_image,review_images`nhttps://shop.test/e,p2.jpg,r3.jpg")
     $copy="$temp/app";New-Item -ItemType Directory -Force -Path "$copy/workspace"|Out-Null;Copy-Item -Recurse (Join-Path $root 'src') "$copy/src"
     $shell=(Get-Command powershell.exe,pwsh -ErrorAction SilentlyContinue|Select-Object -First 1).Source
-    & $shell -NoProfile -File "$copy/src/import-batch.ps1" -File $file -StatusFile $status 2>&1 | Write-Host
+    & $shell -NoProfile -File "$copy/src/import-batch.ps1" -File $file -Folder $img -StatusFile $status 2>&1 | Write-Host
     $s=Get-Content $status -Raw -Encoding UTF8|ConvertFrom-Json
     Assert ($s.finished -and $s.products -eq 1 -and $s.reviews -eq 1 -and @($s.links)[0] -eq 'https://shop.test/e') 'The import script must report what it added.'
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}

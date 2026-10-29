@@ -530,13 +530,13 @@ function Show-ProductQueueBulkDialog($Editor) {
     $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='640,436';Size='104,32';Anchor='Bottom,Right'}
     Set-FlatButton $save -Primary;Set-FlatButton $pick;Set-FlatButton $cancel
     $dialog.Controls.AddRange(@($hint,$guide,$pick,$text,$bar,$status,$save,$cancel))
-    $st=@{Proc=$null;StatusFile='';InputFile=''}
+    $st=@{Proc=$null;StatusFile='';InputFile='';Folder=''}
     $timer=New-Object Windows.Forms.Timer -Property @{Interval=500}
     $fail={param($Message)$status.ForeColor=$script:Ui.Error;$status.Text=$Message}
     $guide.Add_LinkClicked({Start-Process $script:ImportGuideUrl})
     $pick.Add_Click({
         $open=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='Bảng nhập (*.csv;*.tsv;*.txt)|*.csv;*.tsv;*.txt|Tất cả|*.*'}
-        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=Read-ProductBatchFile $open.FileName}}finally{$open.Dispose()}
+        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=[IO.File]::ReadAllText($open.FileName);$st.Folder=Split-Path -Parent $open.FileName}}finally{$open.Dispose()}
     }.GetNewClosure())
     $finish={
         $timer.Stop()
@@ -562,7 +562,7 @@ function Show-ProductQueueBulkDialog($Editor) {
         $status.ForeColor=$script:Ui.Ink;$status.Text=''
         try{
             if(-not $text.Text.Trim()){throw 'Dán link hoặc bảng nhập trước.'}
-            $parsed=ConvertFrom-ProductBatch $text.Text
+            $parsed=ConvertFrom-ProductBatch $text.Text $st.Folder
             if(@($parsed.Errors).Count){throw ((@($parsed.Errors)|Select-Object -First 3) -join "`n")}
             if(-not @($parsed.Rows|Where-Object{$_.Product -or @($_.Reviews).Count}).Count){
                 Add-ProductQueueLinks $Editor (@($parsed.Rows|ForEach-Object Url) -join "`n");$dialog.Close();return
@@ -570,7 +570,7 @@ function Show-ProductQueueBulkDialog($Editor) {
             $temp=Join-Path $Editor.Root 'workspace/temp';New-Item -ItemType Directory -Force -Path $temp|Out-Null
             $id=[Guid]::NewGuid().ToString('N');$st.InputFile=Join-Path $temp "import-$id.csv";$st.StatusFile=Join-Path $temp "import-$id.json"
             [IO.File]::WriteAllText($st.InputFile,$text.Text,[Text.UTF8Encoding]::new($false))
-            $st.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.Root 'src\import-batch.ps1')+'"'),'-File',('"'+$st.InputFile+'"'),'-StatusFile',('"'+$st.StatusFile+'"'))
+            $st.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.Root 'src\import-batch.ps1')+'"'),'-File',('"'+$st.InputFile+'"'),'-Folder',('"'+$st.Folder+'"'),'-StatusFile',('"'+$st.StatusFile+'"'))
             [void]$st.Proc.Handle
             $text.ReadOnly=$true;$save.Enabled=$false;$pick.Enabled=$false;$bar.Style='Marquee';$bar.Visible=$true;$status.Text='Đang tải và gắn ảnh…'
             $timer.Start()

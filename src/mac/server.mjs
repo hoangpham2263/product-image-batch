@@ -139,12 +139,12 @@ async function syncState() {
 
 // ----- Nhập hàng loạt in the background (src/import-batch.ps1, as on Windows); the dialog polls its status file -----
 const imports = { proc: null, statusFile: join(logs, "import-status-mac.json"), inputFile: join(logs, "import-input-mac.csv") };
-async function startImport(text) {
+async function startImport(text, folder) {
   if (imports.proc) return false;
   await rm(imports.statusFile, { force: true });
   await writeFile(imports.inputFile, text, "utf8");
   const out = openSync(logFile("mac-import.log"), "a");
-  imports.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "import-batch.ps1"), "-File", imports.inputFile, "-StatusFile", imports.statusFile], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  imports.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "import-batch.ps1"), "-File", imports.inputFile, "-Folder", folder, "-StatusFile", imports.statusFile], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
   imports.proc.on("exit", () => { imports.proc = null; rm(imports.inputFile, { force: true }).catch(() => {}); });
   return true;
 }
@@ -200,8 +200,8 @@ async function handle(req, res) {
   }
   if (path === "/api/sync" && req.method === "GET") return send(res, 200, await syncState());
   if (path === "/api/import" && req.method === "POST") {
-    const { text = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
-    return (await startImport(String(text))) ? send(res, 200, { ok: true }) : send(res, 409, { error: "Đang có một lượt nhập." });
+    const { text = "", folder = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
+    return (await startImport(String(text), String(folder))) ? send(res, 200, { ok: true }) : send(res, 409, { error: "Đang có một lượt nhập." });
   }
   if (path === "/api/import" && req.method === "GET") {
     const status = await readFile(imports.statusFile, "utf8").then(JSON.parse).catch(() => null);

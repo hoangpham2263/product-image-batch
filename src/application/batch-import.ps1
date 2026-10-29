@@ -1,59 +1,40 @@
-﻿# Nhập hàng loạt: many products at once from one table (docs/import.md). Each row is one product image of a link with
-# its review images; several rows with the same link give that link several product images. Plain links, one per
-# line, still work and only add the links. Images are downloaded and attached exactly as if picked by hand.
+﻿# Nhập hàng loạt: many products at once from one folder (docs/import.md): nhap.csv next to its images, which the table
+# names by file name. Each row is one product image of a link with its review images; several rows with the same link
+# give that link several product images. Plain links, one per line, still work and only add the links.
 $script:ImportColumns = @('product_url', 'product_image', 'review_images')
-# Several review images in one cell: | or a new line, or a comma before the next link or image file.
-$script:ReviewSeparator = '[|\r\n]|,\s*(?=https?://|[^,|]+\.(?:jpe?g|png)\s*(?:[,|]|$))'
 
 # Rows of the table, or the problems found in it (with line numbers) so nothing is half imported by mistake.
-function ConvertFrom-ProductBatch([string]$Text) {
-    $lines = @($Text -replace '^﻿', '' -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
+# $Folder is the folder of the table: image names are files in it.
+function ConvertFrom-ProductBatch([string]$Text, [string]$Folder = '') {
+    $lines = @($Text -replace '^\uFEFF', '' -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
     if (-not $lines.Count) { return @{ Rows = @(); Errors = @('Chưa có dòng nào.') } }
     $header = $lines[0].Trim()
     $errors = [Collections.Generic.List[string]]::new()
     $rows = [Collections.Generic.List[object]]::new()
     if ($header -notmatch 'product_url') {
-        # Plain links: one per line, nothing to download.
+        # Plain links: one per line, nothing to attach.
         for ($i = 0; $i -lt $lines.Count; $i++) { $rows.Add([pscustomobject]@{ Line = $i + 1; Url = $lines[$i].Trim(); Product = ''; Reviews = @() }) }
     } else {
-        $delimiter = if ($header.Contains("`t")) { "`t" } else { ',' }
-        $names = @($header -split [regex]::Escape($delimiter) | ForEach-Object { $_.Trim().Trim('"').ToLowerInvariant() })
+        if (-not $Folder) { return @{ Rows = @(); Errors = @('Bấm Chọn file… và chọn nhap.csv trong thư mục ảnh.') } }
+        $names = @($header -split ',' | ForEach-Object { $_.Trim().Trim('"').ToLowerInvariant() })
         foreach ($name in $names) { if ($name -and $name -notin $script:ImportColumns) { $errors.Add("Dòng 1: cột lạ '$name'. Chỉ dùng: $($script:ImportColumns -join ', ').") } }
-        $records = @($lines | ConvertFrom-Csv -Delimiter $delimiter)
+        $records = @($lines | ConvertFrom-Csv)
         for ($i = 0; $i -lt $records.Count; $i++) {
             $r = $records[$i]
             $get = { param($n) $p = $r.PSObject.Properties | Where-Object { $_.Name.Trim().ToLowerInvariant() -eq $n } | Select-Object -First 1; if ($p) { ([string]$p.Value).Trim() } else { '' } }
-            $reviews = @((& $get 'review_images') -split $script:ReviewSeparator | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+            $reviews = @((& $get 'review_images') -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
             $rows.Add([pscustomobject]@{ Line = $i + 2; Url = (& $get 'product_url'); Product = (& $get 'product_image'); Reviews = $reviews })
         }
     }
     foreach ($row in $rows) {
         if (-not (Test-ImportLink $row.Url)) { $errors.Add("Dòng $($row.Line): link sản phẩm không hợp lệ '$($row.Url)'.") }
+        $row.Product = if ($row.Product) { Join-Path $Folder $row.Product } else { '' }
+        $row.Reviews = @($row.Reviews | ForEach-Object { Join-Path $Folder $_ })
         foreach ($image in @(@($row.Product) + @($row.Reviews) | Where-Object { $_ })) {
-            if (-not (Test-ImportLink $image) -and -not (Test-Path -LiteralPath $image -PathType Leaf)) { $errors.Add("Dòng $($row.Line): ảnh không phải link http(s) hay file trên máy '$image'.") }
+            if (-not (Test-Path -LiteralPath $image -PathType Leaf)) { $errors.Add("Dòng $($row.Line): không có ảnh '$(Split-Path -Leaf $image)' trong thư mục.") }
         }
     }
     return @{ Rows = $rows.ToArray(); Errors = $errors.ToArray() }
-}
-
-# A table picked from disk may sit in a folder with its images and name them by file name (or a path relative to the
-# table). Those become full paths, so the import still finds them once the text is copied into the dialog.
-function Read-ProductBatchFile([string]$Path) {
-    $text = [IO.File]::ReadAllText($Path) -replace '^\uFEFF', ''
-    $lines = @($text -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
-    if (-not $lines.Count -or $lines[0] -notmatch 'product_url') { return $text }
-    $dir = Split-Path -Parent ([IO.Path]::GetFullPath($Path))
-    $delimiter = if ($lines[0].Contains("`t")) { "`t" } else { ',' }
-    $full = { param($v) if ($v -and -not (Test-ImportLink $v) -and -not [IO.Path]::IsPathRooted($v) -and (Test-Path -LiteralPath (Join-Path $dir $v) -PathType Leaf)) { Join-Path $dir $v } else { $v } }
-    $records = foreach ($r in @($lines | ConvertFrom-Csv -Delimiter $delimiter)) {
-        $get = { param($n) $p = $r.PSObject.Properties | Where-Object { $_.Name.Trim().ToLowerInvariant() -eq $n } | Select-Object -First 1; if ($p) { ([string]$p.Value).Trim() } else { '' } }
-        [pscustomobject]@{
-            product_url = & $get 'product_url'
-            product_image = & $full (& $get 'product_image')
-            review_images = (@((& $get 'review_images') -split $script:ReviewSeparator | ForEach-Object { $_.Trim() } | Where-Object { $_ } | ForEach-Object { & $full $_ }) -join '|')
-        }
-    }
-    return (@($records | ConvertTo-Csv -NoTypeInformation) -join "`n")
 }
 
 function Test-ImportLink([string]$Value) {
@@ -61,17 +42,10 @@ function Test-ImportLink([string]$Value) {
     return [Uri]::TryCreate($Value, [UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in @('http', 'https')
 }
 
-# An image from a link or a file on this machine, as a JPEG/PNG file in $Folder (the app attaches only these).
+# An image file from the import folder, copied as a JPEG/PNG file into $Folder (the app attaches only these).
 function Get-ImportImage([string]$Source, [string]$Folder) {
     $path = Join-Path $Folder ([Guid]::NewGuid().ToString('N'))
-    if (Test-ImportLink $Source) {
-        try { Invoke-WebRequest -Uri $Source -OutFile $path -UseBasicParsing -TimeoutSec 60 -Headers @{ 'User-Agent' = 'product-review-batch' } | Out-Null }
-        catch {
-            Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
-            $code = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 }
-            throw $(if ($code) { "không tải được ảnh (mã $code)" } else { 'không tải được ảnh (mạng hoặc link)' })
-        }
-    } else { Copy-Item -LiteralPath $Source -Destination $path }
+    Copy-Item -LiteralPath $Source -Destination $path
     $size = (Get-Item -LiteralPath $path).Length
     $head = [byte[]]::new(8)
     $stream = [IO.File]::OpenRead($path); try { [void]$stream.Read($head, 0, 8) } finally { $stream.Dispose() }

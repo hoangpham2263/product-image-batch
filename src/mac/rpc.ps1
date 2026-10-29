@@ -137,10 +137,10 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         # Nhập hàng loạt: problems by line, the links, and whether any row brings images (then src/import-batch.ps1 runs).
         'importParse' {
-            $parsed = ConvertFrom-ProductBatch ([string]$A.text)
+            $parsed = ConvertFrom-ProductBatch ([string]$A.text) ([string]$A.folder)
             return @{ errors = @($parsed.Errors); links = @($parsed.Rows | ForEach-Object Url | Select-Object -Unique); images = [bool]@($parsed.Rows | Where-Object { $_.Product -or @($_.Reviews).Count }).Count }
         }
-        'importFile' { return (Read-ProductBatchFile ([string]$A.path)) }
+        'importFile' { return [IO.File]::ReadAllText([string]$A.path) }
         'parseLinks' {
             $urls = @(([string]$A.text) -split '\r?\n' | ForEach-Object { $_.Trim() } | Where-Object { $_ -and -not $_.StartsWith('#') } | Select-Object -Unique)
             foreach ($url in $urls) { if (-not (Test-HttpUrl $url)) { throw "Link không hợp lệ: $url" } }
