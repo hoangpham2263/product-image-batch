@@ -2,6 +2,7 @@
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/update.ps1') -NoRun
+. (Join-Path $root 'src/application/agent-lessons.ps1')
 function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
 $temp=Join-Path $TestWorkspaceRoot ('app-update-'+[Guid]::NewGuid().ToString('N'))
 try{
@@ -13,6 +14,34 @@ try{
     Copy-AppUpdate $new $app
     Assert ((Get-Content "$app/src/gui.ps1") -eq 'new' -and (Test-Path "$app/src/added.ps1")) 'App files must be updated and new files added.'
     Assert ((Get-Content "$app/AGENTS.md") -eq 'my lessons' -and (Get-Content "$app/workspace/drive.json") -eq 'my login') 'Lessons and workspace must be kept.'
+    # AGENTS.md: the guide follows the release; this machine's lessons stay and the release's new ones are added once.
+    $lesson={param($Id,$Text)"### $Id`n<!-- app-lesson: {`"id`":`"$Id`",`"scope`":`"category`",`"category`":`"x`"} -->`n- $Text`n`n"}
+    $block={param($Items)"<!-- app-lessons:start -->`n## Bài học`n`nGhi chú.`n`n$($Items -join '')<!-- app-lessons:end -->`n"}
+    Set-Content "$new/AGENTS.md" ("# Hướng dẫn mới`n`n"+(& $block @((& $lesson 'shared-a' 'chung a'),(& $lesson 'shared-b' 'chung b')))) -NoNewline
+    Set-Content "$app/AGENTS.md" ("# Hướng dẫn cũ`n`n"+(& $block @((& $lesson 'shared-a' 'chung a, máy này sửa'),(& $lesson 'mine' 'riêng máy')))) -NoNewline
+    Remove-Item "$app/workspace/agent-lessons-seen.txt" -ErrorAction SilentlyContinue
+    Merge-AgentInstructions $new $app
+    $merged=Get-Content "$app/AGENTS.md" -Raw
+    Assert ($merged.Contains('# Hướng dẫn mới') -and -not $merged.Contains('# Hướng dẫn cũ')) 'The guide must follow the release.'
+    Assert ($merged.Contains('chung a, máy này sửa') -and $merged -notmatch '(?m)^- chung a\r?$') "This machine's version of a lesson must be kept."
+    Assert ($merged.Contains('riêng máy') -and $merged.Contains('chung b')) 'Own lessons stay and new release lessons are added.'
+    Assert ((Read-AgentLessons "$app/AGENTS.md").Count -eq 3) 'The merged lessons must still read as valid lessons.'
+    Assert (Test-Path "$app/workspace/backups/AGENTS-before-update.md") 'The previous AGENTS.md must be backed up.'
+    # A release lesson removed on this machine is not brought back by the next update.
+    Set-Content "$app/AGENTS.md" ("# Hướng dẫn mới`n`n"+(& $block @((& $lesson 'mine' 'riêng máy')))) -NoNewline
+    Merge-AgentInstructions $new $app
+    $again=Get-Content "$app/AGENTS.md" -Raw
+    Assert (-not $again.Contains('shared-b') -and -not $again.Contains('shared-a')) 'Removed release lessons must stay removed.'
+    # A lesson still as last shipped takes the release's new wording; one edited here keeps this machine's text.
+    Set-Content "$app/AGENTS.md" ("# Hướng dẫn mới`n`n"+(& $block @((& $lesson 'shared-a' 'chung a'),(& $lesson 'shared-b' 'chung b, máy này sửa')))) -NoNewline
+    Set-Content "$new/AGENTS.md" ("# Hướng dẫn mới`n`n"+(& $block @((& $lesson 'shared-a' 'chung a, bản mới'),(& $lesson 'shared-b' 'chung b, bản mới')))) -NoNewline
+    Merge-AgentInstructions $new $app
+    $refined=Get-Content "$app/AGENTS.md" -Raw
+    Assert ($refined.Contains('chung a, bản mới') -and $refined.Contains('chung b, máy này sửa') -and -not $refined.Contains('chung b, bản mới')) 'Unchanged lessons take new wording; edited ones stay.'
+    # A file without a readable lessons block is left as it is.
+    Set-Content "$app/AGENTS.md" 'my lessons'
+    Merge-AgentInstructions $new $app
+    Assert ((Get-Content "$app/AGENTS.md") -eq 'my lessons') 'An unreadable AGENTS.md must be left untouched.'
     # The check names the new version for ZIP installs and git checkouts alike.
     function Get-LatestRelease { [pscustomobject]@{ tag_name = 'v1.0.15' } }
     Set-Content "$app/workspace/version.txt" 'v1.0.14'
@@ -32,4 +61,4 @@ try{
     $js=Get-Content -LiteralPath (Join-Path $root 'src/mac/ui/app.js') -Raw;$button=$js.IndexOf('go.onclick = async');$install=$js.IndexOf('fetch("/api/update"')
     Assert ([regex]::Matches($js,'/api/update').Count -eq 1 -and $button -ge 0 -and $install -gt $button -and $install - $button -lt 400) 'macOS installs only from the dialog button.'
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
-Write-Host 'PASS: updates replace app files and keep workspace and lessons; the check names the new version.'
+Write-Host 'PASS: updates replace app files and keep workspace and local lessons while adding new shared ones; the check names the new version.'
