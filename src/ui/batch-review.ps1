@@ -60,7 +60,9 @@ function New-BatchReviewRow($View,$Item,[int]$Number=1) {
     }.GetNewClosure()
     $decide={param($value)
         $next=if($Item.Decision -eq $value){''}else{$value}
-        Set-BatchReviewDecision $View.BatchDir $Item.Id $next
+        $reason=''
+        if($next -eq 'bad'){$reason=Read-RejectReason;if($null -eq $reason){return}}
+        Set-BatchReviewDecision $View.BatchDir $Item.Id $next -Reason $reason
         $Item.Decision=$next;& $paint;& $View.Refresh
     }.GetNewClosure()
     $ok.Add_Click({& $decide 'ok'}.GetNewClosure());$bad.Add_Click({& $decide 'bad'}.GetNewClosure())
@@ -137,4 +139,15 @@ function New-BatchReviewDialog([string]$OutputRoot,[string]$BatchDir='') {
 function Show-BatchReviewDialog($Owner,[string]$OutputRoot,[string]$BatchDir='') {
     $view=New-BatchReviewDialog $OutputRoot $BatchDir
     try{[void]$view.Form.ShowDialog($Owner)}finally{$view.Form.Dispose()}
+}
+
+# Bỏ asks what is wrong (optional); $null when closed without choosing Bỏ.
+function Read-RejectReason {
+    $form=New-Object Windows.Forms.Form -Property @{Text='Bỏ đánh giá';ClientSize='400,150';FormBorderStyle='FixedDialog';MaximizeBox=$false;MinimizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
+    $box=New-Object Windows.Forms.TextBox -Property @{Multiline=$true;Location='12,12';Size='376,84'}
+    $label=New-Object Windows.Forms.Label -Property @{Text='Lỗi gì? Vd: sai màu sản phẩm, ảnh méo, chữ sai…';Location='12,100';Size='190,44';ForeColor=[Drawing.Color]::Gray}
+    $skip=New-Object Windows.Forms.Button -Property @{Text='Bỏ';Location='212,116';Size='84,28';DialogResult='OK'}
+    $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='304,116';Size='84,28';DialogResult='Cancel'}
+    $form.Controls.AddRange(@($box,$label,$skip,$cancel));$form.CancelButton=$cancel
+    try{if($form.ShowDialog() -eq 'OK'){return $box.Text.Trim()};return $null}finally{$form.Dispose()}
 }

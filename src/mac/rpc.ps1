@@ -130,6 +130,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
                 if (-not $drive) { throw 'no app password' }
                 $name = Send-SupportLog $drive $bundle.Path
                 Complete-RejectedSamples $bundle.Samples
+                Complete-SupportLogSend $root
                 Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
                 return [pscustomobject]@{ sent = $true; name = $name; samples = @($bundle.Samples).Count }
             } catch {
@@ -163,7 +164,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
                     [pscustomobject]@{ id = $_.Id; handle = [string]$_.Row.product_handle; body = [string]$_.Row.body; image = $_.ImagePath; product = $_.ProductPath; scene = $_.ScenePath; decision = $_.Decision }
                 })
         }
-        'reviewDecide' { Set-BatchReviewDecision ([string]$A.batch) ([string]$A.id) ([string]$A.decision); return $true }
+        'reviewDecide' { Set-BatchReviewDecision ([string]$A.batch) ([string]$A.id) ([string]$A.decision) -Reason ([string]$A.reason); return $true }
         'reviewExport' { return (Export-ReviewedCsv ([string]$A.batch)) }
         'driveLogin' { Connect-DriveAccount $workspace.Root ([string]$A.password); return $true }
         'driveLogout' { Disconnect-DriveAccount $workspace.Root; return $true }

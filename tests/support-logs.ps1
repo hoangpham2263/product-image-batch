@@ -52,25 +52,24 @@ try{
             try{$entries[$relative]=[pscustomobject]@{Length=$e.Length;Text=$(if($e.Length -lt 1MB){$reader.ReadToEnd()}else{''})}}finally{$reader.Dispose()}
         }
     }finally{$zip.Dispose()}
-    foreach($file in @('summary.txt','app.json','tools.json','setup-check.json','config.json','queue/urls.txt','queue/references.json','logs/app-errors.log','runs/2026-10-29_run/results.json','runs/2026-10-29_run/logs/run.err.log','runs/2026-10-29_run/refs/001-tee/manifest.json',"runs/2026-10-29_run/refs/$longItem/manifest.json")){
-        Assert ($entries.ContainsKey($file)) "Gửi log is missing $file."
-    }
-    Assert (-not $entries.ContainsKey('skipped.txt')) "No file may be skipped here: $($entries['skipped.txt'].Text)"
-    Assert (-not @($entries.Keys|Where-Object{$_ -like '*.png'}).Count) 'Gửi log must not carry images other than the Bỏ samples.'
-    Assert (-not @($entries.Keys|Where-Object{$_ -like '*drive.json' -or $entries[$_].Text -match 'never-send-this'}).Count) 'The app password must never leave the machine.'
-    Assert ($entries['logs/huge.log'].Length -eq 2MB) 'A very large log keeps only its last 2 MB.'
-    $config=$entries['config.json'].Text|ConvertFrom-Json
-    Assert ($config.app_password_saved -and $config.version_file -eq 'v9.9.9' -and $config.library[0].files -eq 2 -and $config.library[0].synced -eq 1) 'config.json must describe the setup without the password.'
-    $app=$entries['app.json'].Text|ConvertFrom-Json
-    Assert ($app.install -eq 'zip' -and $app.version -eq 'v9.9.9' -and $app.os -and $app.powershell) 'app.json must describe the install and the system.'
-    $errors=$entries['logs/app-errors.log'].Text
-    Assert ($errors -match 'Giao diện Windows' -and $errors -match 'nút bị lỗi' -and $errors -match 'support-logs\.ps1') 'An error must be logged with where it happened.'
+    Assert (@($entries.Keys).Count -eq 2 -and $entries.ContainsKey('report.json') -and $entries.ContainsKey('summary.txt')) "Gửi log is one error report: report.json and summary.txt (got $(@($entries.Keys) -join ', '))."
+    Assert ((Get-Item -LiteralPath $bundle.Path).Length -lt 200KB) 'The error report must stay small.'
+    Assert (-not @($entries.Keys|Where-Object{$entries[$_].Text -match 'never-send-this'}).Count) 'The app password must never leave the machine.'
+    $report=$entries['report.json'].Text|ConvertFrom-Json
+    Assert ($report.format -eq 'prb-error-report/1' -and $report.app.version -eq 'v9.9.9' -and $report.app.install -eq 'zip' -and $report.config.app_password_saved) 'report.json must describe the app and setup without the password.'
+    $sources=@($report.errors|ForEach-Object source)
+    Assert ('logs/app-errors.log' -in $sources -and (@($report.errors|Where-Object source -eq 'logs/app-errors.log')[0].text -match 'nút bị lỗi')) 'App errors must be in the report.'
+    Assert ('runs/2026-10-29_run/logs/run.err.log' -in $sources -and 'logs/huge.log' -notin $sources) 'Only error lines go in: the run error, not a log without errors.'
     $summary=$entries['summary.txt'].Text
-    Assert ($summary -match 'v9\.9\.9' -and $summary -match '2026-10-29_run: 0 ảnh .* 1 dòng lỗi' -and $summary -match 'nút bị lỗi|Giao diện Windows') 'summary.txt must sum up the version, runs and latest errors.'
-    # A file that cannot be read is listed in skipped.txt; the rest of the bundle is still made.
-    $room=@{Left=1MB};$fake=@{Archive=$null;Root='x';Size=0L;Skipped=[Collections.Generic.List[string]]::new()}
-    Add-SupportFile $fake 'logs/gone.log' (Join-Path $temp 'does-not-exist.log') $room
-    Assert ($fake.Skipped.Count -eq 1 -and $fake.Skipped[0] -like 'logs/gone.log*') 'An unreadable file must be listed, not stop Gửi log.'
+    Assert ($summary -match 'v9\.9\.9' -and $summary -match 'nút bị lỗi|Giao diện Windows' -and $summary -match 'nguồn có lỗi') 'summary.txt must sum up the version, runs and errors.'
+    # After a sent report the next one starts from then: nothing old is reported again.
+    Complete-SupportLogSend $temp
+    Remove-Item -LiteralPath $bundle.Path -Force
+    $next=New-SupportLogBundle $temp
+    $zip=[IO.Compression.ZipFile]::OpenRead($next.Path)
+    try{$reader=New-Object IO.StreamReader(@($zip.Entries|Where-Object{$_.FullName -like '*/report.json'})[0].Open());$again=try{$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}}finally{$zip.Dispose()}
+    Assert ([datetime]$again.since -gt (Get-Date).AddHours(-2)) 'The next report must start from the last one sent.'
+    $bundle=$next
     Remove-Item -LiteralPath $bundle.Path -Force
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
-Write-Host 'PASS: Gửi log carries system, tools, setup, config, queue, logs and runs, without the password or images.'
+Write-Host 'PASS: Gửi log is one small error report (report.json + summary.txt) since the last one, without the password or images.'

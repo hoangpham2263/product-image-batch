@@ -341,14 +341,14 @@ $logsTimer.Add_Tick({
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
     $result = try { (Get-Content -LiteralPath $logsOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
-    if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) ảnh đã Bỏ)" })" }
+    if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi báo cáo lỗi: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) đánh giá đã Bỏ)" })" }
     elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
     else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
     $rejected = @(Get-UnsentRejectedSamples $root).Count
-    $question = "Gửi log cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm log, cấu hình, các lần chạy gần nhất và $rejected ảnh đã Bỏ chưa gửi." } else { 'Gồm log, cấu hình và các lần chạy gần nhất.' }) + ' Không gửi mật khẩu.'
+    $question = "Gửi báo cáo lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))

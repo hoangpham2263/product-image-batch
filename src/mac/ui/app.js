@@ -192,6 +192,28 @@ function messageBox(text, title = "", buttons = ["OK"]) {
   });
 }
 
+// Bỏ asks what is wrong (optional); null when closed without choosing Bỏ.
+function askReason(title) {
+  return new Promise((resolve) => {
+    const view = openWindow(title, 0, 0);
+    view.win.classList.add("msg");
+    view.body.style.width = view.body.style.height = "";
+    const box = el("textarea", "text", { placeholder: "Lỗi gì? Vd: sai màu sản phẩm, ảnh méo, chữ sai…" });
+    Object.assign(box.style, { width: "360px", height: "84px", margin: "12px 12px 0", display: "block" });
+    const bar = el("div", "bar");
+    const skip = el("button", "btn", { text: "Bỏ", type: "button" }), cancel = el("button", "btn", { text: "Hủy", type: "button" });
+    let answer = null;
+    skip.onclick = () => { answer = box.value.trim(); view.close(); };
+    cancel.onclick = () => view.close();
+    bar.append(skip, cancel);
+    view.body.append(box, bar);
+    view.onClose = () => resolve(answer);
+    view.win.style.left = Math.round((innerWidth - view.win.offsetWidth) / 2) + "px";
+    view.win.style.top = Math.round((innerHeight - view.win.offsetHeight) / 2) + "px";
+    box.focus();
+  });
+}
+
 // ---------- main window ----------
 const ui = { client: document.getElementById("client") };
 const state = { rows: [], fallback: false, library: "drive", group: "Áo", drive: false, version: "", output: "", codex: false };
@@ -798,7 +820,9 @@ async function showReviewDialog() {
   };
   const decideFor = (item, paint) => async (value) => {
     const next = item.decision === value ? "" : value;
-    await api("reviewDecide", { batch, id: item.id, decision: next });
+    let reason = "";
+    if (next === "bad") { reason = await askReason("Bỏ đánh giá"); if (reason === null) return; }
+    await api("reviewDecide", { batch, id: item.id, decision: next, reason });
     item.decision = next;
     paint();
     refresh();
@@ -1143,12 +1167,12 @@ function wire() {
   // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
-    const question = "Gửi log cho admin?\n\n" + (rejected ? `Gồm log, cấu hình, các lần chạy gần nhất và ${rejected} ảnh đã Bỏ chưa gửi.` : "Gồm log, cấu hình và các lần chạy gần nhất.") + " Không gửi mật khẩu.";
+    const question = "Gửi báo cáo lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
     if ((await messageBox(question, "Gửi log", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
     try {
       const r = await api("sendLogs");
-      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}${r.samples ? ` (kèm ${r.samples} ảnh đã Bỏ)` : ""}`); }
+      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi báo cáo lỗi: ${r.name}${r.samples ? ` (kèm ${r.samples} đánh giá đã Bỏ)` : ""}`); }
       else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được (${r.reason || "không rõ lý do"}); file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
     } catch { ui.btnLogs.textContent = "Gửi log"; appendLog("Chưa tạo được file log."); }
     setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);

@@ -1,16 +1,12 @@
-﻿# Gửi log: one zip with everything needed to look into a problem, uploaded to the management page.
-#   summary.txt       the short version: app, setup steps, last runs, latest errors
-#   app.json          version, install (git commit or ZIP), system, locale, time zone, memory, disk, screens
-#   tools.json        Node, npm, Codex, Git, PowerShell: path and version
-#   setup-check.json  the Kiểm tra cấu hình result
-#   config.json       app password saved or not (never the password), danh mục, library sync state, samples
-#   queue/            the product links and the images attached to them (file names, no images)
-#   logs/             workspace/logs: errors from the windows, the Mac server and PowerShell, run logs
-#   runs/<id>/        the last 10 runs, every file but the images: results, decisions, inputs, logs, manifests
-#   rejected/         reviews marked Bỏ not sent yet, images included, as data to improve the images
-# Never included: drive.json (the app password), the Codex sign-in, any other image.
-# Returns the zip and the samples it carries.
+﻿# Gửi log: one small error report (docs/error-report.md), the same shape every time so an AI can read and check it.
+#   report.json   format prb-error-report/1: app, tools, setup check, config, and only the errors since the last
+#                 Gửi log (first time: 7 days): app errors, error lines of the logs and runs, reviews marked Bỏ with
+#                 the reason typed when rejecting them
+#   summary.txt   the same in a few lines for a person
+# No images and never drive.json (the app password) or the Codex sign-in. Packed as one ZIP so the upload and the
+# management page stay the same. Returns the zip and the Bỏ samples it reports.
 $script:SupportImageTypes = @('.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp')
+$script:SupportErrorPattern = '(?i)error|exception|failed|fatal|lỗi|thất bại|không (tải|tạo|đọc|gửi) được|\[CAUSE:'
 
 function New-SupportLogBundle([string]$ProjectRoot) {
     $workspace = Join-Path $ProjectRoot 'workspace'
@@ -19,9 +15,6 @@ function New-SupportLogBundle([string]$ProjectRoot) {
     $version = try { Get-AppVersion $ProjectRoot } catch { '' }
     $machine = ([Environment]::MachineName -replace '[^\w-]', '')
     $name = (@($stamp, $version, $system, $machine) | Where-Object { $_ }) -join '_'
-    # Files go straight into the ZIP, never through a staging folder: on Windows without long paths enabled a staged
-    # copy (temp + bundle + runs/<run>/refs/<item>/…) easily passes 260 characters, while names inside a ZIP have no
-    # such limit. If the upload fails the ZIP stays in workspace/temp for sending by hand.
     $zip = Join-Path $workspace "temp/$name.zip"
     New-Item -ItemType Directory -Force -Path (Split-Path $zip -Parent) | Out-Null
     Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
@@ -29,55 +22,81 @@ function New-SupportLogBundle([string]$ProjectRoot) {
     $bundle = @{ Archive = $archive; Root = $name; Size = 0L; Skipped = [Collections.Generic.List[string]]::new() }
     $done = $false
     try {
+        $since = Get-SupportLogSince $ProjectRoot
         $info = Get-SupportSystemInfo $ProjectRoot $version $system $machine
-        Add-SupportText $bundle 'app.json' (ConvertTo-Json -InputObject $info -Depth 6)
-        Add-SupportText $bundle 'tools.json' (ConvertTo-Json -InputObject (Get-SupportToolInfo) -Depth 6)
         $check = Join-Path $ProjectRoot 'src/setup-check.ps1'
         $setup = try { & $check -AsJson 2>&1 | Out-String } catch { $_ | Out-String }
-        Add-SupportText $bundle 'setup-check.json' $setup
         $rejected = @(Get-UnsentRejectedSamples $ProjectRoot)
-        Add-SupportText $bundle 'config.json' (ConvertTo-Json -InputObject (Get-SupportConfig $ProjectRoot $rejected.Count) -Depth 6)
-        foreach ($file in @('urls.txt', 'reference-inputs/references.json')) {
-            $path = Join-Path $workspace $file
-            if (Test-Path -LiteralPath $path) { Add-SupportFile $bundle "queue/$(Split-Path $path -Leaf)" $path }
-        }
-        # App logs, newest first, then the runs, within about 30 MB in all; a very large file keeps its last 2 MB.
-        $room = @{ Left = 30MB }
         $logs = Join-Path $workspace 'logs'
-        if (Test-Path -LiteralPath $logs) {
-            foreach ($file in @(Get-ChildItem -LiteralPath $logs -File | Sort-Object LastWriteTime -Descending | Select-Object -First 60)) {
-                Add-SupportFile $bundle "logs/$($file.Name)" $file.FullName $room
-            }
+        $errors = [Collections.Generic.List[object]]::new()
+        # App errors are errors through and through: their last 20 KB since the last Gửi log.
+        $appErrors = Join-Path $logs 'app-errors.log'
+        if ((Test-Path -LiteralPath $appErrors) -and (Get-Item -LiteralPath $appErrors).LastWriteTime -ge $since) {
+            $text = Get-SupportTail $appErrors 20KB
+            if ($text.Trim()) { $errors.Add([ordered]@{ source = 'logs/app-errors.log'; text = $text.Trim() }) }
         }
-        # The last runs, every file except the images (results, decisions, inputs, logs, each item's manifest).
+        # Other logs and the runs since then: only their error lines (the last 50 of each file).
+        $files = @(if (Test-Path -LiteralPath $logs) { Get-ChildItem -LiteralPath $logs -File | Where-Object { $_.Name -ne 'app-errors.log' -and $_.LastWriteTime -ge $since } | ForEach-Object { @{ Source = "logs/$($_.Name)"; File = $_ } } })
         $output = Join-Path $workspace 'output'
-        $runs = @(if (Test-Path -LiteralPath $output) { Get-ChildItem -LiteralPath $output -Directory | Sort-Object Name -Descending | Select-Object -First 10 })
+        $all = @(if (Test-Path -LiteralPath $output) { Get-ChildItem -LiteralPath $output -Directory | Sort-Object Name -Descending })
+        $runs = @($all | Select-Object -First 10 | Where-Object { $_.LastWriteTime -ge $since })
+        if (-not $runs.Count -and $all.Count) { $runs = @($all[0]) }
         foreach ($batch in $runs) {
             $base = $batch.FullName.TrimEnd('\', '/').Length + 1
-            foreach ($file in @(Get-ChildItem -LiteralPath $batch.FullName -File -Recurse | Where-Object { $script:SupportImageTypes -notcontains $_.Extension.ToLowerInvariant() })) {
-                Add-SupportFile $bundle "runs/$($batch.Name)/$($file.FullName.Substring($base))" $file.FullName $room
-            }
+            $files += @(Get-ChildItem -LiteralPath $batch.FullName -File -Recurse | Where-Object { $_.Extension -in '.log', '.txt', '.json' -and $_.Length -lt 5MB } |
+                ForEach-Object { @{ Source = "runs/$($batch.Name)/$($_.FullName.Substring($base) -replace '\\', '/')"; File = $_ } })
         }
-        $summary = Get-SupportSummary $info $setup $runs (Join-Path $logs 'app-errors.log')
-        # Samples marked Bỏ fill what is left of about 45 MB (uploads stop at 50 MB); the rest go with the next Gửi log.
-        $budget = 45MB - $bundle.Size
-        $samples = @()
-        foreach ($sample in $rejected) {
-            $files = @(Get-ChildItem -LiteralPath $sample.FullName -File)
-            $size = [long]($files | Measure-Object Length -Sum).Sum
-            if ($samples.Count -and $size -gt $budget) { break }
-            foreach ($file in $files) { Add-SupportFile $bundle "rejected/$($sample.Name)/$($file.Name)" $file.FullName }
-            $samples += $sample.FullName; $budget -= $size
+        foreach ($f in $files) {
+            try {
+                $lines = @((Get-SupportTail $f.File.FullName 2MB) -split '\r?\n' | Where-Object { $_ -match $script:SupportErrorPattern } | ForEach-Object { $_.Trim() } | Where-Object { $_ } | Select-Object -Last 50)
+                if ($lines.Count) { $errors.Add([ordered]@{ source = $f.Source; lines = $lines }) }
+            } catch { $bundle.Skipped.Add("$($f.Source)`t$($_.Exception.Message)") }
         }
-        $summary += "Ảnh đã Bỏ gửi kèm lần này: $($samples.Count) (có $($rejected.Count) ảnh chưa gửi)"
-        if ($bundle.Skipped.Count) { $summary += "Bỏ qua $($bundle.Skipped.Count) file không đọc được (xem skipped.txt)."; Add-SupportText $bundle 'skipped.txt' ($bundle.Skipped -join "`r`n") }
+        $samples = @($rejected | ForEach-Object {
+            $json = Join-Path $_.FullName 'sample.json'
+            $sample = if (Test-Path -LiteralPath $json) { Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json } else { [pscustomobject]@{ id = $_.Name } }
+            [ordered]@{ run = $sample.run; id = $sample.id; product_handle = $sample.product_handle; reason = [string]$sample.reason; body = $sample.body; decided_at = $sample.decided_at }
+        })
+        $setupJson = try { $setup | ConvertFrom-Json } catch { $setup }
+        $report = [ordered]@{
+            format = 'prb-error-report/1'; created_at = (Get-Date).ToString('o'); since = $since.ToString('o')
+            app = $info; tools = Get-SupportToolInfo; setup = $setupJson; config = Get-SupportConfig $ProjectRoot $rejected.Count
+            runs = @($runs | ForEach-Object Name); errors = $errors.ToArray(); rejected = $samples; skipped = $bundle.Skipped.ToArray()
+        }
+        Add-SupportText $bundle 'report.json' (ConvertTo-Json -InputObject $report -Depth 8)
+        $summary = Get-SupportSummary $info $setup $runs $appErrors
+        $summary += "Lỗi từ: $($since.ToString('yyyy-MM-dd HH:mm')) · $($errors.Count) nguồn có lỗi"
+        $summary += "Ảnh đã Bỏ báo kèm: $($samples.Count)$(if (@($samples | Where-Object reason).Count) { " (có lý do: $(@($samples | Where-Object reason).Count))" })"
         Add-SupportText $bundle 'summary.txt' ($summary -join "`r`n") -Bom
         $done = $true
-        return [pscustomobject]@{ Path = $zip; Samples = $samples }
+        return [pscustomobject]@{ Path = $zip; Samples = @($rejected | ForEach-Object FullName) }
     } finally {
         $archive.Dispose()
         if (-not $done) { Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue }
     }
+}
+
+# The end of a text file (shared read, so a log being written is fine).
+function Get-SupportTail([string]$Path, [long]$Bytes) {
+    $stream = [IO.File]::Open($Path, 'Open', 'Read', 'ReadWrite')
+    try {
+        if ($stream.Length -gt $Bytes) { [void]$stream.Seek(-$Bytes, 'End') }
+        $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)
+        return $reader.ReadToEnd()
+    } finally { $stream.Dispose() }
+}
+
+# Logs since the last sent Gửi log, with an hour of overlap; the first time, the last 7 days.
+function Get-SupportLogSince([string]$ProjectRoot) {
+    $mark = Join-Path $ProjectRoot 'workspace/support-sent.txt'
+    $last = try { [datetime]::Parse((Get-Content -LiteralPath $mark -Raw).Trim(), [Globalization.CultureInfo]::InvariantCulture, 'RoundtripKind') } catch { $null }
+    if ($last) { return $last.ToLocalTime().AddHours(-1) }
+    return (Get-Date).AddDays(-7)
+}
+
+# After an upload, the next Gửi log starts from now.
+function Complete-SupportLogSend([string]$ProjectRoot) {
+    [IO.File]::WriteAllText((Join-Path $ProjectRoot 'workspace/support-sent.txt'), (Get-Date).ToUniversalTime().ToString('o'))
 }
 
 function Add-SupportText($Bundle, [string]$Entry, [string]$Text, [switch]$Bom) {
@@ -85,23 +104,6 @@ function Add-SupportText($Bundle, [string]$Entry, [string]$Text, [switch]$Bom) {
     $stream = $Bundle.Archive.CreateEntry("$($Bundle.Root)/$Entry", [IO.Compression.CompressionLevel]::Optimal).Open()
     try { $stream.Write($bytes, 0, $bytes.Length) } finally { $stream.Dispose() }
     $Bundle.Size += $bytes.Length
-}
-
-# One file into the ZIP; with $Room, counted against that budget and a file over 5 MB keeps its last 2 MB. A file
-# that cannot be read (locked, removed meanwhile) is listed in skipped.txt instead of stopping Gửi log.
-function Add-SupportFile($Bundle, [string]$Entry, [string]$From, $Room) {
-    try {
-        $length = (Get-Item -LiteralPath $From).Length
-        $keep = if ($length -le 5MB) { $length } else { 2MB }
-        if ($Room) { if ($keep -gt $Room.Left) { return }; $Room.Left -= $keep }
-        $source = [IO.File]::Open($From, 'Open', 'Read', 'ReadWrite')
-        try {
-            if ($length -gt 5MB) { [void]$source.Seek(-2MB, 'End') }
-            $target = $Bundle.Archive.CreateEntry("$($Bundle.Root)/$($Entry -replace '\\', '/')", [IO.Compression.CompressionLevel]::Optimal).Open()
-            try { $source.CopyTo($target) } finally { $target.Dispose() }
-        } finally { $source.Dispose() }
-        $Bundle.Size += $keep
-    } catch { $Bundle.Skipped.Add("$Entry`t$($_.Exception.Message)") }
 }
 
 # Every value is best effort: a missing tool or permission leaves that field empty, never stops Gửi log.

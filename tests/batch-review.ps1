@@ -23,17 +23,22 @@ try{
     Set-BatchReviewDecision $temp '002-tee' bad $rejected
     # A review marked Bỏ is kept with its photos and text as data, and goes out with the next Gửi log.
     $sample=Join-Path $rejected ((Split-Path $temp -Leaf)+'__002-tee')
-    Assert ((@('result.png','product.png','review.png','manifest.json','sample.json')|Where-Object{Test-Path -LiteralPath (Join-Path $sample $_)}).Count -eq 5 -and (Get-Content -LiteralPath (Join-Path $sample 'sample.json') -Raw -Encoding UTF8|ConvertFrom-Json).body -eq 'b2') 'A rejected review must be kept with its result, product photo, review photo and text.'
+    Assert (@(Get-ChildItem -LiteralPath $sample -File).Name -join ',' -eq 'sample.json' -and (Get-Content -LiteralPath (Join-Path $sample 'sample.json') -Raw -Encoding UTF8|ConvertFrom-Json).body -eq 'b2') 'A rejected review is noted with its text only, no image copies.'
     Set-BatchReviewDecision $temp '002-tee' ok $rejected
     Assert (-not (Test-Path -LiteralPath $sample)) 'Changing a Bỏ before it is sent must drop the kept copy.'
-    Set-BatchReviewDecision $temp '002-tee' bad $rejected
+    Set-BatchReviewDecision $temp '002-tee' bad $rejected -Reason ' sai màu áo '
     . (Join-Path $root 'src/application/support-logs.ps1')
     $bundle=New-SupportLogBundle $project
     try{
         Assert (@($bundle.Samples).Count -eq 1) 'Gửi log must carry the rejected reviews not sent yet.'
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip=[IO.Compression.ZipFile]::OpenRead($bundle.Path)
-        try{Assert (@($zip.Entries|Where-Object{$_.FullName -replace '\\','/' -like '*/rejected/*__002-tee/result.png'}).Count -eq 1) 'The log zip must hold the rejected result image.'}finally{$zip.Dispose()}
+        try{
+            Assert (-not @($zip.Entries|Where-Object{$_.FullName -like '*.png'}).Count) 'The error report carries no images.'
+            $entry=@($zip.Entries|Where-Object{$_.FullName -like '*/report.json'})[0];$reader=New-Object IO.StreamReader($entry.Open())
+            $report=try{$reader.ReadToEnd()|ConvertFrom-Json}finally{$reader.Dispose()}
+            Assert (@($report.rejected).Count -eq 1 -and $report.rejected[0].id -eq '002-tee' -and $report.rejected[0].reason -eq 'sai màu áo') 'The report must list the Bỏ review with the reason typed.'
+        }finally{$zip.Dispose()}
     }finally{Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue}
     Complete-RejectedSamples $bundle.Samples
     Assert (-not @(Get-UnsentRejectedSamples $project).Count) 'Samples sent once must not be sent again.'

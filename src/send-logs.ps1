@@ -15,6 +15,7 @@ try {
     if (-not $drive) { throw 'no app password' }
     $name = Send-SupportLog $drive $bundle.Path
     Complete-RejectedSamples $bundle.Samples
+    Complete-SupportLogSend $root
     Write-Output ('sent|' + $name + '|' + @($bundle.Samples).Count)
     Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
 } catch {

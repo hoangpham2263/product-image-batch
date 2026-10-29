@@ -26,7 +26,8 @@ function Get-BatchReview([string]$BatchDir) {
 }
 
 # $RejectedRoot defaults to workspace/rejected next to workspace/output (see Save-RejectedSample).
-function Set-BatchReviewDecision([string]$BatchDir, [string]$Id, [ValidateSet('ok', 'bad', '')][string]$Decision, [string]$RejectedRoot) {
+# $Reason: what is wrong, typed when choosing Bỏ; it goes with the sample into the error report of Gửi log.
+function Set-BatchReviewDecision([string]$BatchDir, [string]$Id, [ValidateSet('ok', 'bad', '')][string]$Decision, [string]$RejectedRoot, [string]$Reason = '') {
     $path = Join-Path $BatchDir 'review.json'
     $saved = [ordered]@{}
     if (Test-Path -LiteralPath $path) { (Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $saved[$_.Name] = $_.Value } }
@@ -36,22 +37,19 @@ function Set-BatchReviewDecision([string]$BatchDir, [string]$Id, [ValidateSet('o
     $sample = Join-Path $RejectedRoot ((Split-Path $BatchDir -Leaf) + '__' + $Id)
     if ($Decision -eq 'bad') {
         $item = @(Get-BatchReview $BatchDir | Where-Object Id -eq $Id)
-        if ($item.Count) { Save-RejectedSample $item[0] $BatchDir $sample }
+        if ($item.Count) { Save-RejectedSample $item[0] $BatchDir $sample $Reason }
     } elseif ((Test-Path -LiteralPath $sample) -and -not (Test-Path -LiteralPath (Join-Path $sample '.sent'))) {
         Remove-Item -LiteralPath $sample -Recurse -Force
     }
 }
 
-# A review marked Bỏ is kept as data to improve the images, in workspace/rejected/<run>__<id>/: the result, the
-# product photo, the original review photo, the run's manifest and what was written. It outlives the run folder;
-# Gửi log sends the samples not sent yet and marks them with .sent. Choosing again before that drops the copy.
-function Save-RejectedSample($Item, [string]$BatchDir, [string]$Folder) {
+# A review marked Bỏ is noted in workspace/rejected/<run>__<id>/sample.json (what was written and the reason typed)
+# for the next Gửi log, which reports the notes not sent yet and marks them with .sent. Choosing again before that
+# drops the note.
+function Save-RejectedSample($Item, [string]$BatchDir, [string]$Folder, [string]$Reason = '') {
     New-Item -ItemType Directory -Force -Path $Folder | Out-Null
-    foreach ($pair in @(@($Item.ImagePath, 'result'), @($Item.ProductPath, 'product'), @($Item.ScenePath, 'review'), @((Join-Path $BatchDir "refs/$($Item.Id)/manifest.json"), 'manifest'))) {
-        if ($pair[0] -and (Test-Path -LiteralPath $pair[0])) { Copy-Item -LiteralPath $pair[0] -Destination (Join-Path $Folder ($pair[1] + [IO.Path]::GetExtension($pair[0]))) -Force }
-    }
     $info = [ordered]@{ run = (Split-Path $BatchDir -Leaf); id = $Item.Id; product_handle = [string]$Item.Row.product_handle; rating = [string]$Item.Row.rating
-        body = [string]$Item.Row.body; decision = 'bad'; decided_at = (Get-Date).ToString('o') }
+        body = [string]$Item.Row.body; decision = 'bad'; reason = $Reason.Trim(); decided_at = (Get-Date).ToString('o') }
     [IO.File]::WriteAllText((Join-Path $Folder 'sample.json'), (ConvertTo-Json -InputObject $info), [Text.UTF8Encoding]::new($false))
 }
 
