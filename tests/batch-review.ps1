@@ -10,12 +10,14 @@ try{
         $image=Join-Path $temp "images/00$n-tee.png";New-TestPng $image 1 1 ([byte[]](10,0,0))
         $refs=Join-Path $temp "refs/00$n-tee";New-Item -ItemType Directory -Path $refs -Force|Out-Null
         $original=Join-Path $refs 'product.png';New-TestPng $original 4 4 ([byte[]](0,100,0))
-        Write-FeedbackJson (Join-Path $refs 'manifest.json') @{item_id="00$n-tee";product_url='https://example.test/products/tee';images=@(@{role='product';file='product.png'})}
+        New-TestPng (Join-Path $refs 'scene.png') 4 4 ([byte[]](0,0,100))
+        Write-FeedbackJson (Join-Path $refs 'manifest.json') @{item_id="00$n-tee";product_url='https://example.test/products/tee';images=@(@{role='scene';file='scene.png'},@{role='product';file='product.png'})}
         [pscustomobject]@{product_handle='tee';rating='5';author='A';email='';body="b$n";created_at='2026-10-28';verified_purchase='true';photo_url="https://x.test/img/$n.png";photo_path=($image -replace '\\','/')}
     })
     Save-BatchResults $rows $temp
     $items=@(Get-BatchReview $temp)
     Assert ($items.Count -eq 3 -and -not $items[0].Decision) "Every result must be listed, undecided. Rows=$($rows.Count) Items=$($items.Count) Decision=$($items[0].Decision)"
+    Assert ((Split-Path $items[0].ProductPath -Leaf) -eq 'product.png' -and (Split-Path $items[0].ScenePath -Leaf) -eq 'scene.png') 'Each result must know its product photo and the review photo it was made from.'
     Set-BatchReviewDecision $temp '001-tee' ok
     Set-BatchReviewDecision $temp '002-tee' bad
     Assert (-not (Test-Path (Join-Path $temp 'loox_import.csv'))) 'No Loox file may exist before the review is done.'
@@ -51,7 +53,7 @@ try{
             [void]$click.Invoke($thumbnail,@([EventArgs]::Empty))
             Assert ($script:Preview -and $script:Preview.Tag.Id -eq '003-tee') 'Thumbnail did not open the matching review preview.'
             $script:Preview.ShowInTaskbar=$false;$script:Preview.StartPosition='Manual';$script:Preview.Location=[Drawing.Point]::new(-32000,-32000);$script:Preview.Show();$script:Preview.Refresh()
-            Assert ($script:Preview.Controls.Find('OriginalProductPreview',$true)[0].Image -and $script:Preview.Controls.Find('ReviewImagePreview',$true)[0].Image) 'Preview lost original/result image roles.'
+            Assert ($script:Preview.Controls.Find('OriginalProductPreview',$true)[0].Image -and $script:Preview.Controls.Find('OriginalReviewPreview',$true)[0].Image -and $script:Preview.Controls.Find('ReviewImagePreview',$true)[0].Image) 'Preview must show the product photo, the original review photo and the result.'
             Assert (-not @($script:Preview.Controls|Where-Object{$_ -is [Windows.Forms.Button] -and $_.Text -eq 'Đóng'}).Count) 'The preview closes through Giữ or Bỏ; it has no Đóng button.'
             $bitmap=[Drawing.Bitmap]::new($script:Preview.Width,$script:Preview.Height)
             try{$script:Preview.DrawToBitmap($bitmap,[Drawing.Rectangle]::new(0,0,$bitmap.Width,$bitmap.Height));$bitmap.Save((Join-Path $TestWorkspaceRoot 'batch-review-preview.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}

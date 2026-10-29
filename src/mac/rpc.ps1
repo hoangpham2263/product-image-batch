@@ -141,7 +141,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         }
         'reviewItems' {
             return @(Get-BatchReview ([string]$A.batch) | ForEach-Object {
-                    [pscustomobject]@{ id = $_.Id; handle = [string]$_.Row.product_handle; body = [string]$_.Row.body; image = $_.ImagePath; product = $_.ProductPath; decision = $_.Decision }
+                    [pscustomobject]@{ id = $_.Id; handle = [string]$_.Row.product_handle; body = [string]$_.Row.body; image = $_.ImagePath; product = $_.ProductPath; scene = $_.ScenePath; decision = $_.Decision }
                 })
         }
         'reviewDecide' { Set-BatchReviewDecision ([string]$A.batch) ([string]$A.id) ([string]$A.decision); return $true }

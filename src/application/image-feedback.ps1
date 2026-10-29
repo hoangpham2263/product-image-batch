@@ -28,8 +28,11 @@ function Get-FeedbackTarget([string]$ImagePath) {
     if ($product.Count -ne 1) { throw 'Bản lưu đầu vào thiếu ảnh sản phẩm gốc.' }
     $folder = Split-Path $manifestPath -Parent
     $productPath = Resolve-FeedbackChild $folder $product[0].file
+    # The review photo the image was made from (scene or person), shown beside the result when reviewing.
+    $scene = @($manifest.images | Where-Object { $_.role -in @('scene', 'subject') } | Select-Object -First 1)
+    $scenePath = if ($scene.Count) { Resolve-FeedbackChild $folder $scene[0].file } else { '' }
     $category = if ($manifest.product_context.source_categories) { @($manifest.product_context.source_categories)[0] } else { @($manifest.images | Where-Object { $_.role -in @('scene', 'subject') -and $_.category } | Select-Object -First 1).category }
-    [pscustomobject]@{ ImagePath=$image.FullName; Batch=$batch; Folder=$folder; Manifest=$manifest; ProductPath=$productPath; Category=[string]$category }
+    [pscustomobject]@{ ImagePath=$image.FullName; Batch=$batch; Folder=$folder; Manifest=$manifest; ProductPath=$productPath; ScenePath=$scenePath; Category=[string]$category }
 }
 
 function Get-ImageFeedbackGuidance($Context, [string]$Url) {

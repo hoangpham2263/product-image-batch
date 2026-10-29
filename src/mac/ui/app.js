@@ -735,13 +735,18 @@ async function showReviewDialog() {
 function showReviewPreview(item, decide) {
   const view = openWindow("Xem ảnh đánh giá", 1080, 720);
   const b = view.body;
-  const original = at(label("Ảnh sản phẩm gốc · chỉ để đối chiếu"), 12, 12, 500, 24);
-  const product = at(picture(), 12, 42, 522, 530);
+  // Left: the product photo above the review photo the image was made from; right: the result.
+  const original = at(label("Ảnh sản phẩm gốc"), 12, 12, 500, 24);
+  const product = at(picture(), 12, 42, 522, 250);
+  const sceneLabel = at(label("Ảnh review ban đầu"), 12, 296, 500, 22);
+  const scene = at(picture(), 12, 322, 522, 250);
   const result = at(picture(), 546, 42, 522, 530);
-  for (const p of [product, result]) p.style.background = "var(--smoke)";
+  for (const p of [product, scene, result]) p.style.background = "var(--smoke)";
   product.set(item.product);
+  scene.set(item.scene);
   result.set(item.image);
-  if (!item.product) original.textContent = "Ảnh sản phẩm gốc · không có ảnh đối chiếu";
+  if (!item.product) original.textContent = "Ảnh sản phẩm gốc · không có";
+  if (!item.scene) sceneLabel.textContent = "Ảnh review ban đầu · không có";
   const body = at(el("textarea", "text", { readOnly: true, value: item.body }), 12, 584, 1056, 70);
   const state_ = at(label(""), 12, 674, 540, 28);
   // Giữ or Bỏ decides and closes the window, so there is no separate Đóng; Esc closes without deciding.
@@ -749,7 +754,7 @@ function showReviewPreview(item, decide) {
   state_.textContent = { ok: "Đang giữ đánh giá này", bad: "Đang bỏ đánh giá này khỏi CSV" }[item.decision] || "Chưa chọn giữ hoặc bỏ";
   keep.onclick = async () => { await decide("ok"); view.close(); };
   skip.onclick = async () => { await decide("bad"); view.close(); };
-  b.append(original, at(label("Ảnh của đánh giá đang chọn"), 548, 12, 500, 24), product, result, body, state_, keep, skip);
+  b.append(original, at(label("Ảnh kết quả"), 548, 12, 500, 24), product, sceneLabel, scene, result, body, state_, keep, skip);
 }
 
 // ----- Kiểm tra cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----

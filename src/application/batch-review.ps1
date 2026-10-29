@@ -19,9 +19,9 @@ function Get-BatchReview([string]$BatchDir) {
     }
     foreach ($row in @($rows)) {
         $id = [IO.Path]::GetFileNameWithoutExtension([string]$row.photo_path)
-        $product = ''
-        try { $product = (Get-FeedbackTarget ([string]$row.photo_path)).ProductPath } catch { Write-Verbose $_ }
-        [pscustomobject]@{ Id = $id; Row = $row; ImagePath = [string]$row.photo_path; ProductPath = $product; Decision = [string]$decisions[$id] }
+        $target = $null
+        try { $target = Get-FeedbackTarget ([string]$row.photo_path) } catch { Write-Verbose $_ }
+        [pscustomobject]@{ Id = $id; Row = $row; ImagePath = [string]$row.photo_path; ProductPath = [string]$target.ProductPath; ScenePath = [string]$target.ScenePath; Decision = [string]$decisions[$id] }
     }
 }
 

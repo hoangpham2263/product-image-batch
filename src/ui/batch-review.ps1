@@ -4,13 +4,22 @@ function New-BatchReviewPreview($View,$Item,$Decide) {
     $pictures=New-Object Windows.Forms.TableLayoutPanel -Property @{Location='12,42';Size='1056,530';Anchor='Top,Bottom,Left,Right';ColumnCount=2;RowCount=1}
     [void]$pictures.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',50)))
     [void]$pictures.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',50)))
-    $originalLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc · chỉ để đối chiếu';Location='12,12';Size='500,24'}
-    $resultLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh của đánh giá đang chọn';Location='548,12';Size='500,24';Anchor='Top,Right'}
-    $product=New-Object Windows.Forms.PictureBox -Property @{Name='OriginalProductPreview';Dock='Fill';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,6,0'}
+    # Left: the product photo above the review photo the image was made from; right: the result.
+    $originalLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh sản phẩm gốc';Location='12,12';Size='500,24'}
+    $resultLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh kết quả';Location='548,12';Size='500,24';Anchor='Top,Right'}
+    $left=New-Object Windows.Forms.TableLayoutPanel -Property @{Dock='Fill';ColumnCount=1;RowCount=3;Margin='0,0,6,0'}
+    [void]$left.RowStyles.Add((New-Object Windows.Forms.RowStyle('Percent',50)))
+    [void]$left.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute',30)))
+    [void]$left.RowStyles.Add((New-Object Windows.Forms.RowStyle('Percent',50)))
+    $product=New-Object Windows.Forms.PictureBox -Property @{Name='OriginalProductPreview';Dock='Fill';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,0,0'}
+    $sceneLabel=New-Object Windows.Forms.Label -Property @{Text='Ảnh review ban đầu';Dock='Fill';TextAlign='BottomLeft';Margin='0,0,0,4'}
+    $scene=New-Object Windows.Forms.PictureBox -Property @{Name='OriginalReviewPreview';Dock='Fill';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke;Margin='0,0,0,0'}
     $result=New-Object Windows.Forms.PictureBox -Property @{Name='ReviewImagePreview';Dock='Fill';SizeMode='Zoom';BackColor=[Drawing.Color]::WhiteSmoke;Margin='6,0,0,0'}
-    try{Set-FeedbackPreview $product $Item.ProductPath;Set-FeedbackPreview $result $Item.ImagePath}catch{Set-FeedbackPreview $product '';Set-FeedbackPreview $result '';$dialog.Dispose();throw}
-    if(-not $product.Image){$originalLabel.Text='Ảnh sản phẩm gốc · không có ảnh đối chiếu'}
-    $pictures.Controls.Add($product,0,0);$pictures.Controls.Add($result,1,0)
+    try{Set-FeedbackPreview $product $Item.ProductPath;Set-FeedbackPreview $scene $Item.ScenePath;Set-FeedbackPreview $result $Item.ImagePath}catch{Set-FeedbackPreview $product '';Set-FeedbackPreview $scene '';Set-FeedbackPreview $result '';$dialog.Dispose();throw}
+    if(-not $product.Image){$originalLabel.Text='Ảnh sản phẩm gốc · không có'}
+    if(-not $scene.Image){$sceneLabel.Text='Ảnh review ban đầu · không có'}
+    $left.Controls.Add($product,0,0);$left.Controls.Add($sceneLabel,0,1);$left.Controls.Add($scene,0,2)
+    $pictures.Controls.Add($left,0,0);$pictures.Controls.Add($result,1,0)
     $body=New-Object Windows.Forms.TextBox -Property @{Text=[string]$Item.Row.body;Location='12,584';Size='1056,70';Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Anchor='Bottom,Left,Right'}
     $state=New-Object Windows.Forms.Label -Property @{Name='PreviewDecision';Location='12,674';Size='540,28';Anchor='Bottom,Left'}
     # Giữ or Bỏ decides and closes the window, so there is no separate Đóng; Esc closes without deciding.
@@ -22,7 +31,7 @@ function New-BatchReviewPreview($View,$Item,$Decide) {
     $keep.Add_Click({& $Decide 'ok';$dialog.Close()}.GetNewClosure());$skip.Add_Click({& $Decide 'bad';$dialog.Close()}.GetNewClosure())
     $dialog.KeyPreview=$true;$dialog.Add_KeyDown({if($_.KeyCode -eq 'Escape'){$this.Close()}})
     $dialog.Controls.AddRange(@($originalLabel,$resultLabel,$pictures,$body,$state,$keep,$skip))
-    $dialog.Add_Disposed({Set-FeedbackPreview $product '';Set-FeedbackPreview $result ''}.GetNewClosure())
+    $dialog.Add_Disposed({Set-FeedbackPreview $product '';Set-FeedbackPreview $scene '';Set-FeedbackPreview $result ''}.GetNewClosure())
     & $refresh
     return $dialog
 }
