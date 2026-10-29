@@ -13,14 +13,15 @@ function New-BatchReviewPreview($View,$Item,$Decide) {
     $pictures.Controls.Add($product,0,0);$pictures.Controls.Add($result,1,0)
     $body=New-Object Windows.Forms.TextBox -Property @{Text=[string]$Item.Row.body;Location='12,584';Size='1056,70';Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Anchor='Bottom,Left,Right'}
     $state=New-Object Windows.Forms.Label -Property @{Name='PreviewDecision';Location='12,674';Size='540,28';Anchor='Bottom,Left'}
-    $keep=New-Object Windows.Forms.Button -Property @{Name='KeepPreviewReview';Text='Giữ đánh giá';Location='648,670';Size='130,36';Anchor='Bottom,Right'}
-    $skip=New-Object Windows.Forms.Button -Property @{Name='SkipPreviewReview';Text='Bỏ đánh giá';Location='790,670';Size='130,36';Anchor='Bottom,Right'}
-    $close=New-Object Windows.Forms.Button -Property @{Text='Đóng';Location='932,670';Size='136,36';Anchor='Bottom,Right';DialogResult='Cancel'}
+    # Giữ or Bỏ decides and closes the window, so there is no separate Đóng; Esc closes without deciding.
+    $keep=New-Object Windows.Forms.Button -Property @{Name='KeepPreviewReview';Text='Giữ đánh giá';Location='796,670';Size='130,36';Anchor='Bottom,Right'}
+    $skip=New-Object Windows.Forms.Button -Property @{Name='SkipPreviewReview';Text='Bỏ đánh giá';Location='938,670';Size='130,36';Anchor='Bottom,Right'}
     $refresh={
         $state.Text=switch($Item.Decision){'ok'{'Đang giữ đánh giá này'}'bad'{'Đang bỏ đánh giá này khỏi CSV'}default{'Chưa chọn giữ hoặc bỏ'}}
     }.GetNewClosure()
-    $keep.Add_Click({& $Decide 'ok';& $refresh}.GetNewClosure());$skip.Add_Click({& $Decide 'bad';& $refresh}.GetNewClosure())
-    $dialog.Controls.AddRange(@($originalLabel,$resultLabel,$pictures,$body,$state,$keep,$skip,$close));$dialog.CancelButton=$close
+    $keep.Add_Click({& $Decide 'ok';$dialog.Close()}.GetNewClosure());$skip.Add_Click({& $Decide 'bad';$dialog.Close()}.GetNewClosure())
+    $dialog.KeyPreview=$true;$dialog.Add_KeyDown({if($_.KeyCode -eq 'Escape'){$this.Close()}})
+    $dialog.Controls.AddRange(@($originalLabel,$resultLabel,$pictures,$body,$state,$keep,$skip))
     $dialog.Add_Disposed({Set-FeedbackPreview $product '';Set-FeedbackPreview $result ''}.GetNewClosure())
     & $refresh
     return $dialog

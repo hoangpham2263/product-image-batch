@@ -744,13 +744,12 @@ function showReviewPreview(item, decide) {
   if (!item.product) original.textContent = "Ảnh sản phẩm gốc · không có ảnh đối chiếu";
   const body = at(el("textarea", "text", { readOnly: true, value: item.body }), 12, 584, 1056, 70);
   const state_ = at(label(""), 12, 674, 540, 28);
-  const keep = at(button("Giữ đánh giá"), 648, 670, 130, 36), skip = at(button("Bỏ đánh giá"), 790, 670, 130, 36), close = at(button("Đóng"), 932, 670, 136, 36);
-  const refresh = () => { state_.textContent = { ok: "Đang giữ đánh giá này", bad: "Đang bỏ đánh giá này khỏi CSV" }[item.decision] || "Chưa chọn giữ hoặc bỏ"; };
-  keep.onclick = async () => { await decide("ok"); refresh(); };
-  skip.onclick = async () => { await decide("bad"); refresh(); };
-  close.onclick = view.close;
-  b.append(original, at(label("Ảnh của đánh giá đang chọn"), 548, 12, 500, 24), product, result, body, state_, keep, skip, close);
-  refresh();
+  // Giữ or Bỏ decides and closes the window, so there is no separate Đóng; Esc closes without deciding.
+  const keep = at(button("Giữ đánh giá"), 796, 670, 130, 36), skip = at(button("Bỏ đánh giá"), 938, 670, 130, 36);
+  state_.textContent = { ok: "Đang giữ đánh giá này", bad: "Đang bỏ đánh giá này khỏi CSV" }[item.decision] || "Chưa chọn giữ hoặc bỏ";
+  keep.onclick = async () => { await decide("ok"); view.close(); };
+  skip.onclick = async () => { await decide("bad"); view.close(); };
+  b.append(original, at(label("Ảnh của đánh giá đang chọn"), 548, 12, 500, 24), product, result, body, state_, keep, skip);
 }
 
 // ----- Kiểm tra cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
