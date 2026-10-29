@@ -22,16 +22,18 @@ function Get-LatestRelease {
     return Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers @{ 'User-Agent' = 'product-review-batch' } -TimeoutSec 10
 }
 
-function Get-AppUpdate([string]$Root) {
-    if (Test-Path -LiteralPath (Join-Path $Root '.git')) {
-        git -C $Root fetch --quiet 2>$null | Out-Null
-        $behind = git -C $Root rev-list --count 'HEAD..@{u}' 2>$null
-        return $(if ([int]$behind -gt 0) { 'git' } else { '' })
-    }
-    $latest = (Get-LatestRelease).tag_name
+# The version in use: the release a ZIP install came from, or the newest tag of a git checkout (as Get-AppVersion).
+function Get-InstalledVersion([string]$Root) {
     $versionFile = Join-Path $Root 'workspace/version.txt'
-    $current = if (Test-Path -LiteralPath $versionFile) { (Get-Content -LiteralPath $versionFile -Raw).Trim() } else { '' }
-    return $(if ($latest -match '^v\d+(\.\d+)*$' -and $latest -ne $current) { $latest } else { '' })
+    if (Test-Path -LiteralPath $versionFile) { return (Get-Content -LiteralPath $versionFile -Raw).Trim() }
+    if (Test-Path -LiteralPath (Join-Path $Root '.git')) { return [string](git -C $Root describe --tags --abbrev=0 2>$null) }
+    return ''
+}
+
+# Git checkouts and ZIP installs alike: a newer GitHub Release is the update, named by its version.
+function Get-AppUpdate([string]$Root) {
+    $latest = (Get-LatestRelease).tag_name
+    return $(if ($latest -match '^v\d+(\.\d+)*$' -and $latest -ne (Get-InstalledVersion $Root)) { $latest } else { '' })
 }
 
 function Update-App([string]$Root) {

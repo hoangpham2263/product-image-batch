@@ -30,7 +30,7 @@ function Show-UpdateDialog([Windows.Forms.Form]$Owner, [string]$Root, [string]$L
             if ($code -ne 0) { $status.Text = 'Không kiểm tra được bản mới. Kiểm tra mạng rồi thử lại.'; return }
             if (-not $text) { $status.Text = "Đang dùng bản mới nhất ($Current)."; return }
             $state.Next = $text
-            $status.Text = if ($text -eq 'git') { 'Có bản mới trên GitHub.' } else { "Có bản $text (đang dùng $Current)." }
+            $status.Text = "Có phiên bản mới $text (đang dùng $Current)."
             $go.Visible = $true; [void]$go.Focus()
         } elseif ($code -ne 0) {
             $status.Text = 'Chưa cập nhật được. Kiểm tra mạng rồi thử lại.'; $go.Text = 'Thử lại'; $go.Visible = $true
@@ -39,7 +39,7 @@ function Show-UpdateDialog([Windows.Forms.Form]$Owner, [string]$Root, [string]$L
             $dialog.DialogResult = 'OK'; $dialog.Close()
         }
     }.GetNewClosure())
-    $go.Add_Click({ $status.Text = "Đang tải và cài $($state.Next)…"; & $start 'apply' @('-Apply') }.GetNewClosure())
+    $go.Add_Click({ $status.Text = "Đang tải và cài phiên bản $($state.Next)…"; & $start 'apply' @('-Apply') }.GetNewClosure())
     $dialog.Add_Shown({ $status.Text = 'Đang kiểm tra bản mới…'; & $start 'check' @('-Check') }.GetNewClosure())
     # Closing in the middle of an install would leave half-copied files.
     $dialog.Add_FormClosing({ if ($state.Proc -and $state.Step -eq 'apply') { $_.Cancel = $true } }.GetNewClosure())

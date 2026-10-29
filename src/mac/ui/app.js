@@ -780,12 +780,12 @@ function showUpdateDialog() {
     catch { bar.hidden = true; status.textContent = "Không kiểm tra được bản mới. Kiểm tra mạng rồi thử lại."; return; }
     bar.hidden = true;
     if (!next) { status.textContent = `Đang dùng bản mới nhất (${current}).`; return; }
-    status.textContent = next === "git" ? "Có bản mới trên GitHub." : `Có bản ${next} (đang dùng ${current}).`;
+    status.textContent = `Có phiên bản mới ${next} (đang dùng ${current}).`;
     go.hidden = false; go.focus();
   };
   // The server replaces the files, restarts on them, and the page reloads once it answers again.
   go.onclick = async () => {
-    status.textContent = `Đang tải và cài ${next === "git" ? "bản mới" : next}…`;
+    status.textContent = `Đang tải và cài phiên bản ${next}…`;
     bar.hidden = false; go.hidden = true; close.disabled = true;
     const r = await fetch("/api/update", { method: "POST" }).catch(() => null);
     if (!r || !r.ok) {
