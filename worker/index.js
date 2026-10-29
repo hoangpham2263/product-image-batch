@@ -54,7 +54,8 @@ async function sha256(text) {
 export function uploadAllowed(method, path) {
   return (method === "GET" || method === "POST") && /^\/api\/sources(\/[^/]+)?$/.test(path);
 }
-// Live temporary keys, kept in one KV entry (by hash, never the key itself). One entry rather than KV list, which
+// Live temporary keys, kept in one KV entry: the hash checks a key, the key itself is kept so the admin can copy it
+// again from the API page. One entry rather than KV list, which
 // can lag about a minute: a cancelled key leaves the list and stops working right away.
 async function readTempKeys(env) {
   return ((await env.STORE.get("tmpkeys", "json")) || []).filter((k) => k.exp > Date.now());
@@ -67,11 +68,11 @@ async function handleTempKeys(req, env, id) {
     if (!TEMP_HOURS.includes(hours)) return json({ error: "Thời hạn chỉ là 1 giờ, 24 giờ hoặc 7 ngày." }, 400);
     const key = TEMP_PREFIX + [...crypto.getRandomValues(new Uint8Array(20))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const hash = await sha256(key), exp = Date.now() + hours * 3600_000;
-    await env.STORE.put("tmpkeys", JSON.stringify([...live, { hash, exp, createdAt: new Date().toISOString(), hint: key.slice(-4) }]));
+    await env.STORE.put("tmpkeys", JSON.stringify([...live, { hash, key, exp, createdAt: new Date().toISOString(), hint: key.slice(-4) }]));
     return json({ key, id: hash.slice(0, 16), expiresAt: new Date(exp).toISOString() }, 201);
   }
   if (req.method === "GET" && !id) {
-    return json({ keys: live.map((k) => ({ id: k.hash.slice(0, 16), hint: k.hint, createdAt: k.createdAt, expiresAt: new Date(k.exp).toISOString() })) }, 200, { "cache-control": "no-store" });
+    return json({ keys: live.map((k) => ({ id: k.hash.slice(0, 16), key: k.key || "", hint: k.hint, createdAt: k.createdAt, expiresAt: new Date(k.exp).toISOString() })) }, 200, { "cache-control": "no-store" });
   }
   if (req.method === "DELETE") {
     const kept = live.filter((k) => id && k.hash.slice(0, 16) !== id);

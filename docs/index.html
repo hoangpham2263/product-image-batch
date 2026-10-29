@@ -740,11 +740,14 @@ async function loadTempKeys() {
   $("tmpCancelAll").hidden = keys.length < 2;
   if (!keys.length) { $("tmpList").innerHTML = '<p class="muted small">Chưa có mã nào.</p>'; return; }
   $("tmpList").replaceChildren(...keys.map((k) => {
-    const row = document.createElement("div"), text = document.createElement("span"), cancel = document.createElement("button");
+    const row = document.createElement("div"), text = document.createElement("span"), copy = document.createElement("button"), cancel = document.createElement("button");
     text.textContent = `…${k.hint} · hết hạn ${when(k.expiresAt)}`;
+    copy.type = "button"; copy.textContent = "Copy";
+    copy.hidden = !k.key;
+    copy.onclick = () => copyTempKey(k, copy);
     cancel.type = "button"; cancel.textContent = "Huỷ";
     cancel.onclick = () => cancelTempKeys(`/api/temp-keys/${k.id}`, [k.id]);
-    row.append(text, cancel);
+    row.append(text, copy, cancel);
     return row;
   }));
 }
@@ -770,13 +773,16 @@ $("tmpMake").onclick = async () => {
   } catch (e) { toast(e.message); }
   finally { $("tmpMake").disabled = false; }
 };
-$("tmpCopy").onclick = async () => {
-  const k = state.tempKey;
-  if (!k) return;
+// Copies the message for an AI with this key; any live key can be copied again from the list.
+async function copyTempKey(k, button) {
   const text = `Dùng API kho ảnh Product Review Batch để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến PRB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
-  try { await navigator.clipboard.writeText(text); toast("Đã copy lời nhắn cho AI"); }
-  catch { toast("Chưa copy được, chọn và copy tay."); }
-};
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Đã copy lời nhắn cho AI");
+    if (button) { const label = button.textContent; button.textContent = "Đã copy"; setTimeout(() => (button.textContent = label), 1500); }
+  } catch { toast("Chưa copy được, chọn và copy tay."); }
+}
+$("tmpCopy").onclick = () => state.tempKey && copyTempKey(state.tempKey, $("tmpCopy"));
 $("apiCopy").onclick = async () => {
   if (!state.apiDoc) return;
   try { await navigator.clipboard.writeText(`${state.apiDoc}\n\nLink tài liệu: ${$("apiLink").href}\n`); toast("Đã copy tài liệu API"); }

@@ -251,7 +251,6 @@ test("a temporary key adds images to the library until it expires, and reaches n
   assert.equal((await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 5 }) })).status, 400);
   const made = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 24 }) })).json();
   assert.match(made.key, /^prb_tmp_[0-9a-f]{40}$/);
-  assert.ok(![...kv.values()].some((v) => String(v).includes(made.key)), "only the hash of the key is stored");
   const tmp = { "x-admin-key": made.key };
   assert.equal((await call("/api/sources", { method: "POST", headers: { ...tmp, "content-type": "application/json" }, body: JSON.stringify({ name: "Đèn" }) })).status, 201);
   assert.equal((await call(`/api/sources/${encodeURIComponent("Đèn")}?name=a.jpg`, { method: "POST", headers: { ...tmp, "content-type": "image/jpeg" }, body: "x" })).status, 201);
@@ -263,6 +262,7 @@ test("a temporary key adds images to the library until it expires, and reaches n
   const live = await (await call("/api/temp-keys", { headers: admin })).json();
   assert.equal(live.keys.length, 1);
   assert.equal(live.keys[0].hint, made.key.slice(-4));
+  assert.equal(live.keys[0].key, made.key, "the admin can copy an earlier key again");
   // Expired keys stop working even before KV drops them; cancelling removes them at once.
   kv.set("tmpkeys", JSON.stringify(JSON.parse(kv.get("tmpkeys")).map((k) => ({ ...k, exp: Date.now() - 1 }))));
   assert.equal((await call("/api/sources", { headers: tmp })).status, 401);

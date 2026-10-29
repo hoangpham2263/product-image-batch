@@ -75,6 +75,6 @@ console.log(`Đã tải ${ok}, bỏ qua ${skip}, lỗi ${fail}`);
 | `PATCH /api/sources/<danh mục>` body `{"enabled":true}` | Bật/tắt danh mục trong app (danh mục mới đang tắt) |
 | `DELETE /api/sources/<danh mục>/<id ảnh>` | Xoá một ảnh |
 | `DELETE /api/sources/<danh mục>` | Xoá danh mục đã hết ảnh |
-| `POST /api/temp-keys` body `{"hours":24}` | Tạo mã tạm (1, 24 hoặc 168 giờ); mã chỉ hiện một lần |
-| `GET /api/temp-keys` · `DELETE /api/temp-keys[/<id>]` | Xem mã còn hạn · huỷ một hoặc tất cả |
+| `POST /api/temp-keys` body `{"hours":24}` | Tạo mã tạm (1, 24 hoặc 168 giờ) |
+| `GET /api/temp-keys` · `DELETE /api/temp-keys[/<id>]` | Xem mã còn hạn (kèm mã để copy lại) · huỷ một hoặc tất cả |
 | `GET/PATCH/DELETE /api/images[/<id>]` · `GET/DELETE /api/logs[/<id>]` | Ảnh đã tạo và log người dùng gửi (trang quản lý dùng) |
