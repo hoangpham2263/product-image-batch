@@ -35,6 +35,8 @@ try {
     Set-AiSettings $fixture '' ''
     Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.6-sol · suy nghĩ cao (mặc định của Codex) · qua 9router') "Without a choice a run must name Codex's own model: $(Get-AiModelSummary $fixture)"
     Assert ((ConvertTo-UiEvent 'Model AI: gpt-5.5 · suy nghĩ thấp').Text -eq 'Model AI: gpt-5.5 · suy nghĩ thấp') 'The model line must show in the app log.'
+    $tokens = ConvertTo-UiEvent '  [TOKENS] in=1500 cached=800 out=100 (#2)'
+    Assert ($tokens.Kind -eq 'Tokens' -and $tokens.TokensIn -eq 1500 -and $tokens.TokensCached -eq 800 -and $tokens.TokensOut -eq 100 -and -not $tokens.Text) 'Token lines must reach the app as counts, not as log text.'
     Remove-Item Env:\CODEX_HOME
     Assert (-not (Get-AiSettings $fixture).model) 'Choosing the default again must clear the model.'
     foreach ($key in @('Output', 'Logs', 'Temp')) {

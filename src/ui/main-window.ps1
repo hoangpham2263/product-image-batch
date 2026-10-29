@@ -105,6 +105,7 @@ function Receive-RunLine([string]$line) {
         }
         'Failed' { $script:itemStages[$event.Index] = $event.Stage; $script:hadFailure = $true }
         'Warning' { $script:hadFailure = $true }
+        'Tokens' { $script:runTokens.In += $event.TokensIn; $script:runTokens.Cached += $event.TokensCached; $script:runTokens.Out += $event.TokensOut; Update-UsageLabel }
     }
     if ($event.Text) { Append-Log $event.Text }
     Update-RunDisplay
@@ -178,9 +179,19 @@ $btnStop=New-Object Windows.Forms.Button -Property @{Text='Dừng';Location='186
 Set-FlatButton $btnRun -Primary; Set-FlatButton $btnStop
 $btnRun.FlatAppearance.BorderSize=0
 $lblStatus=New-Object Windows.Forms.Label -Property @{Location='302,18';Size='220,26';AutoEllipsis=$true;ForeColor=$muted;TextAlign='MiddleLeft'}
+# Tokens this run has used (added up from each Codex call) and the quota left, refreshed in the background.
+$lblUsage=New-Object Windows.Forms.Label -Property @{Name='RunUsage';Location='530,9';Size='370,44';ForeColor=$muted;Font=(New-Object Drawing.Font('Segoe UI',9));TextAlign='MiddleLeft';Anchor='Top,Left,Right';AutoEllipsis=$true}
 $lblThr=New-Object Windows.Forms.Label -Property @{Text='Luồng:';Location='914,19';Size='56,24';Anchor='Top,Right';ForeColor=$muted}
 $numThr=New-Object Windows.Forms.NumericUpDown -Property @{Minimum=1;Maximum=4;Value=2;Location='972,16';Size='64,28';TextAlign='Center';Anchor='Top,Right'}
-$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblThr,$numThr))
+$cardRun.Controls.AddRange(@($btnRun,$btnStop,$lblStatus,$lblUsage,$lblThr,$numThr))
+$script:runTokens = @{ In = 0L; Cached = 0L; Out = 0L }; $script:quotaText = 'Hạn mức: đang lấy…'
+function Format-Count([long]$Value) { $Value.ToString('N0', [Globalization.CultureInfo]::GetCultureInfo('vi-VN')) }
+function Update-UsageLabel {
+    $t = $script:runTokens
+    $tokens = if ($t.In -or $t.Out) { "Token: $(Format-Count ($t.In + $t.Out)) · vào $(Format-Count $t.In) · ra $(Format-Count $t.Out)" } else { 'Token: chưa chạy' }
+    $lblUsage.Text = "$tokens`n$($script:quotaText)"
+}
+Update-UsageLabel
 
 $cardLog=New-Card 'CardLog' 'Tiến trình & thông báo' 20 508 1060 282 'Top,Bottom,Left,Right'
 $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='14,36';Size='1032,8';Anchor='Top,Left,Right';Style='Blocks'}
@@ -224,6 +235,25 @@ $updateTimer.Add_Tick({
     $updateTimer.Interval = 6 * 3600 * 1000
 })
 if (-not $BuildOnly) { $updateTimer.Start() }
+# Quota beside the run: read when the window opens, after each run and every 15 minutes (own process, no waiting).
+$quotaOut = Join-Path $workspace.Logs "quota-$PID.out"
+$script:quotaProc = $null
+$quotaTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 2000 }
+$quotaTimer.Add_Tick({
+    if (-not $script:quotaProc) {
+        $script:quotaProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $quotaOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'quota-status.ps1') + '"'))
+        [void]$script:quotaProc.Handle
+        $quotaTimer.Interval = 1000
+        return
+    }
+    if (-not $script:quotaProc.HasExited) { return }
+    $script:quotaProc.Dispose(); $script:quotaProc = $null
+    $text = try { (Get-Content -LiteralPath $quotaOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
+    Remove-Item -LiteralPath $quotaOut -Force -ErrorAction SilentlyContinue
+    if ($text) { $script:quotaText = $text; Update-UsageLabel }
+    $quotaTimer.Interval = 15 * 60 * 1000
+})
+if (-not $BuildOnly) { $quotaTimer.Start() }
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 
 $btnOut.Add_Click({
@@ -326,6 +356,7 @@ $timer.Add_Tick({
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
         # Finished links leave the queue during the run; their images go too, so the list starts clean.
+        $quotaTimer.Interval = 500
         Remove-ManualEntriesExcept $queueEditor.MapPath @(if (Test-Path $urlFile) { Get-Content $urlFile -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } })
         Load-Urls
         $elapsed = (Get-Date) - $script:runStarted
@@ -368,6 +399,7 @@ function Start-GuiBatch {
     $script:runTotal = Count-Urls; $script:runDone = 0; $script:currentIndex = 0
     $script:itemStages = @{}; $script:jobRows = @(); $script:runStage = 'Đang chuẩn bị'; $script:runStopped = $false; $script:hadFailure = $false
 
+    $script:runTokens = @{ In = 0L; Cached = 0L; Out = 0L }; Update-UsageLabel
     $script:runStarted = Get-Date; $script:resultFolder = ''; Update-ReviewButton
     $bar.Maximum = [Math]::Max(1, (Count-Urls)); $bar.Value = 0
     $runArgs = @(New-RunArguments -ScriptPath (Join-Path $srcDir 'run-images.ps1') `

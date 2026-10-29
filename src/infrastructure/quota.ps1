@@ -1,5 +1,5 @@
 ﻿# Read quota through the signed-in CLI; never inspect or print credential files.
-function Get-QuotaMessages($Data) {
+function Get-QuotaMessages($Data, [switch]$Short) {
     $buckets = @()
     if ($Data.rateLimitsByLimitId) { $buckets = @($Data.rateLimitsByLimitId.PSObject.Properties | ForEach-Object Value | Where-Object { $_ }) }
     if (-not $buckets.Count -and $Data.rateLimits) { $buckets = @($Data.rateLimits) }
@@ -25,7 +25,7 @@ function Get-QuotaMessages($Data) {
                     $resetText = "Đặt lại $($local.ToString('HH:mm dd/MM')) (GMT+7)."
                 } catch {}
             }
-            "Hạn mức $label ($duration): còn $remaining%. $resetText Phạm vi do CLI cung cấp; chưa xác minh lượt tạo ảnh còn lại."
+            if ($Short) { "$duration còn $remaining%" } else { "Hạn mức $label ($duration): còn $remaining%. $resetText Phạm vi do CLI cung cấp; chưa xác minh lượt tạo ảnh còn lại." }
         }
     }
 }
@@ -43,6 +43,19 @@ function Get-ChatGptQuota([string]$CliPath) {
         if (-not $response.available) { return $unavailable }
         $messages = @(Get-QuotaMessages $response.data)
         if (-not $messages.Count) { return $unavailable }
-        return [pscustomobject]@{ Available = $true; Messages = $messages }
+        return [pscustomobject]@{ Available = $true; Messages = $messages; Short = (@(Get-QuotaMessages $response.data -Short) -join ' · ') }
     } catch { return $unavailable }
+}
+
+# One short line for the main window (shown beside the run, refreshed in the background): how much quota is left,
+# or why it cannot be shown. Reads the signed-in CLI only, like Kiểm tra cấu hình.
+function Get-QuotaSummary {
+    $codex = @(Get-Command codex -CommandType Application -ErrorAction SilentlyContinue)[0]
+    if (-not $codex) { return 'Hạn mức: chưa cài Codex' }
+    $status = & { $ErrorActionPreference = 'Continue'; (& $codex.Source login status 2>&1 | Out-String).Trim() }
+    if ($status -notmatch '(?i)logged in') { return 'Hạn mức: chưa đăng nhập ChatGPT' }
+    if ($status -match '(?i)api key') { return 'Hạn mức: tài khoản API, tính phí theo token' }
+    $quota = Get-ChatGptQuota $codex.Source
+    if (-not $quota.Available) { return 'Hạn mức: chưa lấy được' }
+    return "Hạn mức: $($quota.Short)"
 }

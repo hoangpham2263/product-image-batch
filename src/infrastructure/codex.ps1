@@ -160,6 +160,19 @@ function Get-CodexToolFailure([string]$Trace) {
     $found|Sort-Object Score -Descending|Select-Object -First 1
 }
 
+# Tokens one Codex call used, from the usage on its turn.completed events (codex exec --json). $null when absent.
+function Get-CodexTokenUsage([string]$Trace) {
+    if (-not (Test-Path -LiteralPath $Trace)) { return $null }
+    $total = [pscustomobject]@{ Input = 0L; Cached = 0L; Output = 0L }; $found = $false
+    foreach ($line in [IO.File]::ReadLines($Trace)) {
+        if ($line -notmatch '"turn\.completed"' -or $line -notmatch '"usage"') { continue }
+        try { $usage = ($line | ConvertFrom-Json).usage } catch { continue }
+        if (-not $usage) { continue }
+        $total.Input += [long]$usage.input_tokens; $total.Cached += [long]$usage.cached_input_tokens; $total.Output += [long]$usage.output_tokens; $found = $true
+    }
+    if ($found) { return $total } else { return $null }
+}
+
 # Run `codex exec` with a prompt and optional images. Returns the model's text reply.
 function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, [string]$Sandbox = 'read-only') {
     $isImage = $Sandbox -eq 'workspace-write'
@@ -180,6 +193,9 @@ function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, 
         # A new invocation must not accidentally consume an old last-message file.
         if(Test-Path -LiteralPath $attemptFile){Remove-Item -LiteralPath $attemptFile -Force}
         $execution = Invoke-CodexProcess $PromptText $commandArgs $trace $timeout $reconnectTimeout
+        # Every call's tokens, failed ones too, so the app can add them up for the run.
+        $usage = Get-CodexTokenUsage $trace
+        if ($usage) { Write-Host "[TOKENS] in=$($usage.Input) cached=$($usage.Cached) out=$($usage.Output)" }
         $toolFailure=Get-CodexToolFailure $trace
         if ($execution.Cause -and -not $execution.StopConfirmed) { throw "AI failed; previous process termination is unconfirmed. Details: $trace [CAUSE:PROCESS_ACTIVE]" }
         if ($execution.ExitCode -eq 0) {

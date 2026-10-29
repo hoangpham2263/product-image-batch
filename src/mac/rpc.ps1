@@ -48,6 +48,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root }) }
         'sourceFiles' { return (Get-SourcePickerFiles (Get-DriveConfig $workspace.Root) $libraryRoot ([string]$A.group)) }
+        'quotaSummary' { . (Join-Path $srcDir 'infrastructure/quota.ps1'); return (Get-QuotaSummary) }
         'aiModels' { return [pscustomobject]@{ settings = (Get-AiSettings $root); models = @(Get-AiModels) } }
         'aiSettingsSet' { Set-AiSettings $root ([string]$A.model) ([string]$A.effort); return $true }
         'sourceDefault' { return (Get-DefaultSourceGroup $root) }

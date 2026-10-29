@@ -35,6 +35,12 @@ try {
     $at = [Array]::IndexOf($script:LastCliArgs, 'model_reasoning_effort=low')
     if ($at -lt 1 -or $script:LastCliArgs[$at - 1] -ne '-c') { throw 'The chosen reasoning level was not passed to Codex.' }
     $script:Config.Remove('ReasoningEffort')
+    # Tokens: every turn.completed usage in a call's trace is added up.
+    $usageTrace = Join-Path $testDir 'usage.console.log'
+    @('{"type":"thread.started"}', '{"type":"turn.completed","usage":{"input_tokens":1200,"cached_input_tokens":800,"output_tokens":90}}', 'not json', '{"type":"turn.completed","usage":{"input_tokens":300,"cached_input_tokens":0,"output_tokens":10}}') | Set-Content -LiteralPath $usageTrace
+    $usage = Get-CodexTokenUsage $usageTrace
+    if ($usage.Input -ne 1500 -or $usage.Cached -ne 800 -or $usage.Output -ne 100) { throw "Token usage was not added up: $($usage | ConvertTo-Json -Compress)" }
+    if (Get-CodexTokenUsage $script:LastCliArgs[0]) { throw 'A call without usage events has no token count.' }
     foreach ($scenario in @('auth', 'always-busy')) {
         $script:Scenario = $scenario; $script:Calls = 0; $failed = $false
         try { Invoke-AI 'Check' @() (Join-Path $testDir "$scenario.txt") | Out-Null } catch {

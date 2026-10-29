@@ -2,7 +2,7 @@
 function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
     $line = ($Line -replace '\x1b\[[0-9;]*m', '').Trim()
     if (-not $line) { return }
-    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = ''; Rows = @() }
+    $event = [pscustomobject]@{ Kind = ''; Text = ''; Stage = ''; Index = $CurrentIndex; Total = 0; Done = 0; Seconds = 0; Path = ''; Rows = @(); TokensIn = 0; TokensCached = 0; TokensOut = 0 }
     if ($line -match '\(#(\d+)\)\s*$') { $event.Index = [int]$Matches[1] }
     if ($line -match '^Starting: (\d+) URLs') {
         $event.Kind = 'Start'; $event.Total = [int]$Matches[1]
@@ -13,6 +13,8 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         $event.Kind = 'Rows'; $event.Rows = @($Matches[1] -split ',' | ForEach-Object { [int]$_ })
     } elseif ($line -match '^Batch:\s*(.+)') {
         $event.Kind = 'Output'; $event.Path = $Matches[1].Trim()
+    } elseif ($line -match '^\[TOKENS\] in=(\d+) cached=(\d+) out=(\d+)') {
+        $event.Kind = 'Tokens'; $event.TokensIn = [long]$Matches[1]; $event.TokensCached = [long]$Matches[2]; $event.TokensOut = [long]$Matches[3]
     } elseif ($line -match '^Model AI: (.+)$') {
         $event.Kind = 'Info'; $event.Text = "Model AI: $($Matches[1])"
     } elseif ($line -match '^Missing data: (\d+)') {

@@ -221,7 +221,10 @@ function buildMain() {
   ui.lblThr = at(label("Luồng:", "muted"), null, 19, 56, 24, { right: 88, left: false });
   ui.numThr = at(numeric(1, 4, 2), null, 16, 64, 24, { right: 22, left: false });
   ui.lblThr.style.lineHeight = "24px";
-  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblThr, ui.numThr);
+  // Tokens this run has used (added up from each Codex call) and the quota left, refreshed in the background.
+  ui.lblUsage = at(label("", "muted"), 530, 9, 370, 44);
+  Object.assign(ui.lblUsage.style, { whiteSpace: "pre-line", fontSize: "12px", lineHeight: "17px", display: "flex", alignItems: "center", right: "204px", width: "auto" });
+  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblUsage, ui.lblThr, ui.numThr);
 
   // Tiến trình & thông báo (20,508 1060x282, all anchors).
   const cardLog = at(el("div", "card"), 20, 508, null, null, { right: 24, bottom: 10 });
@@ -936,6 +939,19 @@ function updateRunDisplay() {
   }
   renderRows();
 }
+const usage = { quota: "Hạn mức: đang lấy…" };
+const formatCount = (n) => Number(n).toLocaleString("vi-VN");
+function updateUsage() {
+  const t = run.tokens || { in: 0, cached: 0, out: 0 };
+  const tokens = t.in || t.out ? `Token: ${formatCount(t.in + t.out)} · vào ${formatCount(t.in)} · ra ${formatCount(t.out)}` : "Token: chưa chạy";
+  ui.lblUsage.textContent = `${tokens}\n${usage.quota}`;
+}
+// Quota beside the run: read when the window opens, after each run and every 15 minutes.
+async function refreshQuota() {
+  const text = await api("quotaSummary").catch(() => "");
+  if (text) { usage.quota = text; updateUsage(); }
+}
+
 function receive(event) {
   switch (event.Kind) {
     case "Start": run.total = event.Total; break;
@@ -948,6 +964,7 @@ function receive(event) {
     case "Completed": if (run.stages.get(event.Index) !== "Đã xong") run.done++; run.stages.set(event.Index, event.Stage); break;
     case "Failed": run.stages.set(event.Index, event.Stage); run.failure = true; break;
     case "Warning": run.failure = true; break;
+    case "Tokens": run.tokens.in += event.TokensIn; run.tokens.cached += event.TokensCached; run.tokens.out += event.TokensOut; updateUsage(); break;
   }
   if (event.Text) appendLog(event.Text);
 }
@@ -958,7 +975,8 @@ async function startBatch() {
   if (!countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
   if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra cấu hình" để xem hướng dẫn.');
   ui.txtLog.value = "";
-  Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "" });
+  Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "", tokens: { in: 0, cached: 0, out: 0 } });
+  updateUsage();
   for (const r of state.rows) r.stage = null;
   await updateReviewButton();
   const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: 1, threads: ui.numThr.value }) });
@@ -991,6 +1009,7 @@ async function finish(r) {
   // Finished links leave the queue during the run; their images go too, so the list starts clean.
   await api("pruneMap").catch(() => {});
   await loadState();
+  refreshQuota();
   const elapsed = Math.floor((Date.now() - run.started) / 1000);
   ui.lblProgress.textContent = `Đã xong ${run.done}/${run.total} ảnh • ${Math.floor(elapsed / 60)} phút ${elapsed % 60} giây`;
   if (r.stopped) { setStatus("Đã dừng", "var(--muted)"); appendLog("Đã dừng. Các link chưa hoàn tất được giữ lại."); }
@@ -1049,4 +1068,7 @@ buildMain();
 wire();
 loadState().catch((e) => appendLog(e.message));
 setTimeout(checkUpdate, 3000);
+updateUsage();
+setTimeout(refreshQuota, 2000);
+setInterval(refreshQuota, 15 * 60 * 1000);
 setInterval(checkUpdate, 6 * 3600 * 1000);
