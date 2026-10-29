@@ -186,7 +186,7 @@ async function handle(req, res) {
     // Pasted, dropped or picked images become local files the PowerShell code can snapshot.
     const name = (url.searchParams.get("name") || "image.png").replace(/[^\w.-]/g, "_");
     const ext = extname(name).toLowerCase();
-    if (![".png", ".jpg", ".jpeg"].includes(ext)) return send(res, 400, { error: "Chọn ảnh PNG hoặc JPEG." });
+    if (![".png", ".jpg", ".jpeg"].includes(ext) && !(ext === ".zip" && url.searchParams.get("import"))) return send(res, 400, { error: "Chọn ảnh PNG hoặc JPEG." });
     // import=<id>: an image of a dropped import folder, kept by its own name in <uploads>/import-<id>/images.
     const id = (url.searchParams.get("import") || "").replace(/[^\w]/g, "");
     const dir = id ? join(uploads, `import-${id}`, "images") : uploads;

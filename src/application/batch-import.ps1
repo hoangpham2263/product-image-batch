@@ -38,6 +38,16 @@ function ConvertFrom-ProductBatch([string]$Text, [string]$Folder = '') {
     return @{ Rows = $rows.ToArray(); Errors = $errors.ToArray() }
 }
 
+# A zipped product-import folder (like the sample) unpacks into $Temp; returns the folder that holds its products.csv.
+function Expand-ProductBatchZip([string]$Zip, [string]$Temp) {
+    $dest = Join-Path $Temp ('import-zip-' + [Guid]::NewGuid().ToString('N'))
+    try { Expand-Archive -LiteralPath $Zip -DestinationPath $dest -Force } catch { throw 'Không giải nén được file zip.' }
+    $csv = Get-ChildItem -LiteralPath $dest -Filter *.csv -File -Recurse -Depth 1 | Where-Object { $_.FullName -notmatch '__MACOSX' } |
+        Sort-Object { $_.Name -ne 'products.csv' } | Select-Object -First 1
+    if (-not $csv) { throw 'File zip chưa có products.csv.' }
+    return $csv.DirectoryName
+}
+
 function Test-ImportLink([string]$Value) {
     $uri = $null
     return [Uri]::TryCreate($Value, [UriKind]::Absolute, [ref]$uri) -and $uri.Scheme -in @('http', 'https')

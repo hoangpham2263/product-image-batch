@@ -676,7 +676,7 @@ async function addLinks(urls) {
 }
 function showBulkDialog() {
   const view = openWindow("Nhập hàng loạt", 760, 480);
-  const hint = at(label("Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import (hay bấm Chọn file… và chọn products.csv) để app gắn ảnh."), 16, 14, 728, 40);
+  const hint = at(label("Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import hay file zip của nó (hoặc bấm Chọn file… và chọn products.csv) để app gắn ảnh."), 16, 14, 728, 40);
   hint.style.whiteSpace = "normal";
   const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 56, 200, 22);
   const pick = at(button("Chọn file…"), 634, 50, 110, 30);
@@ -706,8 +706,22 @@ function showBulkDialog() {
   view.body.addEventListener("drop", async (e) => {
     e.preventDefault(); view.body.classList.remove("dropping");
     if (save.disabled) return;
-    const root = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry?.()).find((x) => x?.isDirectory);
-    if (!root) return fail("Kéo cả thư mục (có products.csv và images/) vào đây.");
+    const dropped = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry?.());
+    const zip = dropped.find((x) => x?.isFile && /\.zip$/i.test(x.name));
+    if (zip) {
+      // A zipped product-import folder (like the sample): unpacked by the app, then read like the folder.
+      try {
+        status.style.color = ""; status.textContent = "Đang giải nén…";
+        const up = await fetch(`/api/upload?import=${Date.now().toString(36)}&name=${encodeURIComponent(zip.name)}`, { method: "POST", body: await fileOf(zip) }).then((x) => x.json());
+        if (!up.path) throw new Error(up.error || "Chưa nhận được file zip.");
+        const r = await api("importZip", { path: up.path });
+        text.value = r.text; folder = r.folder;
+        status.textContent = `Đã nhận ${zip.name}. Bấm Nhập.`;
+      } catch (err) { fail(err.message); }
+      return;
+    }
+    const root = dropped.find((x) => x?.isDirectory);
+    if (!root) return fail("Kéo thư mục (có products.csv và images/) hoặc file zip của nó vào đây.");
     try {
       const top = await entries(root);
       const csv = top.find((x) => x.isFile && /\.csv$/i.test(x.name));

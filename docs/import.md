@@ -15,7 +15,7 @@ product-import/
     └── polo-shirt-review.jpg
 ```
 
-Tải **thư mục mẫu** (`product-import-sample.zip`) về, giải nén rồi thay bằng sản phẩm của bạn. Trong app bấm **Nhập hàng loạt**, **kéo thả thư mục `product-import`** vào hộp (hoặc **Chọn file…** → `products.csv`), rồi bấm **Nhập**.
+Tải **thư mục mẫu** (`product-import-sample.zip`) về, giải nén rồi thay bằng sản phẩm của bạn. Trong app bấm **Nhập hàng loạt**, **kéo thả thư mục `product-import` hoặc file zip của nó** vào hộp (hoặc **Chọn file…** → `products.csv`), rồi bấm **Nhập**.
 
 ## products.csv
 

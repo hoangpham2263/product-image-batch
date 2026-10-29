@@ -520,7 +520,7 @@ function Show-ProductQueueDialog($Editor,$Target=$null) {
 $script:ImportGuideUrl='https://hoangpham.is-a.dev/product-review-batch/#nhap'
 function Show-ProductQueueBulkDialog($Editor) {
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Nhập hàng loạt';ClientSize='760,480';MinimumSize='640,420';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
-    $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import (hay bấm Chọn file… và chọn products.csv) để app gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
+    $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import hay file zip của nó (hoặc bấm Chọn file… và chọn products.csv) để app gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
     $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,56';Size='200,22'}
     $pick=New-Object Windows.Forms.Button -Property @{Text='Chọn file…';Location='634,50';Size='110,30';Anchor='Top,Right'}
     $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,88';Size='728,270';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
@@ -542,8 +542,11 @@ function Show-ProductQueueBulkDialog($Editor) {
     $over={param($s,$e)if($e.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop) -and -not $text.ReadOnly){$e.Effect='Copy'}}.GetNewClosure()
     $drop={param($s,$e)
         $path=@($e.Data.GetData([Windows.Forms.DataFormats]::FileDrop))[0]
+        if($path -match '\.zip$'){
+            try{$temp=Join-Path $Editor.Root 'workspace/temp';New-Item -ItemType Directory -Force -Path $temp|Out-Null;$path=Expand-ProductBatchZip $path $temp}catch{& $fail $_.Exception.Message;return}
+        }
         $csv=if(Test-Path -LiteralPath $path -PathType Container){Get-ChildItem -LiteralPath $path -Filter *.csv -File|Sort-Object {$_.Name -ne 'products.csv'}|Select-Object -First 1 -ExpandProperty FullName}elseif($path -match '\.csv$'){$path}
-        if(-not $csv){& $fail 'Kéo cả thư mục (có products.csv và images/) vào đây.';return}
+        if(-not $csv){& $fail 'Kéo thư mục (có products.csv và images/) hoặc file zip của nó vào đây.';return}
         $text.Text=[IO.File]::ReadAllText($csv);$st.Folder=Split-Path -Parent $csv
         $status.ForeColor=$script:Ui.Ink;$status.Text="Đã nhận $(Split-Path -Leaf $st.Folder). Bấm Nhập."
     }.GetNewClosure()
