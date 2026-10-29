@@ -51,6 +51,7 @@ function setup() {
       nodes.set(id, { name: meta.name, parents: meta.parents, mime });
       return Response.json({ id });
     }
+    if (url.startsWith("https://img.test/")) return url.endsWith(".txt") ? new Response("x", { headers: { "content-type": "text/plain" } }) : new Response("remote", { headers: { "content-type": "image/jpeg" } });
     const media = url.match(/files\/([\w-]+)\?alt=media/);
     if (media) return new Response(files.get(media[1]), { headers: { "content-type": nodes.get(media[1])?.mime || "image/png" } });
     if (init.method === "DELETE") { const id = url.split("/files/")[1]; files.delete(id); nodes.delete(id); return new Response(null, { status: 204 }); }
@@ -164,6 +165,19 @@ test("the app sees only switched-on groups; Áo and Nội thất start on", asyn
   assert.equal((await call(`/api/sources/${encodeURIComponent("Áo")}`, { method: "PATCH", headers: admin, body: JSON.stringify({ enabled: false }) })).status, 200);
   assert.deepEqual(await names(app), ["Mũ", "Nội thất"]);
   assert.equal((await call(mu, { headers: app })).status, 200);
+});
+
+test("an image can be added to a group straight from a link", async () => {
+  const { call } = setup();
+  const admin = { "x-admin-key": "secret" };
+  await call("/api/sources", { method: "POST", headers: admin, body: JSON.stringify({ name: "Áo" }) });
+  const group = `/api/sources/${encodeURIComponent("Áo")}`;
+  const added = await (await call(`${group}?url=${encodeURIComponent("https://img.test/shop/polo%20blue.jpeg?w=800")}`, { method: "POST", headers: admin })).json();
+  assert.equal(added.name, "polo blue.jpeg");
+  assert.equal(await (await call(new URL(added.url).pathname)).text(), "remote");
+  assert.equal((await call(`${group}?url=${encodeURIComponent("https://img.test/a.txt")}`, { method: "POST", headers: admin })).status, 400, "not an image");
+  assert.equal((await call(`${group}?url=ftp://x`, { method: "POST", headers: admin })).status, 400);
+  assert.equal((await call(`${group}?url=${encodeURIComponent("https://img.test/b.jpg")}`, { method: "POST", headers: { "x-admin-key": "app-pass" } })).status, 403, "the app password cannot add photos");
 });
 
 test("support logs: upload a zip, list it, download it, delete it", async () => {

@@ -246,12 +246,25 @@ async function handleSources(req, env, url, parts, role) {
     return json({ ok: true });
   }
   if (req.method === "POST") {
-    const mime = (req.headers.get("content-type") || "").split(";")[0].trim();
+    // The image is the request body, or with ?url= fetched here from that link (handy for scripts and AI agents).
+    let mime, bytes, from = url.searchParams.get("url") || "";
+    if (from) {
+      if (!/^https?:\/\//i.test(from)) return json({ error: "Link ảnh phải bắt đầu bằng http:// hoặc https://." }, 400);
+      const r = await fetch(from, { redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (product-review-batch)" } }).catch(() => null);
+      if (!r || !r.ok) return json({ error: `Không tải được ảnh từ link${r ? ` (HTTP ${r.status})` : ""}.` }, 400);
+      mime = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      bytes = await r.arrayBuffer();
+    } else {
+      mime = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      bytes = await req.arrayBuffer();
+    }
     if (!SOURCE_TYPES.includes(mime)) return json({ error: "Chỉ nhận ảnh JPG, PNG hoặc WebP." }, 400);
-    const bytes = await req.arrayBuffer();
     if (!bytes.byteLength || bytes.byteLength > 25 * 1024 * 1024) return json({ error: "Ảnh rỗng hoặc quá 25MB." }, 400);
     // The app matches files by name, so a repeated name gets a numbered suffix instead of a duplicate.
-    let name = cleanFileName(url.searchParams.get("name")) || `anh-${Date.now()}.jpg`;
+    const fromName = from ? decodeURIComponent(new URL(from).pathname.split("/").pop() || "") : "";
+    let name = cleanFileName(url.searchParams.get("name")) || cleanFileName(fromName) || `anh-${Date.now()}`;
+    const extOf = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" }[mime];
+    if (!/\.(jpe?g|png|webp)$/i.test(name)) name += extOf;
     const taken = new Set((await listChildren(env, parent, `mimeType != '${FOLDER_MIME}'`)).map((f) => f.name));
     const dot = name.lastIndexOf(".");
     const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
