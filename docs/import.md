@@ -14,7 +14,7 @@ product-import/
     └── polo-shirt-review.jpg
 ```
 
-Trong app bấm **Nhập hàng loạt → Chọn file…**, chọn `products.csv`, rồi bấm **Nhập**.
+Trong app bấm **Nhập hàng loạt**, **kéo thả thư mục `product-import`** vào hộp (hoặc **Chọn file…** → `products.csv`), rồi bấm **Nhập**.
 
 ## products.csv
 

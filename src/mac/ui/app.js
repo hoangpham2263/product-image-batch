@@ -676,7 +676,7 @@ async function addLinks(urls) {
 }
 function showBulkDialog() {
   const view = openWindow("Nhập hàng loạt", 760, 480);
-  const hint = at(label("Dán link (mỗi dòng một link), hoặc bấm Chọn file… và chọn products.csv trong thư mục ảnh để app gắn ảnh."), 16, 14, 728, 40);
+  const hint = at(label("Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import (hay bấm Chọn file… và chọn products.csv) để app gắn ảnh."), 16, 14, 728, 40);
   hint.style.whiteSpace = "normal";
   const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 56, 200, 22);
   const pick = at(button("Chọn file…"), 634, 50, 110, 30);
@@ -698,6 +698,34 @@ function showBulkDialog() {
     const [path] = await chooseImages("", true);
     if (path) { text.value = await api("importFile", { path }); folder = path.slice(0, path.lastIndexOf("/")); }
   };
+  // Kéo thả the product-import folder: products.csv is read here, the images/ files are copied for the import.
+  const entries = (dir) => new Promise((done) => { const all = [], r = dir.createReader(); const next = () => r.readEntries((b) => b.length ? (all.push(...b), next()) : done(all)); next(); });
+  const fileOf = (entry) => new Promise((done, failed) => entry.file(done, failed));
+  view.body.addEventListener("dragover", (e) => { e.preventDefault(); view.body.classList.add("dropping"); });
+  view.body.addEventListener("dragleave", (e) => { if (!view.body.contains(e.relatedTarget)) view.body.classList.remove("dropping"); });
+  view.body.addEventListener("drop", async (e) => {
+    e.preventDefault(); view.body.classList.remove("dropping");
+    if (save.disabled) return;
+    const root = [...e.dataTransfer.items].map((i) => i.webkitGetAsEntry?.()).find((x) => x?.isDirectory);
+    if (!root) return fail("Kéo cả thư mục (có products.csv và images/) vào đây.");
+    try {
+      const top = await entries(root);
+      const csv = top.find((x) => x.isFile && /\.csv$/i.test(x.name));
+      if (!csv) throw new Error("Thư mục chưa có products.csv.");
+      const images = top.find((x) => x.isDirectory && x.name === "images");
+      const files = images ? (await entries(images)).filter((x) => x.isFile && /\.(jpe?g|png)$/i.test(x.name)) : [];
+      if (!files.length) throw new Error("Thư mục images/ chưa có ảnh JPG/PNG.");
+      const id = Date.now().toString(36);
+      status.style.color = ""; folder = "";
+      for (let i = 0; i < files.length; i++) {
+        status.textContent = `Đang chép ảnh ${i + 1}/${files.length}…`;
+        const r = await fetch(`/api/upload?import=${id}&name=${encodeURIComponent(files[i].name)}`, { method: "POST", body: await fileOf(files[i]) }).then((x) => x.json());
+        folder = r.folder;
+      }
+      text.value = await (await fileOf(csv)).text();
+      status.textContent = `Đã nhận ${root.name}: ${files.length} ảnh. Bấm Nhập.`;
+    } catch (err) { fail(err.message); }
+  });
   const finish = async (s) => {
     clearInterval(timer); timer = null; busy(false); cancel.textContent = "Đóng";
     if (!s) return fail("Chưa nhập được. Thử lại hoặc bấm Gửi log.");

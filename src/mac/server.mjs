@@ -5,7 +5,7 @@ import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
 import { writeFile, mkdir, copyFile, rm, stat, appendFile, readFile } from "node:fs/promises";
 import { createReadStream, existsSync, mkdirSync, openSync, renameSync, statSync, appendFileSync } from "node:fs";
-import { join, dirname, extname, resolve, sep } from "node:path";
+import { join, dirname, extname, resolve, sep, basename } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { randomUUID, createHash } from "node:crypto";
@@ -187,10 +187,13 @@ async function handle(req, res) {
     const name = (url.searchParams.get("name") || "image.png").replace(/[^\w.-]/g, "_");
     const ext = extname(name).toLowerCase();
     if (![".png", ".jpg", ".jpeg"].includes(ext)) return send(res, 400, { error: "Chọn ảnh PNG hoặc JPEG." });
-    await mkdir(uploads, { recursive: true });
-    const file = join(uploads, `${randomUUID().replace(/-/g, "")}${ext}`);
+    // import=<id>: an image of a dropped import folder, kept by its own name in <uploads>/import-<id>/images.
+    const id = (url.searchParams.get("import") || "").replace(/[^\w]/g, "");
+    const dir = id ? join(uploads, `import-${id}`, "images") : uploads;
+    await mkdir(dir, { recursive: true });
+    const file = join(dir, id ? basename(url.searchParams.get("name") || "") : `${randomUUID().replace(/-/g, "")}${ext}`);
     await writeFile(file, await body(req));
-    return send(res, 200, { path: file });
+    return send(res, 200, { path: file, folder: id ? dirname(dir) : "" });
   }
   if (path === "/api/sync" && req.method === "POST") {
     const { groups = [] } = JSON.parse((await body(req)).toString("utf8") || "{}");
