@@ -1,5 +1,5 @@
 ﻿# Gửi log, run in its own process by the app: prints "sent|<name>|<samples marked Bỏ sent>" or
-# "saved|<zip path>" when the upload is not possible, so the user can send the file by hand.
+# "saved|<zip path>|<reason>" when the upload is not possible, so the user can send the file by hand.
 $ErrorActionPreference = 'Stop'
 # The app reads this output as UTF-8 (paths may hold Vietnamese folder names).
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -17,4 +17,7 @@ try {
     Complete-RejectedSamples $bundle.Samples
     Write-Output ('sent|' + $name + '|' + @($bundle.Samples).Count)
     Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
-} catch { Write-Output ('saved|' + $bundle.Path) }
+} catch {
+    $reason = if (-not $drive) { 'chưa có mật khẩu app' } elseif ($_.ErrorDetails.Message) { try { ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch { $_.ErrorDetails.Message } } else { $_.Exception.Message }
+    Write-Output ('saved|' + $bundle.Path + '|' + ([string]$reason -replace '[\r\n|]', ' '))
+}

@@ -342,7 +342,7 @@ $logsTimer.Add_Tick({
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
     $result = try { (Get-Content -LiteralPath $logsOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
     if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) ảnh đã Bỏ)" })" }
-    elseif ($result -match '^saved\|(.+)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được; file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
+    elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
     else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
     $logsReset.Start()
 })

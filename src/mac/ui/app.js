@@ -1149,7 +1149,7 @@ function wire() {
     try {
       const r = await api("sendLogs");
       if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}${r.samples ? ` (kèm ${r.samples} ảnh đã Bỏ)` : ""}`); }
-      else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được; file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
+      else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được (${r.reason || "không rõ lý do"}); file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
     } catch { ui.btnLogs.textContent = "Gửi log"; appendLog("Chưa tạo được file log."); }
     setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);
   };

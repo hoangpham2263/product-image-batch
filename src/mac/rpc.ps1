@@ -132,7 +132,11 @@ function Invoke-Rpc([string]$Cmd, $A) {
                 Complete-RejectedSamples $bundle.Samples
                 Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
                 return [pscustomobject]@{ sent = $true; name = $name; samples = @($bundle.Samples).Count }
-            } catch { return [pscustomobject]@{ sent = $false; path = $bundle.Path } }
+            } catch {
+                # Why it was not sent, so the message can say so (no app password, network, too large…).
+                $reason = if (-not $drive) { 'chưa có mật khẩu app' } elseif ($_.ErrorDetails.Message) { try { ($_.ErrorDetails.Message | ConvertFrom-Json).error } catch { $_.ErrorDetails.Message } } else { $_.Exception.Message }
+                return [pscustomobject]@{ sent = $false; path = $bundle.Path; reason = [string]$reason }
+            }
         }
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         # Nhập hàng loạt: problems by line, the links, and whether any row brings images (then src/import-batch.ps1 runs).
