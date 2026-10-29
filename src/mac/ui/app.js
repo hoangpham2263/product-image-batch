@@ -349,7 +349,7 @@ function showDrivePicker() {
     add.disabled = true;
     sync.disabled = !state.drive;
     view.body.append(groups, sync, count, grid, bar, note, add, cancel);
-    let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0;
+    let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0, listing = false;
     const picked = new Map();
     view.onClose = () => resolve(result);
     view.cancel = () => { if (!syncing) view.close(); };
@@ -357,16 +357,30 @@ function showDrivePicker() {
     const busy = (on) => { syncing = on; sync.disabled = on || !state.drive || !all.length; groups.disabled = on; cancel.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
     const refreshCount = () => {
       if (!groups.value) { count.textContent = "Chọn danh mục để xem ảnh."; add.disabled = true; return; }
+      add.disabled = !picked.size;
+      if (listing) { count.textContent = files.length ? `${files.length} ảnh có trên máy · đang tải danh sách Drive…` : "Đang tải danh sách…"; return; }
       const local = files.filter((f) => f.local).length;
       count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh · ${local} ảnh có trên máy` : "Danh mục này chưa có ảnh.";
-      add.disabled = !picked.size;
     };
+    // Thumbnails load top to bottom, six at a time, so a big danh mục never loads all at once.
+    const thumbs = { queue: [], active: 0, round: 0 };
+    const pump = () => {
+      while (thumbs.active < 6 && thumbs.queue.length) {
+        const [img, src] = thumbs.queue.shift();
+        const round = thumbs.round;
+        thumbs.active++;
+        img.onload = img.onerror = () => { if (round === thumbs.round) { thumbs.active--; pump(); } };
+        img.src = src;
+      }
+    };
+    const clearGrid = () => { thumbs.queue = []; thumbs.active = 0; thumbs.round++; grid.replaceChildren(); shown = 0; };
     const showMore = () => {
       grid.querySelector(".more")?.remove();
       for (const f of files.slice(shown, shown + 120)) {
-        const tile = el("div", "", { style: { width: "100px", height: "100px", padding: "3px", background: "var(--smoke)", cursor: "pointer", flex: "none" } });
-        const src = f.local ? `/file?path=${encodeURIComponent(f.local)}` : f.url;
-        tile.append(el("img", "", { loading: "lazy", src, style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } }));
+        const tile = el("div", "", { style: { width: "100px", height: "100px", padding: "3px", background: picked.has(f.name) ? "var(--accent)" : "var(--smoke)", cursor: "pointer", flex: "none" } });
+        const img = el("img", "", { decoding: "async", style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } });
+        tile.append(img);
+        thumbs.queue.push([img, f.local ? `/file?path=${encodeURIComponent(f.local)}` : f.url]);
         tile.onclick = () => {
           if (picked.has(f.name)) { picked.delete(f.name); tile.style.background = "var(--smoke)"; }
           else { picked.set(f.name, f); tile.style.background = "var(--accent)"; }
@@ -380,18 +394,34 @@ function showDrivePicker() {
         more.onclick = showMore;
         grid.append(more);
       }
+      pump();
     };
+    // A danh mục shows its local copies at once; the Drive listing loads in the background and, when it brings
+    // more (or the local copies are out of date), the grid is redrawn from it, keeping what was picked.
     const load = async () => {
       const token = ++loads;
-      grid.replaceChildren(); picked.clear(); shown = 0; files = [];
+      clearGrid(); picked.clear(); files = []; listing = false;
       note.textContent = state.drive ? "" : noLogin;
       if (!groups.value) return refreshCount();
-      count.textContent = "Đang tải danh sách…";
-      const listing = await api("sourceFiles", { group: groups.value }).catch(() => ({ Files: [], Error: "Chưa tải được danh sách ảnh." }));
+      const group = groups.value;
+      if (state.drive) {
+        listing = true; refreshCount();
+        files = list(await api("sourceIndexedFiles", { group }).catch(() => []));
+        if (token !== loads) return;
+        showMore(); refreshCount();
+      }
+      const next = await api("sourceFiles", { group }).catch(() => ({ Files: files, Error: "Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy." }));
       if (token !== loads) return;
-      files = list(listing.Files);
-      note.textContent = listing.Error || "";
-      showMore(); refreshCount();
+      listing = false;
+      note.textContent = next.Error || "";
+      const nextFiles = list(next.Files);
+      if (nextFiles.length !== files.length || nextFiles.some((f) => !f.local) || !state.drive) {
+        const keep = new Set(picked.keys());
+        picked.clear();
+        for (const f of nextFiles) if (keep.has(f.name)) picked.set(f.name, f);
+        clearGrid(); files = nextFiles; showMore();
+      }
+      refreshCount();
     };
     // Tải về máy: one danh mục at a time, so each step shows.
     const runSync = async (names) => {

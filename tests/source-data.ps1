@@ -47,6 +47,14 @@ $listing = Get-SourcePickerFiles @{ ApiUrl = 'https://api.test'; AdminKey = 'k' 
 if ($listing.Error -notmatch 'Không kết nối được Drive' -or -not @($listing.Files).Count) { throw 'When Drive is out of reach the picker must say so and fall back to local photos.' }
 Remove-Item Function:\Get-SourceGroupFiles
 . (Join-Path $root 'src/infrastructure/source-sync.ps1')
+# The picker first shows the copies the sync index knows, then marks the Drive listing against them.
+$known = @(Get-LocalSourceFiles $dir 'Áo')[0]
+@{ ([IO.Path]::GetFileName($known)) = 'm1' } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $dir 'Áo/.drive-sync.json') -Encoding UTF8
+$indexed = @(Get-SourceIndexedFiles $dir 'Áo')
+if ($indexed.Count -ne 1 -or $indexed[0].local -ne $known) { throw 'Only the photos the sync index knows are shown before the Drive listing.' }
+$listed = @(ConvertTo-SourceGroupFiles ([pscustomobject]@{ files = @([pscustomobject]@{ name = $indexed[0].name; md5 = 'm1'; url = 'u1' }, [pscustomobject]@{ name = 'new.jpg'; md5 = 'm2'; url = 'u2' }) }) $dir 'Áo')
+if ($listed[0].local -ne $known -or $listed[1].local) { throw 'The Drive listing must keep local copies and mark new photos as not on this machine.' }
+Remove-Item -LiteralPath (Join-Path $dir 'Áo/.drive-sync.json') -Force
 $blocked=$false;try{Get-SourcePhotoDirectory $dir '../outside'|Out-Null}catch{$blocked=$true}
 if(-not $blocked){throw 'Local group navigation escaped the library.'}
 $expansionPath = Join-Path $root 'data/dining-gallery-expansion.json'

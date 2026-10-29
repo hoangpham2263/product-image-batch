@@ -47,6 +47,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root }) }
         'sourceFiles' { return (Get-SourcePickerFiles (Get-DriveConfig $workspace.Root) $libraryRoot ([string]$A.group)) }
+        'sourceIndexedFiles' { return @(Get-SourceIndexedFiles $libraryRoot ([string]$A.group)) }
         'sourcePick' { return @(Save-SourceGroupFiles $libraryRoot ([string]$A.group) @($A.files)) }
         'sourceLocalFiles' { return @(Get-LocalSourceFiles $libraryRoot ([string]$A.group)) }
         'sourceSync' {

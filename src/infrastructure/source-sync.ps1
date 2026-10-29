@@ -87,26 +87,48 @@ function Get-LocalSourceFiles([string]$SourceDir, [string]$Group) {
     return @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Extension -match '^\.(png|jpe?g)$' } | Sort-Object Name | ForEach-Object FullName)
 }
 
-# Files for the "Từ kho Drive" picker, the same on Windows and macOS: the Drive listing with local copies, or,
-# without the app password or network, only what is on this machine plus the reason shown under the grid.
+# Files for the "Từ kho Drive" picker, the same on Windows and macOS. The picker first shows the local copies the
+# sync index knows (at once), then the Drive listing (a few seconds for a big danh mục); without the app password
+# or network it keeps to what is on this machine and says why under the grid.
 function Get-SourcePickerFiles($Drive, [string]$SourceDir, [string]$Group) {
     try {
         if (-not $Drive) { throw 'offline' }
         return @{ Files = @(Get-SourceGroupFiles $Drive $SourceDir $Group); Error = '' }
     } catch {
-        $local = @(Get-LocalSourceFiles $SourceDir $Group | ForEach-Object { [pscustomobject]@{ name = [IO.Path]::GetFileName($_); md5 = ''; url = ''; local = $_ } })
-        $reason = if ($Drive) { 'Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy.' } else { 'Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.' }
-        return @{ Files = $local; Error = $reason }
+        return (Get-SourceOfflinePickerFiles ([bool]$Drive) $SourceDir $Group)
     }
+}
+
+function Get-SourceOfflinePickerFiles([bool]$SignedIn, [string]$SourceDir, [string]$Group) {
+    $local = @(Get-LocalSourceFiles $SourceDir $Group | ForEach-Object { [pscustomobject]@{ name = [IO.Path]::GetFileName($_); md5 = ''; url = ''; local = $_ } })
+    $reason = if ($SignedIn) { 'Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy.' } else { 'Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.' }
+    return @{ Files = $local; Error = $reason }
+}
+
+# Local copies an earlier sync or pick recorded, without asking Drive: what the picker shows first.
+function Get-SourceIndexedFiles([string]$SourceDir, [string]$Group) {
+    $folder = Join-Path $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)
+    $index = Read-SourceSyncIndex $folder
+    foreach ($name in @($index.Keys | Sort-Object)) {
+        $path = Join-Path $folder $name
+        if (Test-Path -LiteralPath $path) { [pscustomobject]@{ name = $name; md5 = $index[$name]; url = ''; local = $path } }
+    }
+}
+
+function Get-SourceGroupUrl($Drive, [string]$Group) {
+    return "$($Drive.ApiUrl)/api/sources/$([Uri]::EscapeDataString($Group.Normalize([Text.NormalizationForm]::FormC)))"
 }
 
 # A group's images on Drive, each with the local copy when one is already in place (synced or picked).
 function Get-SourceGroupFiles($Drive, [string]$SourceDir, [string]$Group) {
-    $Group = $Group.Normalize([Text.NormalizationForm]::FormC)
-    $folder = Join-Path $SourceDir $Group
+    $listing = Invoke-RestMethod -Uri (Get-SourceGroupUrl $Drive $Group) -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 60
+    return @(ConvertTo-SourceGroupFiles $listing $SourceDir $Group)
+}
+
+function ConvertTo-SourceGroupFiles($Listing, [string]$SourceDir, [string]$Group) {
+    $folder = Join-Path $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)
     $index = Read-SourceSyncIndex $folder
-    $listing = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources/$([Uri]::EscapeDataString($Group))" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 60
-    foreach ($file in @($listing.files)) {
+    foreach ($file in @($Listing.files)) {
         $name = [string]$file.name
         if (-not $name -or [IO.Path]::GetFileName($name) -ne $name) { continue }
         $path = Join-Path $folder $name

@@ -9,6 +9,12 @@ function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
 $temp=Join-Path $TestWorkspaceRoot ('manual-ref-'+[Guid]::NewGuid().ToString('N'))
 try{
     New-Item -ItemType Directory -Path $temp -Force|Out-Null
+    # The Drive picker keeps only small copies: wide and tall photos both fit the 94px tile.
+    foreach($size in @(@(1280,853),@(853,1280))){
+        $photo=Join-Path $temp "photo-$($size[0]).jpg";$big=[Drawing.Bitmap]::new($size[0],$size[1]);try{$big.Save($photo,[Drawing.Imaging.ImageFormat]::Jpeg)}finally{$big.Dispose()}
+        $thumb=New-ThumbnailImage $photo 94
+        try{Assert ([Math]::Max($thumb.Width,$thumb.Height) -eq 94 -and [Math]::Min($thumb.Width,$thumb.Height) -ge 60) "A $($size[0])x$($size[1]) photo must shrink to fit 94px, got $($thumb.Width)x$($thumb.Height)."}finally{$thumb.Dispose()}
+    }
     $original=Join-Path $temp 'room.png';$bitmap=[Drawing.Bitmap]::new(64,48)
     try{$g=[Drawing.Graphics]::FromImage($bitmap);$g.Clear([Drawing.Color]::Tan);$g.Dispose();$bitmap.Save($original,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     $url='https://example.test/p/table';$otherUrl='https://example.test/p/other'

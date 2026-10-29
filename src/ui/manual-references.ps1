@@ -38,10 +38,30 @@ function Update-ProductQueueRow($Editor,$Row) {
 # Small copy for thumbnails so the strip never holds full-size bitmaps.
 function New-ThumbnailImage([string]$Path,[int]$Size=72) {
     $stream=[IO.File]::OpenRead($Path)
+    try{New-ThumbnailFromStream $stream $Size}finally{$stream.Dispose()}
+}
+
+# Shrinks an image to fit $Size and keeps only the small copy. WIC decodes a JPEG straight at a fraction of its
+# size, many times faster than a full GDI+ decode, so a grid of photos fills quickly; GDI+ is the fallback.
+function New-ThumbnailFromStream([IO.Stream]$Stream,[int]$Size) {
     try{
-        $loaded=[Drawing.Image]::FromStream($stream,$false,$false)
+        if(-not $script:WicReady){Add-Type -AssemblyName PresentationCore,WindowsBase;$script:WicReady=$true}
+        $frame=[Windows.Media.Imaging.BitmapFrame]::Create($Stream,[Windows.Media.Imaging.BitmapCreateOptions]::DelayCreation,[Windows.Media.Imaging.BitmapCacheOption]::None)
+        $wide=$frame.PixelWidth -ge $frame.PixelHeight
+        $Stream.Position=0
+        $small=New-Object Windows.Media.Imaging.BitmapImage
+        $small.BeginInit();$small.CacheOption='OnLoad';$small.StreamSource=$Stream
+        if($wide){$small.DecodePixelWidth=$Size}else{$small.DecodePixelHeight=$Size}
+        $small.EndInit()
+        $encoder=New-Object Windows.Media.Imaging.BmpBitmapEncoder
+        $encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($small))
+        $bmp=New-Object IO.MemoryStream
+        try{$encoder.Save($bmp);$bmp.Position=0;$decoded=[Drawing.Image]::FromStream($bmp);try{return [Drawing.Bitmap]::new($decoded)}finally{$decoded.Dispose()}}finally{$bmp.Dispose()}
+    }catch{
+        $Stream.Position=0
+        $loaded=[Drawing.Image]::FromStream($Stream,$false,$false)
         try{$scale=[Math]::Min($Size/$loaded.Width,$Size/$loaded.Height);return [Drawing.Bitmap]::new($loaded,[Math]::Max(1,[int]($loaded.Width*$scale)),[Math]::Max(1,[int]($loaded.Height*$scale)))}finally{$loaded.Dispose()}
-    }finally{$stream.Dispose()}
+    }
 }
 
 # A small × that appears while the pointer is over an image; clicking it removes that image.
@@ -313,44 +333,99 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $menu=New-Object Windows.Forms.ContextMenuStrip
     $syncOne=$menu.Items.Add('Danh mục đang chọn');$syncAll=$menu.Items.Add('Tất cả danh mục')
     $dialog.Controls.AddRange(@($groups,$sync,$count,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
-    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false}
+    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
+    Add-Type -AssemblyName System.Net.Http
+    [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+    $client=New-Object Net.Http.HttpClient
+    $client.Timeout=[TimeSpan]::FromSeconds(60)
+    if($drive){[void]$client.DefaultRequestHeaders.TryAddWithoutValidation('x-admin-key',[string]$drive.AdminKey)}
+    $loader=New-Object Windows.Forms.Timer -Property @{Interval=15}
     $refreshCount={
         if($groups.SelectedIndex -lt 1){$count.Text='Chọn danh mục để xem ảnh.';$add.Enabled=$false;return}
+        $add.Enabled=$state.Picked.Count -gt 0
+        if($state.Listing){$count.Text=if(@($state.Files).Count){"$(@($state.Files).Count) ảnh có trên máy · đang tải danh sách Drive…"}else{'Đang tải danh sách…'};return}
         $local=@($state.Files|Where-Object local).Count
         $count.Text=if(@($state.Files).Count){"Đã chọn $($state.Picked.Count) / $(@($state.Files).Count) ảnh · $local ảnh có trên máy"}else{'Danh mục này chưa có ảnh.'}
-        $add.Enabled=$state.Picked.Count -gt 0
     }.GetNewClosure()
-    # Local copies show right away; the others load from Drive in the background, 120 at a time.
-    $showMore={
+    # Tiles appear at once, empty; the loader fills them top to bottom, 120 per page. Click handlers are made
+    # once here: a closure made inside another only keeps that inner scope's variables.
+    $pickTile={
+        $f=$this.Tag
+        if($state.Picked.Contains($f.name)){$state.Picked.Remove($f.name);$this.BackColor=[Drawing.Color]::WhiteSmoke}
+        else{$state.Picked[$f.name]=$f;$this.BackColor=$script:Ui.Accent}
+        & $refreshCount
+    }.GetNewClosure()
+    $state.ShowMore={
         foreach($old in @($grid.Controls|Where-Object Name -eq 'More')){$grid.Controls.Remove($old);$old.Dispose()}
         $end=[Math]::Min(@($state.Files).Count,$state.Shown+120)
+        $grid.SuspendLayout()
         for($i=$state.Shown;$i -lt $end;$i++){
             $file=$state.Files[$i]
-            $tile=New-Object Windows.Forms.PictureBox -Property @{Size='100,100';SizeMode='Zoom';Margin='3,3,3,3';Padding='3,3,3,3';BackColor=[Drawing.Color]::WhiteSmoke;Cursor='Hand';Tag=$file}
-            if($file.local){try{$tile.Image=New-ThumbnailImage $file.local 94}catch{}}elseif($file.url){$tile.LoadAsync([string]$file.url)}
-            $tile.Add_Click({
-                $f=$this.Tag
-                if($state.Picked.Contains($f.name)){$state.Picked.Remove($f.name);$this.BackColor=[Drawing.Color]::WhiteSmoke}
-                else{$state.Picked[$f.name]=$f;$this.BackColor=$script:Ui.Accent}
-                & $refreshCount
-            }.GetNewClosure())
-            $grid.Controls.Add($tile)
+            $tile=New-Object Windows.Forms.PictureBox -Property @{Size='100,100';SizeMode='CenterImage';Margin='3,3,3,3';Padding='3,3,3,3';BackColor=$(if($state.Picked.Contains($file.name)){$script:Ui.Accent}else{[Drawing.Color]::WhiteSmoke});Cursor='Hand';Tag=$file}
+            $tile.Add_Click($pickTile)
+            $grid.Controls.Add($tile);$state.Queue.Add($tile)
         }
         $state.Shown=$end
-        if($end -lt @($state.Files).Count){$more=New-Object Windows.Forms.Button -Property @{Name='More';Text='Xem thêm';Size='100,100';Margin='3,3,3,3'};Set-FlatButton $more;$more.Add_Click({& $showMore}.GetNewClosure());$grid.Controls.Add($more)}
-    }
-    $load={
+        if($end -lt @($state.Files).Count){$more=New-Object Windows.Forms.Button -Property @{Name='More';Text='Xem thêm';Size='100,100';Margin='3,3,3,3'};Set-FlatButton $more;$more.Add_Click($state.MoreClick);$grid.Controls.Add($more)}
+        $grid.ResumeLayout()
+        $loader.Start()
+    }.GetNewClosure()
+    $state.MoreClick={& $state.ShowMore}.GetNewClosure()
+    $clearGrid={
+        $state.Queue.Clear();$state.Downloads.Clear();$state.Shown=0
         foreach($old in @($grid.Controls)){if($old -is [Windows.Forms.PictureBox] -and $old.Image){$old.Image.Dispose()};$old.Dispose()}
-        $grid.Controls.Clear();$state.Picked.Clear();$state.Shown=0;$state.Files=@()
+        $grid.Controls.Clear()
+    }.GetNewClosure()
+    # A danh mục shows its local copies at once; the Drive listing loads in the background and, when it brings
+    # more (or the local copies are out of date), the grid is redrawn from it, keeping what was picked.
+    $load={
+        & $clearGrid
+        $state.Picked.Clear();$state.Files=@();$state.Listing=$null
         $note.Text=if($drive){''}else{$noLogin}
         if($groups.SelectedIndex -lt 1){& $refreshCount;return}
-        $dialog.Cursor='WaitCursor';$count.Text='Đang tải danh sách…';$dialog.Refresh()
-        $listing=Get-SourcePickerFiles $drive $libraryRoot ([string]$groups.SelectedItem)
-        $state.Files=@($listing.Files);$note.Text=$listing.Error
-        & $showMore;& $refreshCount
-        $dialog.Cursor='Default'
+        $group=[string]$groups.SelectedItem
+        if($drive){
+            $state.Files=@(Get-SourceIndexedFiles $libraryRoot $group)
+            $state.Listing=@{Group=$group;Task=$client.GetStringAsync((Get-SourceGroupUrl $drive $group))}
+        }else{$state.Files=@((Get-SourceOfflinePickerFiles $false $libraryRoot $group).Files)}
+        & $state.ShowMore;& $refreshCount
     }.GetNewClosure()
-    $showMore=$showMore.GetNewClosure()
+    $applyListing={
+        $listing=$state.Listing;$state.Listing=$null
+        if($listing.Group -ne [string]$groups.SelectedItem){return}
+        $next=if($listing.Task.Status -eq 'RanToCompletion'){
+            try{@{Files=@(ConvertTo-SourceGroupFiles ($listing.Task.Result|ConvertFrom-Json) $libraryRoot $listing.Group);Error=''}}catch{Get-SourceOfflinePickerFiles $true $libraryRoot $listing.Group}
+        }else{Get-SourceOfflinePickerFiles $true $libraryRoot $listing.Group}
+        $note.Text=$next.Error
+        $files=@($next.Files)
+        if($files.Count -ne @($state.Files).Count -or @($files|Where-Object{-not $_.local}).Count){
+            $keep=@($state.Picked.Keys);$state.Picked.Clear()
+            foreach($f in $files){if($keep -contains $f.name){$state.Picked[$f.name]=$f}}
+            & $clearGrid;$state.Files=$files;& $state.ShowMore
+        }
+        & $refreshCount
+    }.GetNewClosure()
+    # Thumbnails top to bottom without holding up the window: local copies are shrunk for up to 25 ms per tick,
+    # downloads run six at a time, and only the small copy is kept.
+    $loader.Add_Tick({
+        if($state.Listing -and $state.Listing.Task.IsCompleted){& $applyListing}
+        $clock=[Diagnostics.Stopwatch]::StartNew()
+        foreach($d in @($state.Downloads)){
+            if(-not $d.Task.IsCompleted){continue}
+            [void]$state.Downloads.Remove($d)
+            if($d.Tile.IsDisposed -or $d.Task.Status -ne 'RanToCompletion'){continue}
+            $bytes=[IO.MemoryStream]::new($d.Task.Result)
+            try{$d.Tile.Image=New-ThumbnailFromStream $bytes 94}catch{}finally{$bytes.Dispose()}
+        }
+        while($state.Queue.Count -and $clock.ElapsedMilliseconds -lt 25){
+            if(-not $state.Queue[0].Tag.local -and $state.Downloads.Count -ge 6){break}
+            $tile=$state.Queue[0];$state.Queue.RemoveAt(0)
+            if($tile.IsDisposed){continue}
+            if($tile.Tag.local){try{$tile.Image=New-ThumbnailImage $tile.Tag.local 94}catch{}}
+            elseif($tile.Tag.url){$state.Downloads.Add([pscustomobject]@{Tile=$tile;Task=$client.GetByteArrayAsync([string]$tile.Tag.url)})}
+        }
+        if(-not $state.Queue.Count -and -not $state.Downloads.Count -and -not $state.Listing){$loader.Stop()}
+    }.GetNewClosure())
     # Tải về máy: one sync process per danh mục in turn, so the bar keeps moving and each step shows.
     $out=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.out";$err=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.err"
     $timer=New-Object Windows.Forms.Timer -Property @{Interval=400}
@@ -404,7 +479,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if($groups.Items.Count -lt 2){$count.Text='Chưa có danh mục nào đang bật.';$sync.Enabled=$false}
     }.GetNewClosure())
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
-    finally{$timer.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
+    finally{$timer.Dispose();$loader.Dispose();$client.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
 }
 
 
