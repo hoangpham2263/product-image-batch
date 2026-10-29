@@ -775,7 +775,7 @@ function showReviewPreview(item, decide) {
 
 // ----- Kiểm tra cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
 async function showSetupDialog() {
-  const view = openWindow("Kiểm tra cấu hình", 520, 372);
+  const view = openWindow("Kiểm tra cấu hình", 520, 430);
   const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
   const rows = titles.map((title, i) => {
     const y = 16 + i * 58;
@@ -788,7 +788,28 @@ async function showSetupDialog() {
     view.body.append(icon, at(label(title), 52, y, 330, 22), detail, fix);
     return { icon, detail, fix };
   });
-  const again = at(button("Kiểm tra lại"), 290, 322, 110, 34), close = at(button("Đóng"), 410, 322, 90, 34);
+  // Model AI: the model and reasoning level Codex uses (Get-AiSettings); lighter ones use fewer tokens.
+  const aiModel = at(combo(), 52, 332, 250, 24), aiEffort = at(combo(), 312, 332, 188, 24);
+  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 306, 448, 22), aiModel, aiEffort);
+  const effortNames = { low: "Thấp · ít token nhất", medium: "Vừa", high: "Cao", xhigh: "Rất cao", max: "Tối đa", ultra: "Siêu cao" };
+  let models = [];
+  const fillEfforts = (selected) => {
+    const model = models.find((m) => m.slug === aiModel.value);
+    const efforts = ["", ...(model ? list(model.efforts) : ["low", "medium", "high"])];
+    aiEffort.setItems(efforts, efforts.map((e) => (e ? effortNames[e] + (model && e === model.default_effort ? " (mặc định)" : "") : "Mức suy nghĩ mặc định")));
+    aiEffort.value = efforts.includes(selected) ? selected : "";
+  };
+  const saveAi = () => { fillEfforts(aiEffort.value); api("aiSettingsSet", { model: aiModel.value, effort: aiEffort.value }).catch((e) => messageBox(e.message, "Model AI")); };
+  aiModel.onchange = saveAi; aiEffort.onchange = saveAi;
+  api("aiModels").then((r) => {
+    models = list(r.models);
+    const saved = r.settings || {};
+    if (saved.model && !models.some((m) => m.slug === saved.model)) models.unshift({ slug: saved.model, name: saved.model, efforts: ["low", "medium", "high"], default_effort: "" });
+    aiModel.setItems(["", ...models.map((m) => m.slug)], ["Model mặc định của Codex", ...models.map((m) => m.name)]);
+    aiModel.value = saved.model || "";
+    fillEfforts(saved.effort || "");
+  }).catch(() => { aiModel.setItems([""], ["Model mặc định của Codex"]); fillEfforts(""); });
+  const again = at(button("Kiểm tra lại"), 290, 380, 110, 34), close = at(button("Đóng"), 410, 380, 90, 34);
   close.onclick = view.close;
   view.body.append(again, close);
   const icons = { ok: ["✔", "var(--ok)"], fail: ["✖", "var(--error)"], warn: ["!", "var(--warn)"] };

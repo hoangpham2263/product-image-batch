@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent
 . (Join-Path $srcDir 'application/workspace.ps1')
+. (Join-Path $srcDir 'application/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
@@ -47,6 +48,8 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root }) }
         'sourceFiles' { return (Get-SourcePickerFiles (Get-DriveConfig $workspace.Root) $libraryRoot ([string]$A.group)) }
+        'aiModels' { return [pscustomobject]@{ settings = (Get-AiSettings $root); models = @(Get-AiModels) } }
+        'aiSettingsSet' { Set-AiSettings $root ([string]$A.model) ([string]$A.effort); return $true }
         'sourceDefault' { return (Get-DefaultSourceGroup $root) }
         'sourceDefaultSet' { Set-DefaultSourceGroup $root ([string]$A.group); return $true }
         'sourceIndexedFiles' { return @(Get-SourceIndexedFiles $libraryRoot ([string]$A.group)) }

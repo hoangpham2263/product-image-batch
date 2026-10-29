@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'application/workspace.ps1')
 . (Join-Path $PSScriptRoot 'infrastructure/drive-storage.ps1')
+. (Join-Path $PSScriptRoot 'application/ai-settings.ps1')
 . (Join-Path $PSScriptRoot 'application/batch-review.ps1')
 . (Join-Path $PSScriptRoot 'application/support-logs.ps1')
 $bundle = New-SupportLogBundle $root

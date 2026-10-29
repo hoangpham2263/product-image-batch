@@ -1,5 +1,5 @@
 ﻿# AI backend (Codex CLI). Dot-sourced by run-images.ps1.
-# Reads: $script:Config.Model, $script:Batch.Dir
+# Reads: $script:Config.Model, $script:Config.ReasoningEffort, $script:Batch.Dir
 
 function ConvertTo-CliArgument([string]$Value) {
     if ($Value -and $Value -notmatch '[\s"]') { return $Value }
@@ -174,6 +174,7 @@ function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, 
         $attemptFile = if ($attempt -eq 1) { $ResultFile } else { "$ResultFile.attempt-$attempt.txt" }
         $commandArgs = @('exec', '--json', '--skip-git-repo-check', '-s', $Sandbox, '-C', $script:Batch.Dir, '-o', $attemptFile)
         if ($script:Config.Model) { $commandArgs += @('-m', $script:Config.Model) }
+        if ($script:Config.ReasoningEffort) { $commandArgs += @('-c', "model_reasoning_effort=$($script:Config.ReasoningEffort)") }
         foreach ($photo in $Images) { $commandArgs += @('-i', $photo) }
         $trace = "$attemptFile.console.log"
         # A new invocation must not accidentally consume an old last-message file.

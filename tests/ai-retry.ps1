@@ -28,6 +28,13 @@ try {
     $result = Join-Path $testDir 'recover.txt'
     $reply = Invoke-AI 'Check' @() $result
     if ($reply -ne 'FIT' -or $script:Calls -ne 2 -or (Get-Content $result -Raw).Trim() -ne 'FIT') { throw 'Capacity retry did not recover.' }
+    if ($script:LastCliArgs -contains 'model_reasoning_effort=low') { throw 'No reasoning level was chosen, so none may be sent.' }
+    # Model AI: the chosen reasoning level goes to every Codex call.
+    $script:Config.ReasoningEffort = 'low'; $script:Scenario = 'recover'; $script:Calls = 1
+    Invoke-AI 'Check' @() (Join-Path $testDir 'effort.txt') | Out-Null
+    $at = [Array]::IndexOf($script:LastCliArgs, 'model_reasoning_effort=low')
+    if ($at -lt 1 -or $script:LastCliArgs[$at - 1] -ne '-c') { throw 'The chosen reasoning level was not passed to Codex.' }
+    $script:Config.Remove('ReasoningEffort')
     foreach ($scenario in @('auth', 'always-busy')) {
         $script:Scenario = $scenario; $script:Calls = 0; $failed = $false
         try { Invoke-AI 'Check' @() (Join-Path $testDir "$scenario.txt") | Out-Null } catch {

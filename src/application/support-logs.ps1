@@ -153,6 +153,7 @@ function Get-SupportConfig([string]$ProjectRoot, [int]$Unsent) {
         app_password_saved = [bool]($drive -and $drive.adminKey)
         api_url = $(if ($drive) { [string]$drive.apiUrl } else { '' })
         version_file = $(if (Test-Path -LiteralPath (Join-Path $workspace 'version.txt')) { (Get-Content -LiteralPath (Join-Path $workspace 'version.txt') -Raw).Trim() } else { '' })
+        ai_model = $(try { Get-AiSettings $ProjectRoot } catch { $null })
         enabled_groups = & $readJson (Join-Path $workspace 'source-groups.json')
         library = $groups
         rejected = [ordered]@{ unsent = $Unsent; total = @(if (Test-Path -LiteralPath $rejectedRoot) { Get-ChildItem -LiteralPath $rejectedRoot -Directory }).Count }

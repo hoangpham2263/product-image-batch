@@ -28,7 +28,11 @@ foreach ($variableName in @('List', 'SourceDir', 'OutDir')) {
 
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'bootstrap.ps1')
+# Model AI from Kiểm tra cấu hình, unless -Model is given.
+$ai = Get-AiSettings $ProjectRoot
+if (-not $Model) { $Model = $ai.model }
 $script:Config = New-WorkflowConfiguration $ProjectRoot $SourceDir $MaxTries $PhotosPerImage $Model
+$script:Config.ReasoningEffort = $ai.effort
 $script:Config.DriveRequired = -not $LocalOnly
 if($LocalOnly){$script:Config.Drive=$null}
 if($script:Config.DriveRequired){

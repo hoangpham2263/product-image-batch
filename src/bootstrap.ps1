@@ -2,6 +2,7 @@
 $script:WorkflowModuleFiles = @(
     'infrastructure/platform.ps1'
     'application/workspace.ps1'
+    'application/ai-settings.ps1'
     'infrastructure/file-system.ps1'
     'infrastructure/codex.ps1'
     'infrastructure/browser-bridge.ps1'

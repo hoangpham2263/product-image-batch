@@ -9,6 +9,16 @@ try {
     New-Item -ItemType Directory -Force $base | Out-Null
     @{ schema_version = 1; photos = @() } | ConvertTo-Json | Set-Content (Join-Path $base 'catalog.json') -Encoding UTF8
     $paths = Initialize-ProjectWorkspace $fixture
+    # Model AI: empty keeps Codex's default; a chosen model and level are kept; bad values are refused.
+    $ai = Get-AiSettings $fixture
+    Assert (-not $ai.model -and -not $ai.effort) 'Without a choice the Codex default must be kept.'
+    Set-AiSettings $fixture 'gpt-5.5' 'low'
+    $ai = Get-AiSettings $fixture
+    Assert ($ai.model -eq 'gpt-5.5' -and $ai.effort -eq 'low') 'The chosen model and reasoning level must be kept.'
+    $refused = $false; try { Set-AiSettings $fixture 'gpt 5; rm' 'low' } catch { $refused = $true }
+    Assert $refused 'An invalid model name must be refused.'
+    Set-AiSettings $fixture '' ''
+    Assert (-not (Get-AiSettings $fixture).model) 'Choosing the default again must clear the model.'
     foreach ($key in @('Output', 'Logs', 'Temp')) {
         Assert ($paths[$key].StartsWith($paths.Root)) "Runtime path outside workspace: $key"
     }
