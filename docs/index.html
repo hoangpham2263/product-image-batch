@@ -754,6 +754,20 @@ async function load() {
   $("batch").replaceChildren(new Option("Mọi lần chạy", ""), ...batches.map((b) => new Option(b, b)));
   renderHome();
   if (state.view === "anh") render();
+  if (state.connected) organizeDrive();
+}
+
+// Drive keeps runs in "Product Review Batch/Ảnh đã tạo/", beside "Nguồn ảnh" and "Logs". Runs made before that
+// are moved there a few at a time; once done the Worker answers at once.
+async function organizeDrive() {
+  let moved = 0;
+  for (let i = 0; i < 60; i++) {
+    const r = await api("/api/organize", { method: "POST" }).catch(() => null);
+    if (!r) return;
+    moved += r.moved;
+    if (!r.remaining) break;
+  }
+  if (moved) toast(`Đã gom ${moved} thư mục lần chạy vào "Ảnh đã tạo" trên Drive`, 4000);
 }
 
 $("loginForm").addEventListener("submit", async (event) => {

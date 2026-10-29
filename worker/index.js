@@ -4,7 +4,10 @@
 const ORIGINS = ["https://hoangpham.is-a.dev", "http://localhost:8000"];
 const SCOPE = "openid email https://www.googleapis.com/auth/drive.file";
 const OWNER_EMAILS = ["quochoang.idx@gmail.com", "hoangpham2263@gmail.com"];
-const FOLDER_NAME = "Product Image Batch";
+// Drive layout: "Product Review Batch/" holds "Ảnh đã tạo/<run>/", "Nguồn ảnh/<group>/" and "Logs/".
+const FOLDER_NAME = "Product Review Batch";
+const OLD_FOLDER_NAME = "Product Image Batch";
+const RUNS_FOLDER = "Ảnh đã tạo";
 const LIST_KEY = "images";
 const STATUSES = ["awaiting_review", "accepted", "rejected"];
 
@@ -88,6 +91,41 @@ async function folder(env, name, parent) {
   return id;
 }
 
+// The app's top folder. It was "Product Image Batch" with run folders directly inside; the same folder is
+// renamed (ids and links stay), and organizeRuns() moves the old run folders into "Ảnh đã tạo".
+async function appRoot(env) {
+  const saved = await env.STORE.get("folder:app-root");
+  if (saved) return saved;
+  const old = await env.STORE.get(`folder:root:${OLD_FOLDER_NAME}`);
+  let id = old;
+  if (old) {
+    await drive(env, `/drive/v3/files/${old}?fields=id`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: FOLDER_NAME }) });
+  } else {
+    id = await folder(env, FOLDER_NAME);
+  }
+  await env.STORE.put("folder:app-root", id);
+  return id;
+}
+const runsRoot = async (env) => folder(env, RUNS_FOLDER, await appRoot(env));
+
+// Moves run folders still sitting in the top folder into "Ảnh đã tạo", a few per call so a call stays within
+// the Worker's request limits; the management page repeats it until nothing is left.
+async function organizeRuns(env) {
+  if (await env.STORE.get("organized:runs")) return { moved: 0, remaining: 0 };
+  const root = await appRoot(env), runs = await runsRoot(env);
+  const keep = new Set([RUNS_FOLDER, SOURCE_FOLDER, LOGS_FOLDER]);
+  const left = (await listChildren(env, root, `mimeType = '${FOLDER_MIME}'`)).filter((f) => !keep.has(f.name));
+  const batch = left.slice(0, 15);
+  for (const f of batch) {
+    await drive(env, `/drive/v3/files/${f.id}?addParents=${runs}&removeParents=${root}&fields=id`, { method: "PATCH", headers: { "content-type": "application/json" }, body: "{}" });
+    await env.STORE.delete(`folder:${root}:${f.name}`);
+    await env.STORE.put(`folder:${runs}:${f.name}`, f.id);
+  }
+  const remaining = left.length - batch.length;
+  if (!remaining) await env.STORE.put("organized:runs", "1");
+  return { moved: batch.length, remaining };
+}
+
 // drive.file scope: this lists only files the Worker created, never the rest of the Drive.
 async function listChildren(env, parent, extra = "") {
   const files = [];
@@ -150,7 +188,7 @@ const GROUP_RE = /^[\p{L}\p{N}][\p{L}\p{N} -]{0,59}$/u;
 const SOURCE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const quote = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 export const cleanFileName = (value) => String(value || "").replace(/[\\/:*?"<>|\u0000-\u001f]/g, "_").replace(/^\.+/, "").slice(0, 120);
-const sourceRoot = async (env) => folder(env, SOURCE_FOLDER, await folder(env, FOLDER_NAME));
+const sourceRoot = async (env) => folder(env, SOURCE_FOLDER, await appRoot(env));
 const sourceUrl = (origin, file) => `${origin}/src/${file.id}`;
 async function groupFolder(env, name) {
   const found = await listChildren(env, await sourceRoot(env), `mimeType = '${FOLDER_MIME}' and name = '${quote(name)}'`);
@@ -168,7 +206,7 @@ const writeEnabled = (env, set) => env.STORE.put(ENABLED_KEY, JSON.stringify([..
 // ---------- Support logs ----------
 // "Gửi log" in the app uploads one zip here; the management page lists and downloads them.
 const LOGS_FOLDER = "Logs";
-const logsRoot = async (env) => folder(env, LOGS_FOLDER, await folder(env, FOLDER_NAME));
+const logsRoot = async (env) => folder(env, LOGS_FOLDER, await appRoot(env));
 async function handleLogs(req, env, url, id) {
   const root = await logsRoot(env);
   if (!id && req.method === "GET") {
@@ -358,8 +396,7 @@ async function handle(req, env, ctx) {
     if (!bytes.byteLength || bytes.byteLength > 25 * 1024 * 1024) return json({ error: "Ảnh rỗng hoặc quá 25MB." }, 400);
     const batch = cleanName(url.searchParams.get("batch"), "batch");
     const name = cleanName(url.searchParams.get("name"), "image.png");
-    const root = await folder(env, FOLDER_NAME);
-    const fileId = await uploadFile(env, name, "image/png", bytes, await folder(env, batch, root));
+    const fileId = await uploadFile(env, name, "image/png", bytes, await folder(env, batch, await runsRoot(env)));
     const item = {
       id: crypto.randomUUID().replace(/-/g, ""), fileId, batch, name,
       product: String(url.searchParams.get("product") || "").slice(0, 200),
@@ -368,6 +405,8 @@ async function handle(req, env, ctx) {
     await putItem(env, item);
     return json({ ...item, url: publicUrl(url.origin, item) }, 201);
   }
+
+  if (path === "/api/organize" && req.method === "POST") return json(await organizeRuns(env));
 
   const logs = path.match(/^\/api\/logs(?:\/([^/]+))?$/);
   if (logs) return handleLogs(req, env, url, logs[1]);

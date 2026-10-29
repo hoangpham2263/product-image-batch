@@ -54,12 +54,21 @@ function setup() {
     if (url.startsWith("https://img.test/")) return url.endsWith(".txt") ? new Response("x", { headers: { "content-type": "text/plain" } }) : new Response("remote", { headers: { "content-type": "image/jpeg" } });
     const media = url.match(/files\/([\w-]+)\?alt=media/);
     if (media) return new Response(files.get(media[1]), { headers: { "content-type": nodes.get(media[1])?.mime || "image/png" } });
+    if (init.method === "PATCH" && url.includes("/drive/v3/files/")) {
+      const u = new URL(url), id = u.pathname.split("/").pop(), node = nodes.get(id);
+      const body = JSON.parse(init.body || "{}");
+      if (body.name) node.name = body.name;
+      const add = u.searchParams.get("addParents"), remove = u.searchParams.get("removeParents");
+      if (add) node.parents = [...node.parents.filter((p) => p !== remove), add];
+      return Response.json({ id });
+    }
     if (init.method === "DELETE") { const id = url.split("/files/")[1]; files.delete(id); nodes.delete(id); return new Response(null, { status: 204 }); }
     throw new Error(`unexpected ${url}`);
   };
   const ctx = { waitUntil: () => {} };
+  env.__nodes = nodes; env.__kv = kv;
   const call = (path, init = {}) => worker.fetch(new Request(`https://api.test${path}`, init), env, ctx);
-  return { call, files, kv };
+  return { call, files, kv , env };
 }
 
 test("upload stores the image in Drive and serves it from a public link", async () => {
@@ -178,6 +187,32 @@ test("an image can be added to a group straight from a link", async () => {
   assert.equal((await call(`${group}?url=${encodeURIComponent("https://img.test/a.txt")}`, { method: "POST", headers: admin })).status, 400, "not an image");
   assert.equal((await call(`${group}?url=ftp://x`, { method: "POST", headers: admin })).status, 400);
   assert.equal((await call(`${group}?url=${encodeURIComponent("https://img.test/b.jpg")}`, { method: "POST", headers: { "x-admin-key": "app-pass" } })).status, 403, "the app password cannot add photos");
+});
+
+test("the old Product Image Batch folder is renamed and its run folders move into Ảnh đã tạo", async () => {
+  const { call, env } = setup();
+  const admin = { "x-admin-key": "secret" };
+  const nodes = env.__nodes, kv = env.__kv;
+  // The layout before: runs straight inside "Product Image Batch", next to "Nguồn ảnh".
+  nodes.set("old-root", { name: "Product Image Batch", parents: [], folder: true });
+  kv.set("folder:root:Product Image Batch", "old-root");
+  for (let i = 0; i < 20; i++) { nodes.set(`run-${i}`, { name: `2026-10-${i}_run`, parents: ["old-root"], folder: true }); kv.set(`folder:old-root:2026-10-${i}_run`, `run-${i}`); }
+  nodes.set("src", { name: "Nguồn ảnh", parents: ["old-root"], folder: true }); kv.set("folder:old-root:Nguồn ảnh", "src");
+  const first = await (await call("/api/organize", { method: "POST", headers: admin })).json();
+  assert.deepEqual(first, { moved: 15, remaining: 5 });
+  assert.equal(nodes.get("old-root").name, "Product Review Batch");
+  assert.deepEqual(await (await call("/api/organize", { method: "POST", headers: admin })).json(), { moved: 5, remaining: 0 });
+  assert.deepEqual(await (await call("/api/organize", { method: "POST", headers: admin })).json(), { moved: 0, remaining: 0 });
+  const runs = [...nodes].find(([, n]) => n.name === "Ảnh đã tạo")[0];
+  assert.equal(nodes.get("run-3").parents[0], runs);
+  assert.equal(nodes.get("src").parents[0], "old-root", "Nguồn ảnh stays at the top");
+  // A new image of an existing run goes into that moved folder; a new run gets its folder under Ảnh đã tạo.
+  await call("/api/images?batch=2026-10-3_run&name=a.png", { method: "POST", headers: admin, body: "png" });
+  await call("/api/images?batch=new_run&name=b.png", { method: "POST", headers: admin, body: "png" });
+  const parentOf = (name) => [...nodes.values()].find((n) => n.name === name).parents[0];
+  assert.equal(parentOf("a.png"), "run-3");
+  assert.equal(nodes.get(parentOf("b.png")).parents[0], runs);
+  assert.equal((await call("/api/organize", { method: "POST", headers: { "x-admin-key": "app-pass" } })).status, 403);
 });
 
 test("support logs: upload a zip, list it, download it, delete it", async () => {
