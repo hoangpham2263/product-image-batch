@@ -99,6 +99,11 @@ function pickFiles(accept, multiple) {
 }
 const imageFiles = (items) => [...items].filter((f) => /^image\/(png|jpeg)$/.test(f.type));
 
+// Errors in this window are logged on the Mac side (workspace/logs/app-errors.log) and go out with Gửi log.
+const reportError = (message, stack) => fetch("/api/client-error", { method: "POST", body: JSON.stringify({ message: String(message || ""), stack: String(stack || "") }) }).catch(() => {});
+addEventListener("error", (e) => reportError(e.message, e.error?.stack || `${e.filename}:${e.lineno}:${e.colno}`));
+addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || e.reason, e.reason?.stack));
+
 // ---------- child windows ----------
 const stack = [];
 function openWindow(title, w, h, { white = false } = {}) {
@@ -977,7 +982,7 @@ function wire() {
   // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
-    const question = "Gửi log cho admin?\n\n" + (rejected ? `Gồm log của app và ${rejected} ảnh đã Bỏ chưa gửi, để cải thiện chất lượng ảnh.` : "Gồm log của app để kiểm tra lỗi.") + " Không gửi mật khẩu hay danh sách sản phẩm.";
+    const question = "Gửi log cho admin?\n\n" + (rejected ? `Gồm log, cấu hình, các lần chạy gần nhất và ${rejected} ảnh đã Bỏ chưa gửi.` : "Gồm log, cấu hình và các lần chạy gần nhất.") + " Không gửi mật khẩu.";
     if ((await messageBox(question, "Gửi log", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
     try {

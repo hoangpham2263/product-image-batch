@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
 import { writeFile, mkdir, copyFile, rm, stat, appendFile } from "node:fs/promises";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, openSync, renameSync, statSync, appendFileSync } from "node:fs";
 import { join, dirname, extname, resolve, sep } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,20 @@ const PWSH = process.env.PRB_PWSH || [
 const extraPath = ["/opt/homebrew/bin", "/usr/local/bin", join(homedir(), ".npm-global", "bin"), join(homedir(), ".dotnet", "tools")];
 const toolEnv = { ...process.env, PATH: [...new Set([...(process.env.PATH || "").split(":"), ...extraPath, dirname(process.execPath)])].filter(Boolean).join(":") };
 const findTool = (name) => toolEnv.PATH.split(":").map((d) => join(d, name)).find((p) => existsSync(p));
+// Errors from the window, this server and PowerShell go to workspace/logs (app-errors.log as Write-AppError
+// writes it, mac-rpc.err.log), past 1 MB rolled over to *.old.log; Gửi log sends them.
+mkdirSync(logs, { recursive: true });
+function logFile(name) {
+  const file = join(logs, name);
+  try { if (statSync(file).size > 1024 * 1024) renameSync(file, file.replace(/\.log$/, ".old.log")); } catch {}
+  return file;
+}
+function logError(where, text) {
+  try { appendFileSync(logFile("app-errors.log"), `[${new Date().toISOString()}] ${where}\n  ${String(text).trim().replace(/\n/g, "\n  ")}\n\n`); } catch {}
+}
+process.on("uncaughtException", (e) => { logError("Máy chủ Mac", e.stack || e); process.exit(1); });
+process.on("unhandledRejection", (e) => logError("Máy chủ Mac", e?.stack || e));
+
 const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon" };
 
 // ----- PowerShell application calls -----
@@ -42,7 +56,7 @@ function startRpc() {
     waiting.delete(answer.id);
     answer.ok ? job.resolve(answer.result) : job.reject(new Error(answer.error));
   });
-  rpcProc.stderr.on("data", (d) => process.stderr.write(d));
+  rpcProc.stderr.on("data", (d) => { try { appendFileSync(logFile("mac-rpc.err.log"), d); } catch {} });
   rpcProc.on("exit", () => {
     for (const job of waiting.values()) job.reject(new Error("PowerShell đã dừng."));
     waiting.clear();
@@ -120,6 +134,12 @@ async function handle(req, res) {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
   if (path === "/api/root") return send(res, 200, { root });
+  // Errors in the window (app.js), kept like the Windows window's.
+  if (path === "/api/client-error" && req.method === "POST") {
+    const { message = "", stack = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
+    logError("Giao diện Mac", [message, stack].filter(Boolean).join("\n").slice(0, 4000));
+    return send(res, 200, { ok: true });
+  }
   // Menu bar star: Mở cửa sổ / Thoát.
   if (path === "/api/open" && req.method === "POST") { openWindow(); return send(res, 200, { ok: true }); }
   if (path === "/api/quit" && req.method === "POST") {
@@ -193,7 +213,8 @@ return out`;
       if (err) return send(res, 500, { error: err.message });
       send(res, 200, { ok: true });
       setTimeout(() => {
-        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: "ignore", env: { ...process.env, PRB_WAIT_PORT: "1" } }).unref();
+        const out = openSync(logFile("mac-server.log"), "a");
+        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: ["ignore", out, out], env: { ...process.env, PRB_WAIT_PORT: "1" } }).unref();
         rpcProc?.kill();
         process.exit(0);
       }, 300);

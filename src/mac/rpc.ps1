@@ -166,7 +166,7 @@ while ($null -ne ($line = [Console]::In.ReadLine())) {
     if (-not $line.Trim()) { continue }
     $request = $line | ConvertFrom-Json
     try { $answer = @{ id = $request.id; ok = $true; result = (Invoke-Rpc $request.cmd $request.args) } }
-    catch { $answer = @{ id = $request.id; ok = $false; error = $_.Exception.Message } }
+    catch { Write-AppError $workspace.Logs "Mac rpc $($request.cmd)" $_; $answer = @{ id = $request.id; ok = $false; error = $_.Exception.Message } }
     [Console]::Out.WriteLine('@@RPC ' + ($answer | ConvertTo-Json -Depth 8 -Compress))
     [Console]::Out.Flush()
 }

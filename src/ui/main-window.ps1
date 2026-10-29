@@ -109,6 +109,15 @@ function Receive-RunLine([string]$line) {
     Update-RunDisplay
 }
 
+# An error in a button or window handler goes to workspace/logs/app-errors.log (sent with Gửi log) instead of
+# WinForms' generic dialog; the user sees a short message and the app keeps going.
+if (-not $BuildOnly) {
+    [Windows.Forms.Application]::add_ThreadException({
+        param($sender, $e)
+        Write-AppError $workspace.Logs 'Giao diện Windows' $e.Exception
+        [void][Windows.Forms.MessageBox]::Show("Có lỗi: $($e.Exception.Message)`r`n`r`nLỗi đã được ghi lại. Bấm Gửi log để gửi cho admin.", 'Product Review Batch', 'OK', 'Warning')
+    }.GetNewClosure())
+}
 $form = New-Object Windows.Forms.Form
 $appVersion = try { Get-AppVersion $root } catch { '' }
 $form.Text = ('Product Review Batch ' + $appVersion).Trim()
@@ -237,7 +246,7 @@ $logsTimer.Add_Tick({
 })
 $btnLogs.Add_Click({
     $rejected = @(Get-UnsentRejectedSamples $root).Count
-    $question = "Gửi log cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm log của app và $rejected ảnh đã Bỏ chưa gửi, để cải thiện chất lượng ảnh." } else { 'Gồm log của app để kiểm tra lỗi.' }) + ' Không gửi mật khẩu hay danh sách sản phẩm.'
+    $question = "Gửi log cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm log, cấu hình, các lần chạy gần nhất và $rejected ảnh đã Bỏ chưa gửi." } else { 'Gồm log, cấu hình và các lần chạy gần nhất.' }) + ' Không gửi mật khẩu.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
