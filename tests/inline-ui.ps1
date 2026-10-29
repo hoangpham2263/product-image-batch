@@ -17,6 +17,7 @@ try{
     Set-ProductQueueReference $queueEditor $queueEditor.Rows[0] $room
     $form.ShowInTaskbar=$false;$form.StartPosition='Manual';$form.Location=[Drawing.Point]::new(-32000,-32000)
     $form.Show();$form.Refresh()
+    Assert ($btnUpdate.Visible -and $btnUpdate.Left -gt $title.Right -and $header.ClientSize.Width - $btnUpdate.Right -eq 24) 'The update button must sit 24px from the right edge of the header, as on macOS.'
     Assert ($queueEditor.Rows.Count -eq 2 -and $queueEditor.Rows[0].Preview.Image -and -not $queueEditor.Rows[1].Preview.Image) 'Main screen lost link/image pairing or missing-reference state.'
     Assert ($queueEditor.Rows[0].Card.Height -le 64 -and $queueEditor.Rows[0].Url.ReadOnly) 'Main queue must use compact rows.'
     $before=[IO.File]::ReadAllText($queueEditor.MapPath)

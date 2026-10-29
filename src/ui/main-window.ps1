@@ -131,7 +131,9 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
     if ($Heading) { $card.Controls.Add((New-Object Windows.Forms.Label -Property @{Text=$Heading;Location='14,10';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',10));ForeColor=$ui.Ink;UseMnemonic=$false})) }
     return $card
 }
-$header=New-Object Windows.Forms.Panel -Property @{Dock='Top';Height=64;BackColor=$ui.Page}
+# Full width before the button is anchored: a docked panel starts 200px wide, which would push a
+# right-anchored button past the window edge once the panel stretches.
+$header=New-Object Windows.Forms.Panel -Property @{Size=(New-Object Drawing.Size($form.ClientSize.Width,64));Dock='Top';BackColor=$ui.Page}
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,19';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
