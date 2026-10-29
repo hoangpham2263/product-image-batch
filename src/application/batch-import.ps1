@@ -1,10 +1,10 @@
-﻿# Nhập hàng loạt: many products at once from one folder (docs/import.md): products.csv next to its images, which the table
-# names by file name. Each row is one product image of a link with its review images; several rows with the same link
+﻿# Nhập hàng loạt: many products at once from one folder (docs/import.md): products.csv with its images in images/,
+# which the table names by file name. Each row is one product image of a link with its review images; several rows with the same link
 # give that link several product images. Plain links, one per line, still work and only add the links.
 $script:ImportColumns = @('product_url', 'product_image', 'review_images')
 
 # Rows of the table, or the problems found in it (with line numbers) so nothing is half imported by mistake.
-# $Folder is the folder of the table: image names are files in it.
+# $Folder is the folder of the table: image names are files in its images/ folder.
 function ConvertFrom-ProductBatch([string]$Text, [string]$Folder = '') {
     $lines = @($Text -replace '^\uFEFF', '' -split '\r?\n' | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') })
     if (-not $lines.Count) { return @{ Rows = @(); Errors = @('Chưa có dòng nào.') } }
@@ -26,12 +26,13 @@ function ConvertFrom-ProductBatch([string]$Text, [string]$Folder = '') {
             $rows.Add([pscustomobject]@{ Line = $i + 2; Url = (& $get 'product_url'); Product = (& $get 'product_image'); Reviews = $reviews })
         }
     }
+    $images = if ($Folder) { Join-Path $Folder 'images' } else { '' }
     foreach ($row in $rows) {
         if (-not (Test-ImportLink $row.Url)) { $errors.Add("Dòng $($row.Line): link sản phẩm không hợp lệ '$($row.Url)'.") }
-        $row.Product = if ($row.Product) { Join-Path $Folder $row.Product } else { '' }
-        $row.Reviews = @($row.Reviews | ForEach-Object { Join-Path $Folder $_ })
+        $row.Product = if ($row.Product) { Join-Path $images $row.Product } else { '' }
+        $row.Reviews = @($row.Reviews | ForEach-Object { Join-Path $images $_ })
         foreach ($image in @(@($row.Product) + @($row.Reviews) | Where-Object { $_ })) {
-            if (-not (Test-Path -LiteralPath $image -PathType Leaf)) { $errors.Add("Dòng $($row.Line): không có ảnh '$(Split-Path -Leaf $image)' trong thư mục.") }
+            if (-not (Test-Path -LiteralPath $image -PathType Leaf)) { $errors.Add("Dòng $($row.Line): không có ảnh '$(Split-Path -Leaf $image)' trong thư mục images.") }
         }
     }
     return @{ Rows = $rows.ToArray(); Errors = $errors.ToArray() }

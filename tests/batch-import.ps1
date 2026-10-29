@@ -6,9 +6,9 @@ $root=Split-Path $PSScriptRoot -Parent
 function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
 $temp=Join-Path $TestWorkspaceRoot ('batch-import-'+[Guid]::NewGuid().ToString('N'))
 try{
-    New-Item -ItemType Directory -Force -Path "$temp/img","$temp/project/workspace" | Out-Null
+    New-Item -ItemType Directory -Force -Path "$temp/images","$temp/project/workspace" | Out-Null
     $png=[byte[]](0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A);$jpg=[byte[]](0xFF,0xD8,0xFF,0xE0)
-    $make={param($Name,$Head,$Seed)[IO.File]::WriteAllBytes("$temp/img/$Name",[byte[]]($Head+[byte[]][Text.Encoding]::UTF8.GetBytes($Seed)));"$temp/img/$Name"}
+    $make={param($Name,$Head,$Seed)[IO.File]::WriteAllBytes("$temp/images/$Name",[byte[]]($Head+[byte[]][Text.Encoding]::UTF8.GetBytes($Seed)));"$temp/images/$Name"}
     $p1=& $make 'p1.png' $png 'p1';$p2=& $make 'p2.jpg' $jpg 'p2';$r1=& $make 'r1.jpg' $jpg 'r1';$r2=& $make 'r2.png' $png 'r2';$r3=& $make 'r3.jpg' $jpg 'r3'
     $bad=& $make 'bad.jpg' ([byte[]](0x3C,0x68,0x74,0x6D)) 'html'
 
@@ -17,11 +17,11 @@ try{
     Assert (@($plain.Rows).Count -eq 2 -and -not @($plain.Errors).Count -and -not $plain.Rows[0].Product) 'Plain links must parse as links without images.'
 
     # The folder: products.csv names its images by file name; one row per product image, two rows of one link give it two
-    # product images, several review images in one cell are separated by commas.
-    $img="$temp/img"
+    # product images, several review images in one cell are separated by commas. Images live in images/.
+    $img="$temp"
     $csv="product_url,product_image,review_images`nhttps://shop.test/a,p1.png,`"r1.jpg,r2.png`"`nhttps://shop.test/a,p2.jpg,r3.jpg`nhttps://shop.test/b,,r1.jpg"
     $parsed=ConvertFrom-ProductBatch $csv $img
-    Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and $parsed.Rows[0].Product -eq (Join-Path $img 'p1.png') -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The table must parse with its images as files of the folder.'
+    Assert (-not @($parsed.Errors).Count -and @($parsed.Rows).Count -eq 3 -and $parsed.Rows[0].Product -eq (Join-Path $img 'images/p1.png') -and @($parsed.Rows[0].Reviews).Count -eq 2) 'The table must parse with its images as files of the folder.'
     Assert (@((ConvertFrom-ProductBatch $csv '').Errors|Where-Object{$_ -match 'Chọn file'}).Count) 'A table without its folder must ask for the file.'
     Assert (@((ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,missing.jpg," $img).Errors|Where-Object{$_ -match "^Dòng 2: không có ảnh 'missing.jpg'"}).Count) 'A missing image must be named with its line.'
     $wrong=ConvertFrom-ProductBatch "product_url,image`nnot-a-link,,x" $img
