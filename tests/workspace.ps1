@@ -9,6 +9,17 @@ try {
     New-Item -ItemType Directory -Force $base | Out-Null
     @{ schema_version = 1; photos = @() } | ConvertTo-Json | Set-Content (Join-Path $base 'catalog.json') -Encoding UTF8
     $paths = Initialize-ProjectWorkspace $fixture
+    # The Windows window loads its own scripts: every application function its dialogs call must be loaded there.
+    $src = Join-Path $project 'src'
+    $window = Get-Content -LiteralPath (Join-Path $src 'ui/main-window.ps1') -Raw
+    $ui = (Get-ChildItem -LiteralPath (Join-Path $src 'ui') -Filter *.ps1 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }) -join "`n"
+    foreach ($file in @(Get-ChildItem -LiteralPath (Join-Path $src 'application'), (Join-Path $src 'infrastructure') -Filter *.ps1)) {
+        $relative = (Split-Path $file.DirectoryName -Leaf) + '/' + $file.Name
+        if ($window -match [regex]::Escape("'$relative'")) { continue }
+        foreach ($name in @([regex]::Matches((Get-Content -LiteralPath $file.FullName -Raw), '(?m)^function ([\w-]+)') | ForEach-Object { $_.Groups[1].Value })) {
+            Assert ($ui -notmatch "(?<![\w-])$([regex]::Escape($name))(?![\w-])") "The Windows window calls $name but does not load $relative."
+        }
+    }
     # Model AI: empty keeps Codex's default; a chosen model and level are kept; bad values are refused.
     $ai = Get-AiSettings $fixture
     Assert (-not $ai.model -and -not $ai.effort) 'Without a choice the Codex default must be kept.'

@@ -11,6 +11,7 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
 . (Join-Path $srcDir 'application/workspace.ps1')
+. (Join-Path $srcDir 'application/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
