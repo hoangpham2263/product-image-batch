@@ -38,7 +38,7 @@
   .primary { background: var(--primary); border-color: var(--primary); color: #fff; }
   .primary:hover { background: var(--primary); filter: brightness(.92); }
   .icon { width: 36px; padding: 0; flex: none; }
-  a.btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
+  a.btn { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 14px; color: var(--fg); border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
   a.btn:hover { background: var(--soft); }
   a.btn.primary:hover { background: var(--primary); filter: brightness(.92); }
   .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
@@ -64,7 +64,23 @@
   .block { display: grid; gap: 12px; align-content: start; justify-content: stretch; width: 100%; height: auto; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); text-align: left; }
   .block:hover { background: var(--soft); }
   .block .menu-text { gap: 2px; }
-  .doc { margin: 0; padding: 16px; max-height: 70vh; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--soft); border-radius: 10px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; user-select: text; }
+  .doc { max-width: 860px; font-size: 14px; line-height: 1.7; user-select: text; }
+  .doc h1 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
+  .doc h2 { font-size: 16px; font-weight: 500; margin: 28px 0 8px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .doc h3 { font-size: 14px; font-weight: 500; margin: 20px 0 6px; }
+  .doc p, .doc ul, .doc ol { margin: 6px 0; }
+  .doc ul, .doc ol { padding-left: 22px; }
+  .doc li { margin: 3px 0; }
+  .doc strong { font-weight: 500; }
+  .doc code { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); border-radius: 5px; padding: 1px 5px; overflow-wrap: anywhere; }
+  .doc .code { position: relative; margin: 10px 0; }
+  .doc .code pre { margin: 0; padding: 14px 16px; padding-right: 76px; overflow-x: auto; background: var(--soft); border: 1px solid var(--border); border-radius: 10px; }
+  .doc .code pre code { background: none; padding: 0; white-space: pre; }
+  .doc .code button { position: absolute; top: 8px; right: 8px; height: 28px; padding: 0 10px; font-size: 12px; }
+  .doc table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+  .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .doc th { font-weight: 500; color: var(--muted); }
+  .doc-wrap { overflow-x: auto; }
   .group-block { position: relative; cursor: pointer; }
   .group-block.off .menu-text { opacity: .5; }
   .switch { position: absolute; top: 14px; right: 14px; width: 36px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--muted) 45%, var(--bg)); cursor: pointer; transition: background .15s; }
@@ -250,7 +266,7 @@
       </div>
     </div>
     <p class="muted small">Gửi link hoặc nội dung này cho AI để nó tự tạo danh mục và tải ảnh lên. Mật khẩu admin đưa riêng (biến <code>PRB_ADMIN_KEY</code>), không dán vào tài liệu.</p>
-    <pre id="apiDoc" class="doc">Đang tải…</pre>
+    <div id="apiDoc" class="doc"><p class="muted">Đang tải…</p></div>
   </section>
 
   <section id="manage" class="card" hidden>
@@ -635,7 +651,50 @@ async function loadApiDoc() {
   if (state.apiDoc) return;
   try { state.apiDoc = await (await fetch("api.md", { cache: "no-store" })).text(); }
   catch { $("apiDoc").textContent = "Chưa tải được tài liệu. Thử lại sau."; return; }
-  $("apiDoc").textContent = state.apiDoc;
+  $("apiDoc").innerHTML = renderMarkdown(state.apiDoc);
+  for (const b of $("apiDoc").querySelectorAll(".code button")) b.onclick = async () => {
+    try { await navigator.clipboard.writeText(b.nextElementSibling.textContent); b.textContent = "Đã copy"; setTimeout(() => (b.textContent = "Copy"), 1500); }
+    catch { toast("Chưa copy được, chọn và copy tay."); }
+  };
+}
+
+// Just the Markdown api.md uses: headings, paragraphs, lists, tables, code blocks (each with Copy), `code`, **bold**.
+function renderMarkdown(text) {
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const inline = (t) => esc(t).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  const cells = (row) => row.trim().replace(/^\||\|$/g, "").split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, "|"));
+  const lines = text.replace(/\r/g, "").split("\n"), out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.startsWith("```")) {
+      const code = [];
+      while (++i < lines.length && !lines[i].startsWith("```")) code.push(lines[i]);
+      out.push(`<div class="code"><button type="button">Copy</button><pre><code>${esc(code.join("\n"))}</code></pre></div>`);
+    } else if (/^#{1,3} /.test(line)) {
+      const level = line.indexOf(" ");
+      out.push(`<h${level}>${inline(line.slice(level + 1))}</h${level}>`);
+    } else if (line.startsWith("|")) {
+      const rows = [];
+      while (i < lines.length && lines[i].startsWith("|")) rows.push(lines[i++]);
+      i--;
+      const [head, , ...body] = rows;
+      out.push(`<div class="doc-wrap"><table><thead><tr>${cells(head).map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${cells(r).map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`);
+    } else if (/^\s*(?:-|\d+\.) /.test(line)) {
+      const ordered = /^\s*\d+\./.test(line), items = [];
+      while (i < lines.length && /^\s*(?:-|\d+\.) /.test(lines[i])) {
+        const nested = /^\s{2,}/.test(lines[i]);
+        items.push(`<li${nested ? ' style="margin-left:20px;list-style:circle"' : ""}>${inline(lines[i].replace(/^\s*(?:-|\d+\.) /, ""))}</li>`);
+        i++;
+      }
+      i--;
+      out.push(`<${ordered ? "ol" : "ul"}>${items.join("")}</${ordered ? "ol" : "ul"}>`);
+    } else if (line.trim()) {
+      const para = [line];
+      while (i + 1 < lines.length && lines[i + 1].trim() && !/^(#|\||```|\s*(?:-|\d+\.) )/.test(lines[i + 1])) para.push(lines[++i]);
+      out.push(`<p>${inline(para.join(" "))}</p>`);
+    }
+  }
+  return out.join("\n");
 }
 $("apiLink").href = new URL("api.md", location.href).href;
 $("apiCopy").onclick = async () => {
