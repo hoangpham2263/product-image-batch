@@ -1,6 +1,8 @@
 ﻿# Tải cả nhóm về máy: download one Drive group into data/source-photos/<group> (run in its own process by the app).
 param([Parameter(Mandatory)][string]$Group)
 $ErrorActionPreference = 'Stop'
+# The app reads this output as UTF-8 (paths may hold Vietnamese folder names).
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'application/workspace.ps1')
 . (Join-Path $PSScriptRoot 'infrastructure/platform.ps1')

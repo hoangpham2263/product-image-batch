@@ -242,7 +242,7 @@ $script:quotaProc = $null
 $quotaTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 2000 }
 $quotaTimer.Add_Tick({
     if (-not $script:quotaProc) {
-        $script:quotaProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $quotaOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'quota-status.ps1') + '"'))
+        $script:quotaProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'quota-status.ps1') + '"'), '-OutFile', ('"' + $quotaOut + '"'))
         [void]$script:quotaProc.Handle
         $quotaTimer.Interval = 1000
         return
@@ -296,7 +296,7 @@ $logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi log'; $btnLogs.E
 $logsTimer.Add_Tick({
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
-    $result = try { (Get-Content -LiteralPath $logsOut -Raw -ErrorAction Stop).Trim() } catch { '' }
+    $result = try { (Get-Content -LiteralPath $logsOut -Raw -Encoding UTF8 -ErrorAction Stop).Trim() } catch { '' }
     if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) ảnh đã Bỏ)" })" }
     elseif ($result -match '^saved\|(.+)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được; file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
     else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
