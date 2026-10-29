@@ -194,6 +194,16 @@
     .dlg-menu .dlg-box { align-content: start; gap: 16px; }
     .dlg-menu .settings-list > * { height: 48px; font-size: 15px; }
   }
+  /* Phones: one compact header bar across the full width, stuck to the top (same in every tool) */
+  @media (max-width: 639px) {
+    .wrap { padding-top: 0; }
+    .top { position: sticky; top: 0; z-index: 10; gap: 10px; margin: 0 -16px; padding: 10px 16px;
+      background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+    .home-link { gap: 10px; }
+    .brand img { width: 32px; height: 32px; }
+    h1 { font-size: 18px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top .labeled { font-size: 0; gap: 0; padding: 0 10px; }
+  }
 </style>
 </head>
 <body>
