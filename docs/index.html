@@ -19,8 +19,9 @@
   a { color: var(--primary); }
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
-  /* Header to content is always 80px, set only by this row gap (no margins on either side). */
+  /* Header to content is 80px (40px on phones), set only by this row gap (no margins on either side). */
   .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; row-gap: 80px; }
+  @media (max-width: 639px) { .wrap { row-gap: 40px; } }
   @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; } }
   @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; } }
   .top { display: flex; align-items: center; gap: 12px; }
@@ -255,10 +256,6 @@
     <button class="block" type="button" data-go="nguon">
       <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg></span>
       <span class="menu-text"><span>Nguồn ảnh</span><span id="homeSources" class="muted small">…</span></span>
-    </button>
-    <button class="block" type="button" id="homeDrive">
-      <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9Z"/></svg></span>
-      <span class="menu-text"><span>Google Drive</span><span id="homeDriveText" class="muted small">…</span></span>
     </button>
     <button class="block" type="button" data-go="log">
       <span class="menu-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
@@ -498,7 +495,6 @@ function renderHome() {
   const groups = state.groups;
   $("homeSources").textContent = groups ? `${groups.length} nhóm · ${num(groups.reduce((n, g) => n + g.count, 0))} ảnh` : "Đang tải…";
   $("homeLogs").textContent = state.logs ? (state.logs.length ? `${state.logs.length} file log` : "Chưa có log") : "Đang tải…";
-  $("homeDriveText").textContent = state.connected ? `Đã kết nối${state.email ? " · " + state.email : ""}` : "Chưa kết nối";
 }
 
 // ----- Generated images -----
@@ -873,7 +869,6 @@ $("loginForm").addEventListener("submit", async (event) => {
 document.querySelector("[data-close-login]").onclick = () => $("loginDlg").close();
 $("lockBtn").onclick = () => { $("loginError").hidden = true; $("loginDlg").showModal(); };
 $("settingsBtn").onclick = () => $("settingsDlg").showModal();
-$("homeDrive").onclick = () => $("settingsDlg").showModal();
 $("logoutBtn").onclick = () => {
   $("settingsDlg").close(); store.set("");
   Object.assign(state, { images: null, sources: [], groups: null, group: "", logs: null });
