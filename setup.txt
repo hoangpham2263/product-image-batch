@@ -1,51 +1,25 @@
-﻿HƯỚNG DẪN CÀI ĐẶT (làm một lần trên mỗi máy mới)
+﻿HƯỚNG DẪN CÀI ĐẶT (mỗi máy mới làm một lần)
 
-Tool dùng Codex CLI để chỉnh ảnh, nên máy nào chạy cũng phải cài Codex và đăng nhập.
-
-YÊU CẦU
-  - Windows 10/11 (có sẵn Windows PowerShell 5.1)
-  - Node.js LTS (kèm npm)
-  - Codex CLI
-  - Tài khoản ChatGPT đã đăng nhập qua Codex, có quyền tạo ảnh và còn hạn mức
-    ChatGPT Plus/Pro hoặc gói có quyền dùng Codex CLI và tạo ảnh; hạn mức tùy gói.
-  - Có internet (tải ảnh sản phẩm và gọi AI)
+CẦN CÓ
+  - Windows 10/11 hoặc macOS
+  - Tài khoản ChatGPT có quyền dùng Codex và tạo ảnh, còn hạn mức
+  - Internet
 
 CÁC BƯỚC
-  1. Chép nguyên thư mục script sang máy mới (đường dẫn nào cũng được).
-  2. Cài Node.js LTS: https://nodejs.org (chọn bản Windows Installer, Next đến hết).
-  3. Mở PowerShell mới, cài Codex:
-         npm install -g @openai/codex
-  4. Đăng nhập:
-         codex login
-     Trình duyệt mở ra, đăng nhập tài khoản có quyền dùng Codex.
-     Kiểm tra lại bằng:  codex login status   (phải hiện "Logged in ...").
-  5. Mở app (start-app.cmd / Mac: start-app.command). Bấm Kiểm tra cấu hình, bước nào thiếu thì bấm Cài/Đăng nhập: app tự cài
-     Node.js, Codex, đăng nhập ChatGPT và cầu nối trình duyệt (Mac tự cài Homebrew, PowerShell 7 ở lần mở đầu).
-  6. Mở start-app.cmd, dán link sản phẩm và bấm Bắt đầu. Ảnh mẫu local không bắt buộc.
-
-SHORTCUT
-  File "Product Review Batch.lnk" trỏ tới đường dẫn tuyệt đối của máy cũ. Nếu chép
-  sang máy mới mà bấm không chạy, mở start-app.cmd thay thế (luôn chạy đúng ở mọi đường
-  dẫn), hoặc tạo lại shortcut trỏ tới start-app.cmd.
+  1. Giải nén app vào thư mục bất kỳ.
+  2. Mở app: start-app.cmd (Windows) hoặc start-app.command (Mac).
+     Mac lần đầu tự cài Homebrew, Node.js và PowerShell 7 nếu chưa có.
+  3. Bấm Kiểm tra cấu hình. Bước nào chưa đạt thì bấm Cài hoặc Đăng nhập ngay trên dòng đó:
+     mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
+  4. Thêm sản phẩm, gắn ảnh rồi bấm Bắt đầu.
 
 LỖI THƯỜNG GẶP
-  "codex is not recognized"       Chưa cài Codex hoặc chưa mở lại cửa sổ sau khi cài.
-  Hết hạn mức                     Kiểm tra tài khoản hoặc chờ hạn mức được cấp lại.
-  Dùng tài khoản API              Tính phí API riêng, không dùng hạn mức gói ChatGPT.
-  "AI failed. Details: ..."       Mở file .console.log trong workspace/output/<batch>/logs để xem lý do.
-  Không đăng nhập được            Chạy codex logout rồi codex login lại.
-  Chạy nhiều luồng bị lỗi/chậm    Giảm ô "Luồng" xuống 1-2 (giới hạn tốc độ của API).
-  Cập nhật Codex                  codex update  (hoặc npm install -g @openai/codex@latest).
+  "codex is not recognized"     Chưa cài Codex hoặc chưa mở lại app sau khi cài.
+  Không đăng nhập được          Chạy codex logout rồi codex login.
+  Hết hạn mức                   Xem giờ đặt lại ở dòng hạn mức, hoặc đổi model nhẹ hơn trong Kiểm tra cấu hình.
+  Chạy nhiều luồng bị chậm/lỗi  Giảm ô Luồng xuống 1-2.
+  Lỗi khác                      Bấm Gửi log để gửi thông tin lỗi.
 
 BẢO MẬT
-  Đăng nhập Codex lưu trên từng máy. Không chép thông tin đăng nhập hay token giữa
-  các máy, và không đưa chúng vào thư mục tool nếu chia sẻ hoặc đưa lên repo.
-
-QUYỀN TRUY CẬP VÀ HẠN MỨC
-  "Kiểm tra cấu hình" kiểm tra cài đặt, đăng nhập và đọc hạn mức Codex còn lại,
-  kèm giờ đặt lại (GMT+7). Không tạo lượt AI; không xác nhận riêng quyền/hạn mức tạo ảnh.
-  Nếu chưa lấy được số liệu, app báo rõ để thử lại. Tài khoản API chưa hỗ trợ xem số dư.
-  Giao thức đọc hạn mức: https://learn.chatgpt.com/docs/app-server#6-rate-limits-chatgpt
-  Nguồn chính thức:
-  https://learn.chatgpt.com/docs/pricing
-  https://learn.chatgpt.com/docs/auth
+  Đăng nhập Codex và mật khẩu app lưu riêng trên từng máy. Không chép chúng sang máy khác
+  hay đưa lên Git.

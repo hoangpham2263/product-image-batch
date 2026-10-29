@@ -1,192 +1,81 @@
 # Product Review Batch
 
-Ứng dụng tạo ảnh sản phẩm trong bối cảnh tham khảo và nội dung review mẫu, sau đó xuất CSV. Chạy trên Windows và macOS.
+App tạo ảnh review sản phẩm: ghép sản phẩm thật vào ảnh bối cảnh tham khảo, viết nội dung review mẫu, rồi xuất CSV để import vào Loox. Chạy trên Windows và macOS với giao diện giống nhau.
 
-## Tải về
+Ảnh và review tạo ra là dữ liệu mẫu, không phải trải nghiệm của khách thật.
 
-**[Tải bản mới nhất](https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip)** ([các phiên bản](https://github.com/hoangpham2263/product-review-batch/releases)) → giải nén → mở app bằng `start-app.cmd` (Windows) hoặc `start-app.command` (Mac). Thiếu gì thì bấm **Kiểm tra cấu hình** trong app rồi bấm **Cài** / **Đăng nhập** ở bước đó; trên Mac, lần mở đầu tự cài Homebrew, Node.js và PowerShell 7 nếu chưa có. Có bản mới thì bấm **Cập nhật** trong app; `workspace/` (link, ảnh, kết quả, đăng nhập Drive) và `AGENTS.md` được giữ nguyên.
+## Cài đặt
 
-| | Mở app | Chạy test |
-|---|---|---|
-| Windows | `start-app.cmd` | `test.cmd` |
-| macOS | `start-app.command` | `./test.sh` |
+1. [Tải bản mới nhất](https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip) và giải nén.
+2. Mở app: `start-app.cmd` (Windows) hoặc `start-app.command` (Mac).
+3. Bấm **Kiểm tra cấu hình**, rồi bấm **Cài** / **Đăng nhập** ở bước nào chưa đạt: mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
 
-Bản Mac có giao diện giống hệt cửa sổ Windows: `src/mac/server.mjs` mở cửa sổ (Chrome chế độ app, hoặc trình duyệt mặc định) ở `127.0.0.1:47831` và gọi đúng các hàm PowerShell của app qua `src/mac/rpc.ps1`. Ảnh trên Drive được quản lý ở trang web (GitHub Pages). Máy mới xem [setup.txt](setup.txt).
+Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật khi bạn bấm. `workspace/` và bài học riêng trong `AGENTS.md` được giữ. Máy mới xem [setup.txt](setup.txt).
 
-Đăng nhập ChatGPT qua Codex, tài khoản có quyền tạo ảnh và còn hạn mức. Nút **Kiểm tra cấu hình** mở cửa sổ kiểm tra từng bước: Mật khẩu app (đăng nhập Drive), Node.js, Codex, đăng nhập ChatGPT và hạn mức sử dụng (kèm giờ đặt lại, GMT+7). Bước nào chưa đạt có nút **Cài** hoặc **Đăng nhập** ngay trên dòng đó; app tự cài (Node.js qua winget hoặc bản cài từ nodejs.org, Codex qua npm) rồi kiểm tra lại.
+## Chức năng
 
-Hạn mức được đọc trực tiếp từ Codex, không tạo lượt AI. Nếu dịch vụ chưa trả số liệu, app báo chưa lấy được; tài khoản API chưa hỗ trợ xem số dư. Phần trăm Codex không quy đổi thành số ảnh còn tạo được.
+- **Thêm sản phẩm:** dán link, gắn ảnh sản phẩm gốc và ảnh review (từ máy, kho Drive hoặc dán Ctrl/Cmd+V). Một link có thể có nhiều ảnh gốc, mỗi ảnh gốc nhiều ảnh review.
+- **Tạo ảnh:** mỗi cặp ảnh gốc + ảnh review cho một ảnh kết quả, giữ đúng sản phẩm; logo thật được thay bằng brand giả, watermark bị xoá.
+- **Viết review:** nội dung dựa trên ảnh, học cách viết từ kho review mẫu cùng danh mục; tên, sao, email và ngày được tạo ngẫu nhiên.
+- **Duyệt & xuất file:** Giữ/Bỏ từng ảnh, xong thì tạo `loox_import.csv` (chọn **Custom File** khi import vào Loox).
+- **Theo dõi:** số token đã dùng và hạn mức ChatGPT hiện trực tiếp khi chạy; chọn model AI và mức suy nghĩ trong Kiểm tra cấu hình.
+- **Kho ảnh Drive:** ảnh mẫu chia theo danh mục (Áo, Nội thất…), chọn ảnh trong app hoặc **Tải về máy** chạy nền.
+- **Gửi log:** gom log, cấu hình và 10 lần chạy gần nhất thành zip gửi lên Drive; không kèm mật khẩu.
 
-Luồng xử lý: mặc định 1, tối đa 4. Khuyên dùng 1–2; tăng luồng dùng nhiều RAM và hạn mức hơn, có thể làm máy chậm.
+Luồng xử lý mặc định 2, tối đa 4. Link lỗi được giữ lại để chạy tiếp, không tạo lại ảnh đã xong.
 
-Mỗi lượt AI có giới hạn chờ: 3 phút cho nhận diện/kiểm tra/viết chữ, 8 phút cho tạo ảnh. App hiển thị thời gian chờ và lỗi mất kết nối; nếu luồng kết nối không phục hồi trong 60 giây thì dừng tiến trình của lượt đó. Sau khi xác nhận đã dừng, app kiểm tra ảnh đã lưu trước khi tạo lại. Ảnh được tạo một lần rồi xuất cho bạn xem. Tối đa 3 lượt gửi chỉ dành cho lỗi kết nối khi chưa nhận đủ file, dùng nguyên snapshot đầu vào. Lỗi đăng nhập/hết hạn mức không tự thử lại; hết lượt vẫn lỗi thì giữ URL. Đây là giới hạn từng lượt gọi, không phải tổng thời gian một sản phẩm.
+## Trang quản lý
 
-## Workflow
+[hoangpham.is-a.dev/product-review-batch](https://hoangpham.is-a.dev/product-review-batch/) (đăng nhập bằng mật khẩu admin):
 
-| Bước | Xử lý |
-|---|---|
-| 1. Nhận URL | Đọc danh sách sản phẩm, giữ hàng đợi để có thể chạy lại phần lỗi. |
-| 2. Đọc và nhận diện sản phẩm | Tải ảnh gốc, xác định loại sản phẩm từ ảnh. |
-| 3. Chọn ảnh tham khảo | Dùng ảnh review người dùng đã gắn cho từng ảnh gốc (từ máy hoặc từ kho Drive); app không tự tìm ảnh. |
-| 4. Lưu đầu vào | Sao chép ảnh đã chọn cùng nguồn và SHA256 vào refs/<mã-SP>/. |
-| 5. Tạo ảnh | Tạo **một ảnh hoàn chỉnh** theo sản phẩm gốc và bối cảnh tham khảo; giữ hình dáng, màu sắc và hình in. Sản phẩm có logo thì logo được thay đúng chỗ bằng brand giả hợp với sản phẩm và bối cảnh ảnh, mỗi ảnh một tên khác nhau trong batch; không có logo thì không thêm. Không ghép thành nhiều ô. |
-| 6. Hoàn tất ảnh | Kiểm tra PNG đọc được rồi xuất nguyên file do AI tạo để người dùng review. |
-| 7. Viết review mẫu | Chọn tối đa 3 review tham khảo đúng danh mục từ review-samples.jsonl, xoay vòng mẫu để học cách viết; nội dung mới dựa trên ảnh. Không bắt buộc ngôi thứ nhất, không chép lời khách khác hay thêm trải nghiệm mua hàng. Câu mở đầu kiểu “I like/I love” hoặc chép câu nguồn sẽ được viết lại tối đa một lần; vẫn lỗi thì dừng sản phẩm. |
-| 8. Hoàn thiện dữ liệu | Sau khi các luồng ảnh/review kết thúc, máy random tên, sao (55% 5 sao / 45% 4 sao), email @int và ngày; không gọi Codex cho phần này. |
+- **Ảnh đã tạo:** lọc, duyệt, copy link, tải danh sách.
+- **Nguồn ảnh:** tạo danh mục, tải ảnh lên, bật/tắt danh mục hiện trong app.
+- **Log người dùng:** tải về hoặc xoá log app gửi lên.
+- **API:** tài liệu cho AI và **mã tạm** có thời hạn để AI tự tải ảnh lên kho ([docs/api.md](docs/api.md)).
 
-Kho `data/names.txt` có 4.000 tên hiển thị với tên riêng không trùng, giữ 965 tên riêng từ kho cũ và các tên đã bổ sung. Nguồn mở rộng: Names Corpus 1.3 của Mark Kantrowitz, bổ sung bởi Bill Ross, phân phối qua NLTK. Chỉ lưu danh sách tên trong `data/names.txt`; gộp tên riêng không trùng từ kho cũ và nguồn bổ sung, không nhân mỗi tên với chữ cái họ A–Z. Tên hiển thị theo dạng tên riêng + chữ cái đầu của họ, ví dụ Josh K.; mỗi tên riêng chỉ xuất hiện một dòng. Đây là dữ liệu mẫu, không phải danh tính khách hàng.
-| 9. Lưu kết quả | Lưu ảnh và `results.json` (chưa tạo file Loox); URL thành công được lấy khỏi hàng đợi, URL lỗi được giữ lại. |
-| 10. Duyệt & xuất file | Mỗi đánh giá một dòng, chọn Giữ/Bỏ riêng từng dòng. Bấm thumbnail để xem ảnh lớn và ảnh gốc đối chiếu. Chạy xong app không tự mở cửa sổ; nút Duyệt & xuất file chuyển xanh kèm số ảnh chờ duyệt. Duyệt hết mới tạo `loox_import.csv`, chỉ gồm đánh giá được giữ; bỏ một đánh giá không loại các đánh giá khác cùng sản phẩm. |
+## Mật khẩu
 
-### Thư viện ảnh mẫu
+- **Mật khẩu app:** nhập trong app; tải ảnh kết quả lên, dùng kho ảnh, gửi log.
+- **Mật khẩu admin:** chỉ cho trang quản lý; không đưa cho người dùng app.
+- **Mã tạm:** tạo ở trang API, chỉ xem và thêm ảnh vào kho, tự hết hạn.
 
-Ảnh sản phẩm gốc và ảnh review là hai đầu vào riêng. Mỗi ảnh review được xử lý thành một kết quả độc lập với ảnh gốc của cùng sản phẩm. Mỗi lượt tạo mới nhận đúng một ảnh review và một ảnh sản phẩm gốc, không gộp hai ảnh review hay thêm ảnh phong cách thứ ba. Một link có thể có nhiều ảnh sản phẩm gốc (ví dụ nhiều màu); popup hiện mỗi ảnh gốc một dòng, bên cạnh là các ảnh review của riêng ảnh gốc đó (1 hoặc nhiều). Mỗi cặp ảnh gốc + ảnh review tạo một kết quả. Ảnh hiện nhỏ, bấm vào để xem lớn; kéo thả hoặc dán (Ctrl/Cmd+V) ảnh vào dòng đang chọn, hoặc vào dòng **Thêm ảnh gốc**. Ảnh review áo gấp/đặt trên bàn được giữ cách trình bày đó, không bắt buộc có người mẫu.
-
-Web chưa public hoặc không tải được sản phẩm: gắn **Ảnh sản phẩm gốc** và **Ảnh bối cảnh để ghép vào** trong popup. Ảnh sản phẩm được dùng trực tiếp, không truy cập link. Bản web cho phép để trống link khi đã gắn ảnh sản phẩm; bản Windows tự tạo mã local khi chọn ảnh sản phẩm trước khi nhập link. Dán ảnh vào ô đã chọn, kéo thả hoặc chọn file PNG/JPEG. Hai ảnh được lưu snapshot/hash riêng; đổi link không mang ảnh cũ sang và Hủy không thay ảnh đã lưu.
-
-Bấm Thêm sản phẩm để mở popup, dán link rồi Ctrl+V ảnh, chọn file hoặc kéo ảnh vào khung preview. Bấm Lưu sản phẩm: danh sách chính chỉ hiện một dòng nhỏ với link, thumbnail và trạng thái. Bấm dòng hoặc Xem / sửa để mở lại đúng sản phẩm. Hủy không đổi dữ liệu. Thêm nhiều link mở ô nhập nhiều dòng; mỗi link được tạo thành một mục để gắn ảnh sau. Đổi URL không mang ảnh cũ sang; link trùng và ảnh thiếu được kiểm tra trước khi chạy AI. Ảnh được sao chép vào `workspace/reference-inputs/`, kiểm tra SHA256 và lưu trong `refs/` của kết quả.
-
-Mặc định không tự lấy data cho link chưa gắn ảnh. Có thể bật **Cho phép dùng kho data cho các link chưa gắn ảnh**; ảnh bạn đã chỉ định mà bị loại vẫn dừng và báo lý do, không tự thay ảnh khác. Dùng CLI với `-ReferenceMapFile <references.json>`. Đây là cách kiểm soát nguồn ảnh và giảm lặp, không phải cam kết chất lượng ghép.
-
-Kho phòng ăn có 46 ảnh, gồm 38 ảnh bổ sung ngày 26/10/2026 từ gallery của The Appel Shop, The Amish Home Gallery, The Amish Home và Dutch Craft Furniture. Nguồn, hash và kết quả kiểm tra bối cảnh lưu trong `data/source-photos/catalog.json` và `data/dining-gallery-expansion.json`. Có 6 ảnh mới đạt kiểm tra bối cảnh với ảnh sản phẩm bộ bàn 12 ghế đang thử. Kết quả này kiểm tra khả năng bố trí, chưa xác nhận chất lượng ảnh ghép cuối cùng. App ưu tiên ảnh đạt cho đúng hash sản phẩm, bỏ qua ảnh đã bị loại cho hash đó; các ảnh phù hợp được luân phiên theo lịch sử sử dụng và vẫn được kiểm tra trước khi ghép.
-
-Ảnh gốc quyết định sản phẩm xuất hiện như thế nào: mặc, cầm, đặt trong không gian hoặc sử dụng xe. Kết quả FIT/NOFIT đã lưu chỉ được dùng khi khớp cả URL sản phẩm và hash ảnh; hai listing dùng chung ảnh có thể bán kích thước hoặc bộ phận khác nhau. Với bàn, phòng cần có footprint đồ cũ tương đương để thay cục bộ, không chỉ đủ diện tích chung. Bát đĩa hoặc bữa ăn do AI gợi ý trong context không phải điều kiện bắt buộc.
-
-Kho chung nằm trong `data/source-photos/<nhóm-hàng>/`, không chia theo website. `Áo` chứa nhóm áo, `Nội thất` chứa nội thất; các ảnh khác giữ trong `Cốc và bình`, `Trang trí nhà cửa`, `Phụ kiện`, `Mũ`, `Đồ bếp`, `Thể thao ngoài trời`, `Đồ thú cưng`, `Quần đùi`, `Đồ lót`, `Đồng phục` để dùng lại sau. Ảnh kho nằm trên Google Drive (`Product Review Batch/Nguồn ảnh/<nhóm>/`), không nằm trong Git: thêm/xoá ảnh và tạo nhóm ở tab **Nguồn ảnh** của trang quản lý. Trong popup sản phẩm, bấm **+ Drive** ở dòng ảnh gốc để xem toàn bộ ảnh của một nhóm trên Drive: tích chọn rồi **Thêm** thì app chỉ tải những ảnh đã chọn chưa có trên máy; hoặc bấm **Tải về máy** (danh mục đang chọn hoặc tất cả danh mục) để tải đủ một lần. Ảnh tải lẻ được ghi vào chỉ mục đồng bộ của nhóm nên không bao giờ tải trùng. 3.111 ảnh cũ được thu về cạnh dài tối đa 1280 px (JPEG); `catalog.json` giữ nguồn, hash mới và tên cũ trong `previous_files`. Có thể thêm ảnh vào `data/source-photos/<nhóm>/` trên máy rồi chạy `PRB_ADMIN_KEY='mật khẩu admin' node tools/upload-sources.mjs` để đẩy ảnh mới lên Drive (ảnh trùng tên đã có thì bỏ qua). Trong popup, chọn **Kho ảnh** rồi **Chọn ảnh** để mở đúng thư mục, hoặc **Mở thư mục** để xem kho; nhóm đã lưu được nhớ cho lần sau.
-
-Mỗi ảnh có bản ghi trong catalog.json (nhóm lưu trữ `source_group`, danh mục sản phẩm `category`, nguồn, SHA256 và đường dẫn cũ). Nhóm thư mục chỉ giúp chọn file; danh mục chi tiết cho từng loại sản phẩm vẫn khai báo trong data/product-contexts.json (`source_categories`). Ảnh mẫu chỉ cung cấp người, bố cục và bối cảnh; không thay thế chi tiết của sản phẩm gốc.
-
-Mỗi lượt dùng đúng một ảnh review cùng một ảnh sản phẩm gốc; ảnh gốc nào chưa có ảnh review thì app báo trước khi chạy. Thêm loại sản phẩm mới: tạo thư mục ảnh, thêm bản ghi vào catalog.json và khai báo danh mục trong product-contexts.json.
-
-Với đồ đặt trong không gian như bàn ăn, AI chỉnh sửa trực tiếp ảnh phòng tham khảo để thay sản phẩm, giữ góc máy, ánh sáng và đồ vật không liên quan. App xuất nguyên file PNG do AI tạo để bạn xem và yêu cầu sửa nếu cần.
-
-Phòng vẫn phải đủ chỗ cho toàn bộ sản phẩm thật. App thử tối đa `MaxTries` ảnh cho đồ vật (mặc định 5), dừng tìm ngay khi có một ảnh đạt và không tìm ảnh thứ hai. Đường dẫn ảnh và kết luận được lưu vào `logs/<mã-SP>-p1-fit-<lượt>.json`; ảnh bị loại có lý do cụ thể. Review chữ và ảnh bối cảnh là hai nguồn dữ liệu riêng: có review chữ chưa có nghĩa là đã có ảnh bối cảnh phù hợp.
-
-## Kết quả: mỗi lần chạy là một thư mục
+## Kết quả mỗi lần chạy
 
 ```
 workspace/output/<thời-gian>/
-  images/<mã-SP>.png      ảnh kết quả
-  refs/<mã-SP>/           bản sao ảnh đầu vào + manifest.json (vai trò, nguồn, SHA256)
-  logs/                   log AI, lỗi từng sản phẩm, run.log, rejected/ (ảnh bị loại)
-    <mã-SP>-review-sources.json  các review tham khảo thực tế đã chọn
-  results.json            kết quả chờ duyệt (review.json: Giữ/Bỏ từng dòng)
-  loox_import.csv         chỉ có sau khi duyệt xong: product_handle, rating, author, email, body, created_at, photo_url, verified_purchase
-  urls.input.txt          danh sách URL đầu vào
-  urls.completed.txt      URL đã xong
-  missing-data.csv        (nếu có) sản phẩm thiếu ảnh mẫu
+  images/            ảnh kết quả
+  refs/              bản sao ảnh đầu vào kèm nguồn và SHA256
+  logs/              log AI và lỗi từng sản phẩm
+  results.json       kết quả chờ duyệt
+  loox_import.csv    có sau khi duyệt xong
+  missing-data.csv   (nếu có) sản phẩm thiếu ảnh mẫu
 ```
 
-CSV Loox dùng header đúng template tải từ Loox, UTF-8 không BOM, ngày `YYYY-MM-DD`, boolean `TRUE`/`FALSE`. Khi import, chọn **Custom File** trong Loox. CSV từ trang quản lý Drive là danh sách ảnh, không thay thế file review này.
+Trên Drive, mọi thứ nằm trong `Product Review Batch/`: `Ảnh đã tạo/`, `Nguồn ảnh/`, `Logs/`.
 
-Ảnh và review đầu ra là dữ liệu mẫu được tạo ra, không phải bằng chứng mua hàng hay trải nghiệm của khách thật.
+## Cấu trúc
 
-## Báo thiếu ảnh mẫu
-
-Sản phẩm không có ảnh mẫu phù hợp sẽ dừng, giữ link để chạy lại, và được ghi vào batch:
-
-```
-workspace/output/<thời-gian>/
-  missing-data.csv              danh sách: mã SP, sản phẩm, danh mục, cách trình bày, link
-  missing-data/<mã-SP>/
-    product.jpg                 ảnh sản phẩm gốc
-    info.json                   sản phẩm, danh mục, bối cảnh cần, lý do
-```
-
-App hiện thông báo khi chạy xong. Gửi `missing-data.csv` và thư mục `missing-data/` để bổ sung ảnh mẫu vào data/source-photos/.
-
-## Tạo ảnh bằng ChatGPT web hoặc Google Flow
-
-Ngoài Codex CLI, app có thể tạo ảnh trong tab ChatGPT / Google Flow đang đăng nhập trên Chrome:
-
-```
-app (PowerShell) → bridge/ (Node, 127.0.0.1:8765) → extension/ (Chrome) → tab ChatGPT / Flow
-```
-
-1. Bấm **Kiểm tra cấu hình** → **Cài** trong app (cài cả `bridge/`), hoặc chạy `npm install` trong `bridge/`.
-2. Chrome → `chrome://extensions` → bật Developer mode → **Load unpacked** → chọn thư mục `extension/`.
-3. Mở tab ChatGPT và một dự án Google Flow (`flow.google.com/project/...`), đã đăng nhập.
-4. Chạy với `-ImageBackend chatgpt` hoặc `-ImageBackend flow` (hoặc đặt biến môi trường `PIB_IMAGE_BACKEND`). App tự bật bridge.
-
-- **ChatGPT:** tự động hoàn toàn: dán ảnh tham khảo, gửi prompt, đọc ảnh mới qua API của trang (`/backend-api/my/recent/image_gen`) và tải PNG gốc.
-- **Google Flow:** Flow chỉ nhận cú bấm thật, nên extension dán ảnh, điền prompt, đưa tab lên trước và viền vàng nút **Bắt đầu tạo**; bấm 1 lần, phần còn lại tự động.
-- Mỗi lần tạo tính vào hạn mức của tài khoản ChatGPT / Flow đang đăng nhập.
-
-## Lưu ảnh lên Google Drive và quản lý
-
-`worker/` là Cloudflare Worker `product-review-batch-api` (cùng mẫu với memories-api): trên Drive mọi thứ nằm trong `Product Review Batch/`: ảnh đã tạo ở `Ảnh đã tạo/<batch>/`, kho ảnh mẫu ở `Nguồn ảnh/<nhóm>/`, log người dùng gửi ở `Logs/`, CSV dùng link cố định `https://product-review-batch-api…/img/<id>.png`.
-
-Cài một lần:
-
-1. Google Cloud Console: thêm redirect URI `https://product-review-batch-api.hoangpham2263.workers.dev/oauth/callback` vào OAuth client đang dùng cho memories.
-2. Trong `worker/`: `npx wrangler kv namespace create STORE`, dán id vào `wrangler.toml`, rồi `npx wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_PASSWORD` và `npx wrangler deploy`.
-3. Trong app, bấm **Google Drive** và nhập mật khẩu quản lý (mỗi máy một lần). App kiểm tra mật khẩu rồi lưu vào `workspace/drive.json` (không lên Git).
-4. Mở trang quản lý `docs/index.html` (GitHub Pages: Settings → Pages → `main` / `docs`), nhập mật khẩu, bấm **Kết nối Drive**.
-
-App kiểm tra đăng nhập/kết nối Drive trước khi tạo ảnh. Mỗi luồng tạo xong ảnh thì tải ảnh đó lên Drive ngay (song song); upload lỗi được thử lại cuối lượt; chỉ ảnh có link HTTPS công khai mới được ghi vào CSV bàn giao. Upload tạm lỗi thử tối đa 3 lượt; vẫn lỗi thì giữ URL và lưu ảnh/nội dung tại `workspace/delivery-pending/`. Bấm Bắt đầu sẽ dùng lại các kết quả đã lưu để tiếp tục upload, không gọi AI tạo lại; với nhiều ảnh cùng link, các ảnh đã thành công cũng được dùng lại đến khi cả link hoàn tất. Không thay upload lỗi bằng đường dẫn local. Trang quản lý: lọc theo batch/trạng thái, duyệt, loại, copy link, xoá và tải danh sách link.
-
-CLI có `-LocalOnly` cho kiểm thử hoặc chủ đích chỉ xuất local; đây không phải chế độ bàn giao ảnh công khai cho Loox. Giao diện desktop luôn yêu cầu Drive.
-
-## Cấu trúc thư mục
-
-| Đường dẫn | Nội dung |
+| Thư mục | Nội dung |
 |---|---|
-| src/ | Mã nguồn: `workflow/steps/01–07`, `application/`, `domain/`, `infrastructure/`, `ui/` |
-| data/ | Dữ liệu base trên Git: `source-photos/catalog.json` (ảnh tải từ Drive theo nhóm), names.txt, *.json quy tắc, review-samples.jsonl (~2.800 review mẫu: nội dung, danh mục, nguồn) |
-| bridge/ | Server local nối workflow với extension |
-| extension/ | Tạo ảnh qua tab ChatGPT / Google Flow |
-| worker/, docs/ | Lưu ảnh lên Google Drive, trang quản lý ảnh (GitHub Pages) |
-| tests/ | Kiểm thử offline, chạy bằng test.cmd |
-| workspace/ | Mọi file sinh ra, Git bỏ qua: `output/`, `urls.txt` (hàng đợi), `logs/` (log kiểm tra ChatGPT), `temp/`, `tests/` |
+| `src/` | Mã nguồn app (PowerShell); `src/mac/` cho giao diện Mac |
+| `data/` | Quy tắc, kho review mẫu, danh sách tên, catalog ảnh |
+| `worker/` | Cloudflare Worker `product-review-batch-api`: lưu ảnh lên Google Drive |
+| `docs/` | Trang quản lý (GitHub Pages) và tài liệu API |
+| `bridge/`, `extension/` | Tạo ảnh qua tab ChatGPT / Google Flow trên Chrome (tuỳ chọn) |
+| `tools/` | Công cụ chuẩn bị dữ liệu, đẩy ảnh lên kho |
+| `tests/` | Kiểm thử offline: `test.cmd` (Windows), `./test.sh` (Mac) |
+| `workspace/` | File sinh ra khi chạy, không lên Git |
 
-Ảnh mẫu chỉ được đọc, không bị sửa hay di chuyển. Tham số CLI -List và -OutDir cho phép chọn đường dẫn riêng.
+Chi tiết workflow: [docs/workflow.txt](docs/workflow.txt). Hướng dẫn và bài học cho AI: [AGENTS.md](AGENTS.md).
 
-Logo chỉ được thay bằng brand giả khi thực sự in, khắc, thêu hoặc gắn trên sản phẩm. Watermark ảnh, logo góc, dấu cửa hàng và địa chỉ website phải bị xóa hoàn toàn; không đổi thành logo giả hay đưa lên tường. Sản phẩm không có logo vật lý giữ nguyên trạng thái không thương hiệu.
-
-## Kiểm tra và tài liệu
-
-Chạy **test.cmd** để kiểm tra cú pháp và các bộ kiểm thử offline, không gọi AI trả phí.
-
-- [Chi tiết workflow và cấu trúc mã nguồn](docs/workflow.txt)
-
-Nguồn bổ sung: https://github.com/nltk/nltk_data/blob/gh-pages/packages/corpora/names.zip
-
-Điều khoản gốc của Names Corpus:
-
-```text
-Names Corpus, Version 1.3 (1994-03-29)
-Copyright (C) 1991 Mark Kantrowitz
-Additions by Bill Ross
-
-This corpus contains 5001 female names and 2943 male names, sorted
-alphabetically, one per line.
-
-You may use the lists of names for any purpose, so long as credit is
-given in any published work. You may also redistribute the list if you
-provide the recipients with a copy of this README file. The lists are
-not in the public domain (I retain the copyright on the lists) but are
-freely redistributable.  If you have any additions to the lists of
-names, I would appreciate receiving them.
-
-Mark Kantrowitz <mkant+@cs.cmu.edu>
-http://www-2.cs.cmu.edu/afs/cs/project/ai-repository/ai/areas/nlp/corpora/names/
-```
-
-## Phát hành phiên bản
-
-Push code lên `main` chưa làm máy khác cập nhật. Muốn phát hành thì tạo tag:
+## Phát hành
 
 ```bash
-git tag v1.0.1 && git push origin v1.0.1
+git tag v1.0.x && git push origin v1.0.x
 ```
 
-GitHub Actions tự tạo Release; trong app bấm **Cập nhật** (góc trên bên phải) để tải bản đó và mở lại app. Số phiên bản hiện trên thanh tiêu đề app.
+GitHub Actions tạo Release; người dùng bấm **Cập nhật** trong app.
 
-## Gửi log
+## Ghi công
 
-Nút **Gửi log** gom log của app, log và kết quả (`results.json`, `review.json`) của 5 lần chạy gần nhất, kết quả Kiểm tra cấu hình, phiên bản và hệ điều hành thành một file zip rồi tải lên Drive; file hiện ở khối **Log người dùng** trên trang quản lý để tải về. Không gửi mật khẩu app (`drive.json`), ảnh hay danh sách sản phẩm. Chưa nhập mật khẩu app hoặc mất mạng thì app lưu file zip trong `workspace/temp` và mở thư mục đó để gửi tay.
-
-## Hai mật khẩu
-
-- **Mật khẩu app** (`APP_PASSWORD` của Worker): nhập trong app ở Kiểm tra cấu hình. Chỉ tải ảnh kết quả lên, xem và đồng bộ kho ảnh, gửi log.
-- **Mật khẩu admin** (`ADMIN_PASSWORD`): chỉ để đăng nhập trang quản lý (xem/xoá ảnh, quản lý kho, xem log, kết nối Drive) và lệnh `tools/upload-sources.mjs`. Không đưa mật khẩu này cho người dùng app.
+Danh sách tên trong `data/names.txt` dùng Names Corpus 1.3 (Mark Kantrowitz, bổ sung bởi Bill Ross); điều khoản ở [data/names-LICENSE.txt](data/names-LICENSE.txt).
