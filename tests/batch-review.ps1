@@ -18,15 +18,33 @@ try{
     $items=@(Get-BatchReview $temp)
     Assert ($items.Count -eq 3 -and -not $items[0].Decision) "Every result must be listed, undecided. Rows=$($rows.Count) Items=$($items.Count) Decision=$($items[0].Decision)"
     Assert ((Split-Path $items[0].ProductPath -Leaf) -eq 'product.png' -and (Split-Path $items[0].ScenePath -Leaf) -eq 'scene.png') 'Each result must know its product photo and the review photo it was made from.'
-    Set-BatchReviewDecision $temp '001-tee' ok
-    Set-BatchReviewDecision $temp '002-tee' bad
+    $project=Join-Path $temp 'project';$rejected=Join-Path $project 'workspace/rejected'
+    Set-BatchReviewDecision $temp '001-tee' ok $rejected
+    Set-BatchReviewDecision $temp '002-tee' bad $rejected
+    # A review marked Bỏ is kept with its photos and text as data, and goes out with the next Gửi log.
+    $sample=Join-Path $rejected ((Split-Path $temp -Leaf)+'__002-tee')
+    Assert ((@('result.png','product.png','review.png','manifest.json','sample.json')|Where-Object{Test-Path -LiteralPath (Join-Path $sample $_)}).Count -eq 5 -and (Get-Content -LiteralPath (Join-Path $sample 'sample.json') -Raw -Encoding UTF8|ConvertFrom-Json).body -eq 'b2') 'A rejected review must be kept with its result, product photo, review photo and text.'
+    Set-BatchReviewDecision $temp '002-tee' ok $rejected
+    Assert (-not (Test-Path -LiteralPath $sample)) 'Changing a Bỏ before it is sent must drop the kept copy.'
+    Set-BatchReviewDecision $temp '002-tee' bad $rejected
+    . (Join-Path $root 'src/application/support-logs.ps1')
+    $bundle=New-SupportLogBundle $project
+    try{
+        Assert (@($bundle.Samples).Count -eq 1) 'Gửi log must carry the rejected reviews not sent yet.'
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip=[IO.Compression.ZipFile]::OpenRead($bundle.Path)
+        try{Assert (@($zip.Entries|Where-Object{$_.FullName -replace '\\','/' -like '*/rejected/*__002-tee/result.png'}).Count -eq 1) 'The log zip must hold the rejected result image.'}finally{$zip.Dispose()}
+    }finally{Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue}
+    Complete-RejectedSamples $bundle.Samples
+    Assert (-not @(Get-UnsentRejectedSamples $project).Count) 'Samples sent once must not be sent again.'
+    Set-BatchReviewDecision $temp '002-tee' bad $rejected
     Assert (-not (Test-Path (Join-Path $temp 'loox_import.csv'))) 'No Loox file may exist before the review is done.'
     $failed=$false;try{Export-ReviewedCsv $temp|Out-Null}catch{$failed=$_.Exception.Message -match 'chưa duyệt'}
     Assert $failed 'The final file must wait until every image is checked.'
-    Set-BatchReviewDecision $temp '003-tee' ok
-    Set-BatchReviewDecision $temp '003-tee' ''
+    Set-BatchReviewDecision $temp '003-tee' ok $rejected
+    Set-BatchReviewDecision $temp '003-tee' '' $rejected
     Assert (-not @(Get-BatchReview $temp)[2].Decision) 'Clicking a decision again must clear it.'
-    Set-BatchReviewDecision $temp '003-tee' ok
+    Set-BatchReviewDecision $temp '003-tee' ok $rejected
     $exported=Export-ReviewedCsv $temp
     Assert ((Split-Path $exported -Leaf) -eq 'loox_import.csv' -and -not (Test-Path (Join-Path $temp 'loox_import_final.csv'))) 'The reviewed export is the one Loox file.'
     $csv=@(Import-Csv $exported)
@@ -71,6 +89,7 @@ try{
         }finally{if($script:Preview){$script:Preview.Dispose()};$view.Form.Dispose()}
     }
 }finally{
+    Get-ChildItem -LiteralPath (Join-Path (Split-Path (Split-Path ([IO.Path]::GetFullPath($temp)) -Parent) -Parent) 'rejected') -Directory -Filter ((Split-Path $temp -Leaf)+'__*') -ErrorAction SilentlyContinue|Remove-Item -Recurse -Force
     $resolved=[IO.Path]::GetFullPath($temp);$allowed=[IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\')+'\'
     if($resolved.StartsWith($allowed,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -like 'batch-review-*'){Remove-Item -LiteralPath $resolved -Recurse -Force -ErrorAction SilentlyContinue}
 }

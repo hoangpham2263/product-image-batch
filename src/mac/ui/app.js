@@ -976,12 +976,13 @@ function wire() {
   ui.btnBulk.onclick = showBulkDialog;
   // Gửi log: packs the logs and uploads them for the admin page; progress shows on the button.
   ui.btnLogs.onclick = async () => {
-    const question = "Gửi log cho admin để kiểm tra lỗi?\n\nChỉ nên gửi khi app gặp lỗi. File không chứa mật khẩu, ảnh hay danh sách sản phẩm.";
+    const rejected = await api("rejectedCount").catch(() => 0);
+    const question = "Gửi log cho admin?\n\n" + (rejected ? `Gồm log của app và ${rejected} ảnh đã Bỏ chưa gửi, để cải thiện chất lượng ảnh.` : "Gồm log của app để kiểm tra lỗi.") + " Không gửi mật khẩu hay danh sách sản phẩm.";
     if ((await messageBox(question, "Gửi log", ["Yes", "No"])) !== "Yes") return;
     ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
     try {
       const r = await api("sendLogs");
-      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}`); }
+      if (r.sent) { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi log: ${r.name}${r.samples ? ` (kèm ${r.samples} ảnh đã Bỏ)` : ""}`); }
       else { ui.btnLogs.textContent = "Gửi log"; appendLog(`Chưa gửi được; file log ở: ${r.path}`); api("revealPath", { path: r.path }); }
     } catch { ui.btnLogs.textContent = "Gửi log"; appendLog("Chưa tạo được file log."); }
     setTimeout(() => { ui.btnLogs.textContent = "Gửi log"; ui.btnLogs.disabled = run.active; }, 2500);

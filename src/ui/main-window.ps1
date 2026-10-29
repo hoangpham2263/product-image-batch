@@ -230,13 +230,14 @@ $logsTimer.Add_Tick({
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
     $result = try { (Get-Content -LiteralPath $logsOut -Raw -ErrorAction Stop).Trim() } catch { '' }
-    if ($result -match '^sent\|(.+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])" }
+    if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi log: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) ảnh đã Bỏ)" })" }
     elseif ($result -match '^saved\|(.+)$') { $btnLogs.Text = 'Gửi log'; Append-Log "Chưa gửi được; file log ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
     else { $btnLogs.Text = 'Gửi log'; Append-Log 'Chưa tạo được file log.' }
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
-    $question = "Gửi log cho admin để kiểm tra lỗi?`r`n`r`nChỉ nên gửi khi app gặp lỗi. File không chứa mật khẩu, ảnh hay danh sách sản phẩm."
+    $rejected = @(Get-UnsentRejectedSamples $root).Count
+    $question = "Gửi log cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm log của app và $rejected ảnh đã Bỏ chưa gửi, để cải thiện chất lượng ảnh." } else { 'Gồm log của app để kiểm tra lỗi.' }) + ' Không gửi mật khẩu hay danh sách sản phẩm.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi log', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'
     $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))

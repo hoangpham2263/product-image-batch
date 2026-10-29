@@ -120,11 +120,17 @@ function Invoke-Rpc([string]$Cmd, $A) {
             [IO.File]::WriteAllLines($workspace.Queue, [string[]]$urls, [Text.UTF8Encoding]::new($true))
             return $urls.Count
         }
+        'rejectedCount' { return @(Get-UnsentRejectedSamples $root).Count }
         'sendLogs' {
-            $zip = New-SupportLogBundle $root
+            $bundle = New-SupportLogBundle $root
             $drive = Get-DriveConfig $workspace.Root
-            try { if (-not $drive) { throw 'no app password' }; $name = Send-SupportLog $drive $zip; Remove-Item -LiteralPath $zip -Force -ErrorAction SilentlyContinue; return [pscustomobject]@{ sent = $true; name = $name } }
-            catch { return [pscustomobject]@{ sent = $false; path = $zip } }
+            try {
+                if (-not $drive) { throw 'no app password' }
+                $name = Send-SupportLog $drive $bundle.Path
+                Complete-RejectedSamples $bundle.Samples
+                Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue
+                return [pscustomobject]@{ sent = $true; name = $name; samples = @($bundle.Samples).Count }
+            } catch { return [pscustomobject]@{ sent = $false; path = $bundle.Path } }
         }
         'pruneMap' { Remove-ManualEntriesExcept $mapPath @(if (Test-Path $workspace.Queue) { Get-Content $workspace.Queue -Encoding UTF8 | ForEach-Object { $_.Trim() } | Where-Object { $_ } }); return $true }
         'parseLinks' {

@@ -1,6 +1,7 @@
 ﻿# Gửi log: one zip with what is needed to look into a problem (app logs, the last runs' logs and
-# results, the configuration check, version and system), uploaded to the management page.
-# Never included: drive.json (the app password), images and the user's product list.
+# results, the configuration check, version and system) and the reviews marked Bỏ not sent yet, as data to
+# improve the images; uploaded to the management page. Returns the zip and the samples it carries.
+# Never included: drive.json (the app password), other images and the user's product list.
 function New-SupportLogBundle([string]$ProjectRoot) {
     $workspace = Join-Path $ProjectRoot 'workspace'
     $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
@@ -35,10 +36,19 @@ function New-SupportLogBundle([string]$ProjectRoot) {
                 if (Test-Path -LiteralPath $batchLogs) { Copy-Item -LiteralPath $batchLogs -Destination (Join-Path $target 'logs') -Recurse }
             }
         }
+        # About 40 MB of samples per send (uploads stop at 50 MB); the rest go with the next Gửi log.
+        $samples = @(); $budget = 40MB
+        foreach ($sample in @(Get-UnsentRejectedSamples $ProjectRoot)) {
+            $size = [long](Get-ChildItem -LiteralPath $sample.FullName -File | Measure-Object Length -Sum).Sum
+            if ($samples.Count -and $size -gt $budget) { break }
+            New-Item -ItemType Directory -Force -Path (Join-Path $content 'rejected') | Out-Null
+            Copy-Item -LiteralPath $sample.FullName -Destination (Join-Path $content 'rejected') -Recurse
+            $samples += $sample.FullName; $budget -= $size
+        }
         $zip = Join-Path $workspace "temp/$name.zip"
         New-Item -ItemType Directory -Force -Path (Split-Path $zip -Parent) | Out-Null
         Compress-Archive -Path $content -DestinationPath $zip -Force
-        return $zip
+        return [pscustomobject]@{ Path = $zip; Samples = $samples }
     } finally { Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
