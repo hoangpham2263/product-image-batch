@@ -39,8 +39,8 @@ const keyRole = async (req, env) => {
   const key = req.headers.get("x-admin-key") || "";
   if (env.APP_PASSWORD && sameKey(key, env.APP_PASSWORD)) return "app";
   if (key.startsWith(TEMP_PREFIX)) {
-    const found = await env.STORE.get(`tmpkey:${await sha256(key)}`, "json");
-    if (found && found.exp > Date.now()) return "upload";
+    const hash = await sha256(key);
+    if ((await readTempKeys(env)).some((k) => k.hash === hash)) return "upload";
   }
   return "";
 };
@@ -54,26 +54,29 @@ async function sha256(text) {
 export function uploadAllowed(method, path) {
   return (method === "GET" || method === "POST") && /^\/api\/sources(\/[^/]+)?$/.test(path);
 }
-// Admin only: make a key (shown once; only its hash is kept), list the live ones, cancel one or all.
+// Live temporary keys, kept in one KV entry (by hash, never the key itself). One entry rather than KV list, which
+// can lag about a minute: a cancelled key leaves the list and stops working right away.
+async function readTempKeys(env) {
+  return ((await env.STORE.get("tmpkeys", "json")) || []).filter((k) => k.exp > Date.now());
+}
+// Admin only: make a key (shown once), list the live ones, cancel one or all.
 async function handleTempKeys(req, env, id) {
+  const live = await readTempKeys(env);
   if (req.method === "POST" && !id) {
     const hours = Number((await req.json().catch(() => ({}))).hours) || 24;
     if (!TEMP_HOURS.includes(hours)) return json({ error: "Thời hạn chỉ là 1 giờ, 24 giờ hoặc 7 ngày." }, 400);
     const key = TEMP_PREFIX + [...crypto.getRandomValues(new Uint8Array(20))].map((b) => b.toString(16).padStart(2, "0")).join("");
     const hash = await sha256(key), exp = Date.now() + hours * 3600_000;
-    const record = { exp, createdAt: new Date().toISOString(), hint: key.slice(-4) };
-    await env.STORE.put(`tmpkey:${hash}`, JSON.stringify(record), { expirationTtl: hours * 3600, metadata: record });
+    await env.STORE.put("tmpkeys", JSON.stringify([...live, { hash, exp, createdAt: new Date().toISOString(), hint: key.slice(-4) }]));
     return json({ key, id: hash.slice(0, 16), expiresAt: new Date(exp).toISOString() }, 201);
   }
-  const { keys } = await env.STORE.list({ prefix: "tmpkey:" });
-  const live = keys.filter((k) => k.metadata?.exp > Date.now());
   if (req.method === "GET" && !id) {
-    return json({ keys: live.map((k) => ({ id: k.name.slice(7, 23), hint: k.metadata.hint, createdAt: k.metadata.createdAt, expiresAt: new Date(k.metadata.exp).toISOString() })) }, 200, { "cache-control": "no-store" });
+    return json({ keys: live.map((k) => ({ id: k.hash.slice(0, 16), hint: k.hint, createdAt: k.createdAt, expiresAt: new Date(k.exp).toISOString() })) }, 200, { "cache-control": "no-store" });
   }
   if (req.method === "DELETE") {
-    const gone = keys.filter((k) => !id || k.name.slice(7, 23) === id);
-    await Promise.all(gone.map((k) => env.STORE.delete(k.name)));
-    return json({ ok: true, removed: gone.length });
+    const kept = live.filter((k) => id && k.hash.slice(0, 16) !== id);
+    await env.STORE.put("tmpkeys", JSON.stringify(kept));
+    return json({ ok: true, removed: live.length - kept.length });
   }
   return json({ error: "Not found" }, 404);
 }

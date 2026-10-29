@@ -84,17 +84,23 @@
   .doc th, .doc td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--border); }
   .doc th { font-weight: 500; color: var(--muted); }
   .doc-wrap { overflow-x: auto; }
-  .tmp-box { margin: 16px 0 8px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; }
-  .tmp-box p { margin: 8px 0 0; }
-  .tmp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .tmp-row strong { font-weight: 500; margin-right: auto; }
-  .tmp-row select { width: auto; }
-  #tmpResult { margin-top: 12px; }
-  #tmpKey { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--soft); border-radius: 6px; padding: 6px 10px; user-select: all; word-break: break-all; }
-  .tmp-list { margin-top: 10px; font-size: 13px; }
+  /* API: the temporary key panel stays beside the guide on wide screens, above it on phones. */
+  .api-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
+  .api-layout .doc { max-width: none; }
+  .tmp-box { position: sticky; top: 16px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
+  .tmp-box h3 { margin: 0; font-size: 15px; font-weight: 500; }
+  .tmp-box p { margin: 0; }
+  .tmp-make { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .tmp-result { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); }
+  #tmpKey { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; user-select: all; word-break: break-all; }
+  .tmp-live { display: grid; gap: 4px; }
+  .tmp-live-head { display: flex; align-items: center; justify-content: space-between; color: var(--muted); }
+  .tmp-list { font-size: 13px; }
+  .tmp-list p { margin: 4px 0; }
   .tmp-list div { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
-  .tmp-list span { flex: 1; color: var(--muted); }
-  .tmp-list button { height: 28px; padding: 0 10px; font-size: 12px; }
+  .tmp-list span { flex: 1; min-width: 0; }
+  .tmp-live button { height: 28px; padding: 0 10px; font-size: 12px; }
+  @media (max-width: 860px) { .api-layout { grid-template-columns: 1fr; } .tmp-box { position: static; } }
   .group-block { position: relative; cursor: pointer; }
   .group-block.off .menu-text { opacity: .5; }
   .switch { position: absolute; top: 14px; right: 14px; width: 36px; height: 20px; margin: 0; appearance: none; -webkit-appearance: none; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--muted) 45%, var(--bg)); cursor: pointer; transition: background .15s; }
@@ -275,24 +281,30 @@
     <div class="sec-head">
       <div class="crumbs"><button class="back" type="button" data-go="">← Quản lý</button><h2>API</h2></div>
       <div class="filters">
-        <a id="apiLink" class="btn" href="api.md" target="_blank" rel="noopener">Mở link</a>
+        <a id="apiLink" class="btn" href="api.md" target="_blank" rel="noopener">Mở tài liệu</a>
         <button id="apiCopy" class="primary" type="button">Copy tài liệu</button>
       </div>
     </div>
-    <div class="tmp-box">
-      <div class="tmp-row">
-        <strong>Mã tạm cho AI</strong>
-        <select id="tmpHours" aria-label="Thời hạn"><option value="1">1 giờ</option><option value="24" selected>24 giờ</option><option value="168">7 ngày</option></select>
-        <button id="tmpMake" class="primary" type="button">Tạo mã</button>
-      </div>
-      <p class="muted small">Mã chỉ xem và thêm ảnh vào kho, tự hết hạn. Bấm Copy lời nhắn rồi dán cho AI là đủ, không cần mật khẩu admin.</p>
-      <div id="tmpResult" class="tmp-row" hidden>
-        <code id="tmpKey"></code><span id="tmpExp" class="muted small"></span>
-        <button id="tmpCopy" class="primary" type="button">Copy lời nhắn cho AI</button>
-      </div>
-      <div id="tmpList" class="tmp-list"></div>
+    <div class="api-layout">
+      <aside class="tmp-box">
+        <h3>Mã tạm cho AI</h3>
+        <p class="muted small">Chỉ xem và thêm ảnh vào kho, tự hết hạn. Dán lời nhắn cho AI là đủ, không cần mật khẩu admin.</p>
+        <div class="tmp-make">
+          <select id="tmpHours" aria-label="Thời hạn"><option value="1">1 giờ</option><option value="24" selected>24 giờ</option><option value="168">7 ngày</option></select>
+          <button id="tmpMake" class="primary" type="button">Tạo mã</button>
+        </div>
+        <div id="tmpResult" class="tmp-result" hidden>
+          <code id="tmpKey"></code>
+          <span id="tmpExp" class="muted small"></span>
+          <button id="tmpCopy" class="primary" type="button">Copy lời nhắn cho AI</button>
+        </div>
+        <div class="tmp-live">
+          <div class="tmp-live-head"><span class="small">Mã đang dùng</span><button id="tmpCancelAll" type="button" hidden>Huỷ tất cả</button></div>
+          <div id="tmpList" class="tmp-list"><p class="muted small">Chưa có mã nào.</p></div>
+        </div>
+      </aside>
+      <div id="apiDoc" class="doc"><p class="muted">Đang tải…</p></div>
     </div>
-    <div id="apiDoc" class="doc"><p class="muted">Đang tải…</p></div>
   </section>
 
   <section id="manage" class="card" hidden>
@@ -726,18 +738,29 @@ $("apiLink").href = new URL("api.md", location.href).href;
 // Mã tạm: a key that expires, sent to an AI with the guide instead of the admin password. Shown once.
 const when = (iso) => new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
 async function loadTempKeys() {
-  try {
-    const { keys } = await api("/api/temp-keys");
-    $("tmpList").replaceChildren(...keys.map((k) => {
-      const row = document.createElement("div"), text = document.createElement("span"), cancel = document.createElement("button");
-      text.textContent = `Mã …${k.hint} · hết hạn ${when(k.expiresAt)}`;
-      cancel.type = "button"; cancel.textContent = "Huỷ";
-      cancel.onclick = async () => { await api(`/api/temp-keys/${k.id}`, { method: "DELETE" }).catch(() => {}); loadTempKeys(); };
-      row.append(text, cancel);
-      return row;
-    }));
-  } catch { $("tmpList").replaceChildren(); }
+  let keys = [];
+  try { ({ keys } = await api("/api/temp-keys")); } catch { /* list stays as it is */ return; }
+  $("tmpCancelAll").hidden = keys.length < 2;
+  if (!keys.length) { $("tmpList").innerHTML = '<p class="muted small">Chưa có mã nào.</p>'; return; }
+  $("tmpList").replaceChildren(...keys.map((k) => {
+    const row = document.createElement("div"), text = document.createElement("span"), cancel = document.createElement("button");
+    text.textContent = `…${k.hint} · hết hạn ${when(k.expiresAt)}`;
+    cancel.type = "button"; cancel.textContent = "Huỷ";
+    cancel.onclick = () => cancelTempKeys(`/api/temp-keys/${k.id}`, [k.id]);
+    row.append(text, cancel);
+    return row;
+  }));
 }
+// Cancelling drops the key at once; the shown key is hidden too when it was the one cancelled.
+async function cancelTempKeys(path, ids) {
+  try {
+    await api(path, { method: "DELETE" });
+    if (state.tempKey && (!ids || ids.includes(state.tempKey.id))) { state.tempKey = null; $("tmpResult").hidden = true; }
+    toast(ids ? "Đã huỷ mã" : "Đã huỷ tất cả mã");
+  } catch (e) { toast(e.message); }
+  loadTempKeys();
+}
+$("tmpCancelAll").onclick = () => cancelTempKeys("/api/temp-keys");
 $("tmpMake").onclick = async () => {
   $("tmpMake").disabled = true;
   try {

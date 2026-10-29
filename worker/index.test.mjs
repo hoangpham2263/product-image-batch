@@ -264,10 +264,15 @@ test("a temporary key adds images to the library until it expires, and reaches n
   assert.equal(live.keys.length, 1);
   assert.equal(live.keys[0].hint, made.key.slice(-4));
   // Expired keys stop working even before KV drops them; cancelling removes them at once.
-  const name = [...kv.keys()].find((k) => k.startsWith("tmpkey:"));
-  kv.set(name, JSON.stringify({ ...JSON.parse(kv.get(name)), exp: Date.now() - 1 }));
+  kv.set("tmpkeys", JSON.stringify(JSON.parse(kv.get("tmpkeys")).map((k) => ({ ...k, exp: Date.now() - 1 }))));
   assert.equal((await call("/api/sources", { headers: tmp })).status, 401);
-  const again = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 1 }) })).json();
+  // Cancelling one key leaves the list and stops it at once; the others keep working.
+  const one = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 1 }) })).json();
+  const two = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 1 }) })).json();
+  assert.equal((await (await call(`/api/temp-keys/${one.id}`, { method: "DELETE", headers: admin })).json()).removed, 1);
+  assert.deepEqual((await (await call("/api/temp-keys", { headers: admin })).json()).keys.map((k) => k.id), [two.id]);
+  assert.equal((await call("/api/sources", { headers: { "x-admin-key": one.key } })).status, 401);
+  assert.equal((await call("/api/sources", { headers: { "x-admin-key": two.key } })).status, 200);
   assert.equal((await call("/api/temp-keys", { method: "DELETE", headers: admin })).status, 200);
-  assert.equal((await call("/api/sources", { headers: { "x-admin-key": again.key } })).status, 401);
+  assert.equal((await call("/api/sources", { headers: { "x-admin-key": two.key } })).status, 401);
 });
