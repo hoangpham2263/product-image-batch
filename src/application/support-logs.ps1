@@ -13,7 +13,7 @@ function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze, [scriptblo
     $system = if (($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows) { 'windows' } else { 'mac' }
     $version = try { Get-AppVersion $ProjectRoot } catch { '' }
     $machine = ([Environment]::MachineName -replace '[^\w-]', '')
-    $name = (@((Get-Date -Format 'yyyy-MM-dd_HHmmss'), $version, $system, $machine) | Where-Object { $_ }) -join '_'
+    $name = (@((Get-Date).ToString("yyyy-MM-dd_HH'h'mm'm'ss's'"), $version, $system, $machine) | Where-Object { $_ }) -join '_'
     $file = Join-Path $workspace "temp/$name.md"
     New-Item -ItemType Directory -Force -Path (Split-Path $file -Parent) | Out-Null
     if ($OnStep) { & $OnStep 'Đang gom lỗi…' }

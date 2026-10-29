@@ -1,7 +1,7 @@
 ﻿function New-Batch([string]$OutDir) {
     $localTime = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow, 'SE Asia Standard Time')
-    # One clean name per run, the same stamp as the error files: 2026-10-29_224037 (-2, -3… if two start in one second).
-    $stamp = $localTime.ToString('yyyy-MM-dd_HHmmss'); $id = $stamp
+    # One clean name per run, the same stamp as the error files: 2026-10-29_22h40m37s (-2, -3… if two start in one second).
+    $stamp = $localTime.ToString("yyyy-MM-dd_HH'h'mm'm'ss's'"); $id = $stamp
     for ($n = 2; Test-Path -LiteralPath (Join-Path $OutDir $id); $n++) { $id = "$stamp-$n" }
     $dir = Join-Path $OutDir $id
     $batch = @{
