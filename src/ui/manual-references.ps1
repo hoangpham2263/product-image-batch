@@ -324,6 +324,9 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,16';Size='220,28';DropDownStyle='DropDownList'}
     $sync=New-Object Windows.Forms.Button -Property @{Name='DriveSync';Text='Tải về máy ▾';Location='250,14';Size='120,30';Enabled=[bool]$drive}
     $count=New-Object Windows.Forms.Label -Property @{Location='382,20';Size='358,24';ForeColor=$ui.Muted;AutoEllipsis=$true}
+    # Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,
+    # then filling as the thumbnails arrive.
+    $loadBar=New-Object Windows.Forms.ProgressBar -Property @{Name='DriveLoad';Location='20,46';Size='720,4';Style='Continuous';Visible=$false}
     $grid=New-Object Windows.Forms.FlowLayoutPanel -Property @{Location='20,52';Size='720,420';AutoScroll=$true;BorderStyle='FixedSingle';BackColor=[Drawing.Color]::White;Padding='6,6,6,6'}
     $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='20,480';Size='400,8';Style='Marquee';MarqueeAnimationSpeed=30;Visible=$false}
     $note=New-Object Windows.Forms.Label -Property @{Name='DriveNote';Location='20,494';Size='500,24';ForeColor=$ui.Error;AutoEllipsis=$true;Text=$(if($drive){''}else{$noLogin})}
@@ -332,8 +335,8 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     Set-FlatButton $add -Primary;Set-FlatButton $sync;Set-FlatButton $cancel
     $menu=New-Object Windows.Forms.ContextMenuStrip
     $syncOne=$menu.Items.Add('Danh mục đang chọn');$syncAll=$menu.Items.Add('Tất cả danh mục')
-    $dialog.Controls.AddRange(@($groups,$sync,$count,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
-    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
+    $dialog.Controls.AddRange(@($groups,$sync,$count,$loadBar,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
+    $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Summary='';Total=0;Done=0;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
     Add-Type -AssemblyName System.Net.Http
     [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $client=New-Object Net.Http.HttpClient
@@ -341,16 +344,22 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     if($drive){[void]$client.DefaultRequestHeaders.TryAddWithoutValidation('x-admin-key',[string]$drive.AdminKey)}
     $loader=New-Object Windows.Forms.Timer -Property @{Interval=15}
     $refreshCount={
+        $loading=$state.Done -lt $state.Total;$percent=if($state.Total){[int][Math]::Round(100*$state.Done/$state.Total)}else{0}
+        $loadBar.Visible=$groups.SelectedIndex -gt 0 -and ($state.Listing -or $loading)
+        if($state.Listing -and -not $loading){$loadBar.Style='Marquee'}else{$loadBar.Style='Continuous';$loadBar.Value=$percent}
+        if($state.Syncing){return}
         if($groups.SelectedIndex -lt 1){$count.Text='Chọn danh mục để xem ảnh.';$add.Enabled=$false;return}
         $add.Enabled=$state.Picked.Count -gt 0
+        if($loading){$count.Text="$(if($state.Picked.Count){"Đã chọn $($state.Picked.Count) · "})Đang tải ảnh $($state.Done)/$($state.Total) ($percent%)";return}
         if($state.Listing){$count.Text=if(@($state.Files).Count){"$(@($state.Files).Count) ảnh có trên máy · đang tải danh sách Drive…"}else{'Đang tải danh sách…'};return}
+        if($state.Summary){$count.Text=$state.Summary;return}
         $local=@($state.Files|Where-Object local).Count
         $count.Text=if(@($state.Files).Count){"Đã chọn $($state.Picked.Count) / $(@($state.Files).Count) ảnh · $local ảnh có trên máy"}else{'Danh mục này chưa có ảnh.'}
     }.GetNewClosure()
     # Tiles appear at once, empty; the loader fills them top to bottom, 120 per page. Click handlers are made
     # once here: a closure made inside another only keeps that inner scope's variables.
     $pickTile={
-        $f=$this.Tag
+        $f=$this.Tag;$state.Summary=''
         if($state.Picked.Contains($f.name)){$state.Picked.Remove($f.name);$this.BackColor=[Drawing.Color]::WhiteSmoke}
         else{$state.Picked[$f.name]=$f;$this.BackColor=$script:Ui.Accent}
         & $refreshCount
@@ -358,6 +367,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $state.ShowMore={
         foreach($old in @($grid.Controls|Where-Object Name -eq 'More')){$grid.Controls.Remove($old);$old.Dispose()}
         $end=[Math]::Min(@($state.Files).Count,$state.Shown+120)
+        $state.Total+=$end-$state.Shown
         $grid.SuspendLayout()
         for($i=$state.Shown;$i -lt $end;$i++){
             $file=$state.Files[$i]
@@ -368,11 +378,11 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         $state.Shown=$end
         if($end -lt @($state.Files).Count){$more=New-Object Windows.Forms.Button -Property @{Name='More';Text='Xem thêm';Size='100,100';Margin='3,3,3,3'};Set-FlatButton $more;$more.Add_Click($state.MoreClick);$grid.Controls.Add($more)}
         $grid.ResumeLayout()
-        $loader.Start()
+        $loader.Start();& $refreshCount
     }.GetNewClosure()
     $state.MoreClick={& $state.ShowMore}.GetNewClosure()
     $clearGrid={
-        $state.Queue.Clear();$state.Downloads.Clear();$state.Shown=0
+        $state.Queue.Clear();$state.Downloads.Clear();$state.Shown=0;$state.Total=0;$state.Done=0
         foreach($old in @($grid.Controls)){if($old -is [Windows.Forms.PictureBox] -and $old.Image){$old.Image.Dispose()};$old.Dispose()}
         $grid.Controls.Clear()
     }.GetNewClosure()
@@ -380,7 +390,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     # more (or the local copies are out of date), the grid is redrawn from it, keeping what was picked.
     $load={
         & $clearGrid
-        $state.Picked.Clear();$state.Files=@();$state.Listing=$null
+        $state.Picked.Clear();$state.Files=@();$state.Listing=$null;$state.Summary=''
         $note.Text=if($drive){''}else{$noLogin}
         if($groups.SelectedIndex -lt 1){& $refreshCount;return}
         $group=[string]$groups.SelectedItem
@@ -409,10 +419,10 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     # downloads run six at a time, and only the small copy is kept.
     $loader.Add_Tick({
         if($state.Listing -and $state.Listing.Task.IsCompleted){& $applyListing}
-        $clock=[Diagnostics.Stopwatch]::StartNew()
+        $clock=[Diagnostics.Stopwatch]::StartNew();$before=$state.Done
         foreach($d in @($state.Downloads)){
             if(-not $d.Task.IsCompleted){continue}
-            [void]$state.Downloads.Remove($d)
+            [void]$state.Downloads.Remove($d);$state.Done++
             if($d.Tile.IsDisposed -or $d.Task.Status -ne 'RanToCompletion'){continue}
             $bytes=[IO.MemoryStream]::new($d.Task.Result)
             try{$d.Tile.Image=New-ThumbnailFromStream $bytes 94}catch{}finally{$bytes.Dispose()}
@@ -421,17 +431,19 @@ function Show-DriveSourcePicker($Owner,$Editor) {
             if(-not $state.Queue[0].Tag.local -and $state.Downloads.Count -ge 6){break}
             $tile=$state.Queue[0];$state.Queue.RemoveAt(0)
             if($tile.IsDisposed){continue}
-            if($tile.Tag.local){try{$tile.Image=New-ThumbnailImage $tile.Tag.local 94}catch{}}
+            if($tile.Tag.local){try{$tile.Image=New-ThumbnailImage $tile.Tag.local 94}catch{};$state.Done++}
             elseif($tile.Tag.url){$state.Downloads.Add([pscustomobject]@{Tile=$tile;Task=$client.GetByteArrayAsync([string]$tile.Tag.url)})}
+            else{$state.Done++}
         }
+        if($state.Done -ne $before){& $refreshCount}
         if(-not $state.Queue.Count -and -not $state.Downloads.Count -and -not $state.Listing){$loader.Stop()}
     }.GetNewClosure())
     # Tải về máy: one sync process per danh mục in turn, so the bar keeps moving and each step shows.
     $out=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.out";$err=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.err"
     $timer=New-Object Windows.Forms.Timer -Property @{Interval=400}
     $state.StartNext={
-        $name=$state.Queue[$state.Done]
-        $count.Text=if($state.Queue.Count -gt 1){"Đang tải về máy: $name ($($state.Done+1)/$($state.Queue.Count))…"}else{"Đang tải $name về máy…"}
+        $name=$state.SyncQueue[$state.SyncDone]
+        $count.Text=if($state.SyncQueue.Count -gt 1){"Đang tải về máy: $name ($($state.SyncDone+1)/$($state.SyncQueue.Count))…"}else{"Đang tải $name về máy…"}
         $state.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.ProjectRoot 'src\sync-source.ps1')+'"'),'-Group',('"'+$name+'"'))
         [void]$state.Proc.Handle
         $timer.Start()
@@ -439,7 +451,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $state.Sync={
         param([string[]]$Names)
         if(-not $Names.Count){return}
-        $state.Queue=@($Names);$state.Done=0;$state.Total=0;$state.Downloaded=0;$state.Removed=0;$state.Failed=@();$state.Syncing=$true
+        $state.SyncQueue=@($Names);$state.SyncDone=0;$state.SyncTotal=0;$state.Downloaded=0;$state.Removed=0;$state.Failed=@();$state.Syncing=$true
         $sync.Enabled=$false;$groups.Enabled=$false;$add.Enabled=$false;$cancel.Enabled=$false;$bar.Visible=$true;$note.Text=''
         & $state.StartNext
     }.GetNewClosure()
@@ -447,14 +459,14 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if(-not $state.Proc.HasExited){return}
         $timer.Stop();$state.Proc.WaitForExit();$code=$state.Proc.ExitCode;$state.Proc.Dispose();$state.Proc=$null
         $text=try{(Get-Content -LiteralPath $out -Raw -ErrorAction Stop).Trim()}catch{''}
-        if($code -eq 0 -and $text -match '^(\d+)\|(\d+)\|(\d+)$'){$state.Total+=[int]$Matches[1];$state.Downloaded+=[int]$Matches[2];$state.Removed+=[int]$Matches[3]}
-        else{$state.Failed+=$state.Queue[$state.Done]}
-        $state.Done++
-        if($state.Done -lt $state.Queue.Count){& $state.StartNext;return}
+        if($code -eq 0 -and $text -match '^(\d+)\|(\d+)\|(\d+)$'){$state.SyncTotal+=[int]$Matches[1];$state.Downloaded+=[int]$Matches[2];$state.Removed+=[int]$Matches[3]}
+        else{$state.Failed+=$state.SyncQueue[$state.SyncDone]}
+        $state.SyncDone++
+        if($state.SyncDone -lt $state.SyncQueue.Count){& $state.StartNext;return}
         $state.Syncing=$false;$bar.Visible=$false;$sync.Enabled=$true;$groups.Enabled=$true;$cancel.Enabled=$true
         & $load
-        $ok=$state.Queue.Count-$state.Failed.Count
-        if($ok){$count.Text="$(if($state.Queue.Count -gt 1){"$ok danh mục"}else{$state.Queue[0]}) đã có trên máy: $($state.Total) ảnh (vừa tải $($state.Downloaded), xoá $($state.Removed))."}
+        $ok=$state.SyncQueue.Count-$state.Failed.Count
+        if($ok){$state.Summary="$(if($state.SyncQueue.Count -gt 1){"$ok danh mục"}else{$state.SyncQueue[0]}) đã có trên máy: $($state.SyncTotal) ảnh (vừa tải $($state.Downloaded), xoá $($state.Removed)).";& $refreshCount}
         if($state.Failed.Count){$note.Text="Chưa tải được: $($state.Failed -join ', '). Kiểm tra mạng rồi thử lại."}
     }.GetNewClosure())
     $syncOne.Add_Click({& $state.Sync @([string]$groups.SelectedItem)}.GetNewClosure())

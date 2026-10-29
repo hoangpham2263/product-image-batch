@@ -343,37 +343,49 @@ function showDrivePicker() {
     bar.hidden = true;
     const note = at(label(state.drive ? "" : noLogin), 20, 494, 500, 24);
     note.style.color = "var(--error)";
+    // Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,
+    // then filling as the thumbnails arrive.
+    const loadBar = at(el("div", "progress"), 20, 46, 720, 4);
+    loadBar.append(el("span"));
+    loadBar.hidden = true;
     const grid = at(el("div", "flow"), 20, 52, 720, 420);
     Object.assign(grid.style, { background: "#fff", border: "1px solid #000", display: "flex", flexWrap: "wrap", alignContent: "flex-start", gap: "6px", padding: "6px" });
     const add = at(button("Thêm", true), 536, 490, 110, 32), cancel = at(button("Hủy"), 656, 490, 84, 32);
     add.disabled = true;
     sync.disabled = !state.drive;
-    view.body.append(groups, sync, count, grid, bar, note, add, cancel);
-    let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0, listing = false;
+    view.body.append(groups, sync, count, loadBar, grid, bar, note, add, cancel);
+    let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0, listing = false, summary = "";
     const picked = new Map();
     view.onClose = () => resolve(result);
     view.cancel = () => { if (!syncing) view.close(); };
     cancel.onclick = view.cancel;
     const busy = (on) => { syncing = on; sync.disabled = on || !state.drive || !all.length; groups.disabled = on; cancel.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
+    // Thumbnails load top to bottom, six at a time, so a big danh mục never loads all at once.
+    const thumbs = { queue: [], active: 0, round: 0, total: 0, done: 0 };
     const refreshCount = () => {
+      const loading = thumbs.done < thumbs.total, percent = thumbs.total ? Math.round((thumbs.done / thumbs.total) * 100) : 0;
+      loadBar.hidden = !groups.value || !(listing || loading);
+      loadBar.classList.toggle("marquee", listing && !loading);
+      loadBar.firstChild.style.width = listing && !loading ? "" : `${percent}%`;
+      if (syncing) return;
       if (!groups.value) { count.textContent = "Chọn danh mục để xem ảnh."; add.disabled = true; return; }
       add.disabled = !picked.size;
+      if (loading) { count.textContent = `${picked.size ? `Đã chọn ${picked.size} · ` : ""}Đang tải ảnh ${thumbs.done}/${thumbs.total} (${percent}%)`; return; }
       if (listing) { count.textContent = files.length ? `${files.length} ảnh có trên máy · đang tải danh sách Drive…` : "Đang tải danh sách…"; return; }
+      if (summary) { count.textContent = summary; return; }
       const local = files.filter((f) => f.local).length;
       count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh · ${local} ảnh có trên máy` : "Danh mục này chưa có ảnh.";
     };
-    // Thumbnails load top to bottom, six at a time, so a big danh mục never loads all at once.
-    const thumbs = { queue: [], active: 0, round: 0 };
     const pump = () => {
       while (thumbs.active < 6 && thumbs.queue.length) {
         const [img, src] = thumbs.queue.shift();
         const round = thumbs.round;
         thumbs.active++;
-        img.onload = img.onerror = () => { if (round === thumbs.round) { thumbs.active--; pump(); } };
+        img.onload = img.onerror = () => { if (round === thumbs.round) { thumbs.active--; thumbs.done++; refreshCount(); pump(); } };
         img.src = src;
       }
     };
-    const clearGrid = () => { thumbs.queue = []; thumbs.active = 0; thumbs.round++; grid.replaceChildren(); shown = 0; };
+    const clearGrid = () => { Object.assign(thumbs, { queue: [], active: 0, total: 0, done: 0 }); thumbs.round++; grid.replaceChildren(); shown = 0; };
     const showMore = () => {
       grid.querySelector(".more")?.remove();
       for (const f of files.slice(shown, shown + 120)) {
@@ -382,25 +394,27 @@ function showDrivePicker() {
         tile.append(img);
         thumbs.queue.push([img, f.local ? `/file?path=${encodeURIComponent(f.local)}` : f.url]);
         tile.onclick = () => {
+          summary = "";
           if (picked.has(f.name)) { picked.delete(f.name); tile.style.background = "var(--smoke)"; }
           else { picked.set(f.name, f); tile.style.background = "var(--accent)"; }
           refreshCount();
         };
         grid.append(tile);
       }
+      thumbs.total += Math.min(files.length, shown + 120) - shown;
       shown = Math.min(files.length, shown + 120);
       if (shown < files.length) {
         const more = el("button", "btn more", { text: "Xem thêm", type: "button", style: { position: "static", width: "100px", height: "100px" } });
         more.onclick = showMore;
         grid.append(more);
       }
-      pump();
+      pump(); refreshCount();
     };
     // A danh mục shows its local copies at once; the Drive listing loads in the background and, when it brings
     // more (or the local copies are out of date), the grid is redrawn from it, keeping what was picked.
     const load = async () => {
       const token = ++loads;
-      clearGrid(); picked.clear(); files = []; listing = false;
+      clearGrid(); picked.clear(); files = []; listing = false; summary = "";
       note.textContent = state.drive ? "" : noLogin;
       if (!groups.value) return refreshCount();
       const group = groups.value;
@@ -437,7 +451,7 @@ function showDrivePicker() {
       busy(false);
       await load();
       const ok = names.length - failed.length;
-      if (ok) count.textContent = `${names.length > 1 ? `${ok} danh mục` : names[0]} đã có trên máy: ${total} ảnh (vừa tải ${downloaded}, xoá ${removed}).`;
+      if (ok) { summary = `${names.length > 1 ? `${ok} danh mục` : names[0]} đã có trên máy: ${total} ảnh (vừa tải ${downloaded}, xoá ${removed}).`; refreshCount(); }
       if (failed.length) note.textContent = `Chưa tải được: ${failed.join(", ")}. Kiểm tra mạng rồi thử lại.`;
     };
     sync.onclick = () => dropMenu(sync, [
