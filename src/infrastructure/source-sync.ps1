@@ -80,7 +80,7 @@ function Sync-SourceGroup($Drive, [string]$SourceDir, [string]$Group) {
     return [pscustomobject]@{ Group = $Group; Total = $remote.Count; Downloaded = $done; Removed = $removed }
 }
 
-# Images of one group already on this machine (after Đồng bộ), for the "Từ kho Drive" picker.
+# Images of one group already on this machine (after Tải cả nhóm về máy), for the "Từ kho Drive" picker.
 function Get-LocalSourceFiles([string]$SourceDir, [string]$Group) {
     $folder = Join-Path $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)
     if (-not (Test-Path -LiteralPath $folder)) { return @() }
@@ -103,7 +103,7 @@ function Get-SourceGroupFiles($Drive, [string]$SourceDir, [string]$Group) {
 }
 
 # Uses picked Drive images directly: downloads only the ones not on this machine yet, into the group
-# folder and its sync index, so a later Đồng bộ never downloads them twice. Returns local paths.
+# folder and its sync index, so a later Tải cả nhóm về máy never downloads them twice. Returns local paths.
 function Save-SourceGroupFiles([string]$SourceDir, [string]$Group, [object[]]$Files) {
     $folder = Get-SourcePhotoDirectory $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)
     $index = Read-SourceSyncIndex $folder

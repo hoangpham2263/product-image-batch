@@ -1,4 +1,4 @@
-﻿# Đồng bộ one Drive group into data/source-photos/<group> (run in its own process by the app).
+﻿# Tải cả nhóm về máy: download one Drive group into data/source-photos/<group> (run in its own process by the app).
 param([Parameter(Mandatory)][string]$Group)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent

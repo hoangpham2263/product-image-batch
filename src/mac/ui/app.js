@@ -312,13 +312,13 @@ async function chooseImages(folder) {
 }
 
 // "Từ kho Drive": every image of a Drive group. Thêm uses the picked ones directly (downloading only those
-// not on this machine yet); Đồng bộ cả nhóm brings the whole group over once. Either way nothing is fetched twice.
+// not on this machine yet); Tải cả nhóm về máy brings the whole group over once. Either way nothing is fetched twice.
 function showDrivePicker() {
   return new Promise((resolve) => {
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     const groups = at(combo(), 20, 16, 220, 24);
-    const sync = at(button("Đồng bộ cả nhóm"), 250, 14, 140, 28);
-    const count = at(label("", "muted"), 402, 18, 340, 24);
+    const sync = at(button("Tải cả nhóm về máy"), 250, 14, 160, 28);
+    const count = at(label("", "muted"), 422, 18, 318, 24);
     const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
     bar.append(el("span"));
     bar.hidden = true;
@@ -365,12 +365,12 @@ function showDrivePicker() {
     };
     sync.onclick = async () => {
       if (!state.drive) return messageBox("Đăng nhập mật khẩu app trước (Kiểm tra cấu hình).", "Kho Drive");
-      busy(true); count.textContent = `Đang đồng bộ nhóm ${groups.value}…`;
+      busy(true); count.textContent = `Đang tải nhóm ${groups.value} về máy…`;
       try {
         const r = await api("sourceSync", { group: groups.value });
         await load();
-        count.textContent = `Đã đồng bộ: ${r.Total} ảnh (tải mới ${r.Downloaded}, xoá ${r.Removed}).`;
-      } catch { await load(); count.textContent = "Chưa đồng bộ được. Kiểm tra mạng và mật khẩu app rồi thử lại."; }
+        count.textContent = `Cả nhóm đã có trên máy: ${r.Total} ảnh (vừa tải ${r.Downloaded}, xoá ${r.Removed}).`;
+      } catch { await load(); count.textContent = "Chưa tải được nhóm về máy. Kiểm tra mạng và mật khẩu app rồi thử lại."; }
       finally { busy(false); }
     };
     groups.onchange = load;
