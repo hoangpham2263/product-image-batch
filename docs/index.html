@@ -70,7 +70,7 @@
   .block { display: grid; gap: 12px; align-content: start; justify-content: stretch; width: 100%; height: auto; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg); text-align: left; }
   .block:hover { background: var(--soft); }
   .block .menu-text { gap: 2px; }
-  .doc { max-width: 860px; font-size: 14px; line-height: 1.7; user-select: text; }
+  .doc { font-size: 14px; line-height: 1.7; user-select: text; }
   .doc h1 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
   .doc h2 { font-size: 16px; font-weight: 500; margin: 28px 0 8px; padding-top: 20px; border-top: 1px solid var(--border); }
   .doc h3 { font-size: 14px; font-weight: 500; margin: 20px 0 6px; }
@@ -89,7 +89,6 @@
   .doc-wrap { overflow-x: auto; }
   /* API: the temporary key panel stays beside the guide on wide screens, above it on phones. */
   .api-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
-  .api-layout .doc { max-width: none; }
   .tmp-box { position: sticky; top: 16px; display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--soft); }
   .tmp-box h3 { margin: 0; font-size: 15px; font-weight: 500; }
   .tmp-box p { margin: 0; }
