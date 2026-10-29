@@ -1,6 +1,6 @@
 # File lỗi – chuẩn
 
-Bấm **Gửi lỗi** trong app thì chỉ **một file** được gửi lên trang quản lý: `<ngày>_<giờ>_<phiên bản>_<mac|windows>_<máy>.md`, ví dụ `2026-10-29_22h40m37s_v1.0.46_mac_MacBookPro.md`, vài KB. Không có ảnh, không có mật khẩu app hay tài khoản Codex.
+Bấm **Gửi lỗi** trong app thì chỉ **một file** được gửi lên trang quản lý: `<ngày>_<giờ>_<phiên bản>_<mac|windows>.md`, ví dụ `2026-10-29_22h40m37s_v1.0.46_mac.md`, vài KB. Không có ảnh, không có mật khẩu app hay tài khoản Codex.
 
 ## Cách tạo
 

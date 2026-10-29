@@ -1,4 +1,4 @@
-﻿# Gửi lỗi: one file only, <stamp>_<version>_<system>_<machine>.md, uploaded to the management page.
+﻿# Gửi lỗi: one file only, <stamp>_<version>_<system>.md (the machine name is inside), uploaded to the management page.
 # The app gathers what went wrong since the last Gửi lỗi (first time: 7 days): failed setup steps, app errors, the
 # error lines of its logs and runs, and the reviews marked Bỏ with the reason typed. With -Analyze, Codex CLI turns
 # that into the error file by docs/error-report.md (cause, fix, what to change in the app); without Codex (missing,
@@ -13,7 +13,7 @@ function New-SupportLogBundle([string]$ProjectRoot, [switch]$Analyze, [scriptblo
     $system = if (($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows) { 'windows' } else { 'mac' }
     $version = try { Get-AppVersion $ProjectRoot } catch { '' }
     $machine = ([Environment]::MachineName -replace '[^\w-]', '')
-    $name = (@((Get-Date).ToString("yyyy-MM-dd_HH'h'mm'm'ss's'"), $version, $system, $machine) | Where-Object { $_ }) -join '_'
+    $name = (@((Get-Date).ToString("yyyy-MM-dd_HH'h'mm'm'ss's'"), $version, $system) | Where-Object { $_ }) -join '_'
     $file = Join-Path $workspace "temp/$name.md"
     New-Item -ItemType Directory -Force -Path (Split-Path $file -Parent) | Out-Null
     if ($OnStep) { & $OnStep 'Đang gom lỗi…' }
