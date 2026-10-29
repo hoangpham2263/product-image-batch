@@ -19,7 +19,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $root 'data/writing-style.json') -Destination (Join-Path $tempRoot 'data/writing-style.json')
     @(
         '{"category":"polo-shirts","body":"The narrow collar trim stands out against the dark panels.","source_url":"https://example.test/polo"}'
-        '{"category":"coffee-tables","body":"UNRELATED_FURNITURE_SAMPLE should never reach the polo draft."}'
+        '{"category":"coffee-tables","body":"FURNITURE_STYLE_SAMPLE A few casual words about the shape."}'
     ) | Set-Content (Join-Path $tempRoot 'data/review-samples.jsonl') -Encoding UTF8
     $fixtureContexts = Get-Content (Join-Path $tempRoot 'data/product-contexts.json') -Raw -Encoding UTF8 | ConvertFrom-Json
     $fixture = $fixtureContexts.profiles | Where-Object id -eq polo | ConvertTo-Json -Depth 8 | ConvertFrom-Json
@@ -57,7 +57,7 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
         if ($Images.Count -ne 1 -or -not (Test-Path -LiteralPath $Images[0])) { throw 'Review missing finished image.' }
         if ($PromptText -notmatch 'Randomly selected writing reference from review-samples.jsonl' -or $PromptText -match 'Optional writing nudge|Writing style direction') { throw 'Expected sample-based writing without preset profiles.' }
         if ($PromptText -notmatch 'No exclamatory sentences' -or $PromptText -notmatch 'Do not invent purchases') { throw 'Missing plain-comment rules or factual constraints.' }
-        if ($PromptText -notmatch 'narrow collar trim' -or $PromptText -match 'UNRELATED_FURNITURE_SAMPLE') { throw 'Matching reference reviews did not reach the parallel worker.' }
+        if ($PromptText -notmatch 'narrow collar trim|FURNITURE_STYLE_SAMPLE' -or $PromptText -notmatch 'only the current photo supplies review content') { throw 'Shared writing sample or product evidence boundary did not reach the parallel worker.' }
         if ($ResultFile -like '*-fail-review.txt' -and -not (Test-Path (Join-Path $script:Config.SourceDir 'allow-review-success.flag'))) { throw 'Simulated review failure' }
         Start-Sleep -Milliseconds 500
         "The navy pattern is subtle.`nIt looks good with the shorts." | Set-Content -LiteralPath $ResultFile

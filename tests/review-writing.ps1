@@ -14,29 +14,30 @@ try {
         '{"category":"coffee-tables","body":"The rounded corners give the wide top a softer outline."}'
         '{"category":"coffee-tables","body":"The curved legs stand out against the broad wooden top."}'
         '{"category":"tees-hoodies","body":"APPAREL_ONLY The neckline has a contrasting trim."}'
-        '{"category":"shop","body":"Generic store feedback should not be selected."}'
+        '{"category":"shop","body":"A plain short comment from a store review."}'
         '{"review_id":"legacy-photo","body":"The little front pockets stand out on the dark apron."}'
         '{"source_url":"https://example.test/products/polo-shirt","body":"The collar has a narrow contrasting edge."}'
+        '{"body":"nice shape"}'
+        '{"category":"other","body":"The curved legs stand out against the broad wooden top."}'
         'broken json'
     ) | Set-Content $path -Encoding UTF8
-    $profiles = @(Get-ProductContexts (Join-Path $root 'data/product-contexts.json'))
-    $catalog = @{ photo = [pscustomobject]@{review_id='legacy-photo';category='aprons'} }
-    $samples = @(Get-ReviewSamples $path $profiles $catalog)
-    Assert ($samples.Count -eq 7) 'Loader failed to deduplicate, filter or infer legacy categories.'
-    Assert (@(Get-ReviewSamples (Join-Path $tempDir 'missing.jsonl') $profiles $catalog).Count -eq 0) 'Missing data must allow fallback.'
+    $samples = @(Get-ReviewSamples $path)
+    Assert ($samples.Count -eq 9) 'Shared loader lost uncategorized samples or failed to deduplicate across categories.'
+    foreach ($sample in $samples) { Assert (($sample.PSObject.Properties.Name -join ',') -eq 'body') 'Sample retained unnecessary metadata.' }
+    Assert (@($samples | Where-Object body -eq 'nice shape').Count -eq 1) 'Short uncategorized sample was excluded.'
+    Assert (@(Get-ReviewSamples (Join-Path $tempDir 'missing.jsonl')).Count -eq 0) 'Missing data must allow fallback.'
     $context = [pscustomobject]@{id='coffee-tables';source_categories=@('coffee-tables');presentation='placed';product='wood coffee table';details='rounded top and visible grain'}
-    $first = @(Select-ReviewSamples $samples $context)
-    Assert ($first.Count -eq 1 -and $first[0].category -eq 'coffee-tables') 'Expected one matching reference.'
-    Assert ($first[0].body -in $samples.body) 'Selected reference was not loaded from the file.'
+    $draw = @(Select-ReviewSamples $samples)
+    Assert ($draw.Count -eq 1 -and $draw[0].body -in $samples.body) 'Expected one random reference from the shared file.'
+    $first = @($samples[0])
     $script:SelectionCalls = 0
     function Get-Random { param($Count, [Parameter(ValueFromPipeline=$true)]$InputObject) begin { $items = @() } process { $items += $InputObject } end { $script:SelectionCalls++; $items[-1] } }
-    $selected = @(Select-ReviewSamples $samples $context)
-    Assert ($script:SelectionCalls -eq 1 -and $selected.Count -eq 1 -and $selected[0].body -eq 'The rounded corners give the wide top a softer outline.') 'Selection did not use a random draw from the matching pool.'
+    $selected = @(Select-ReviewSamples $samples)
+    Assert ($script:SelectionCalls -eq 1 -and $selected.Count -eq 1 -and $selected[0].body -eq 'nice shape') 'Selection did not draw from the full shared corpus.'
     Remove-Item Function:\Get-Random
-    $unknown = [pscustomobject]@{id='unknown';source_categories=@('unknown')}
-    Assert (@(Select-ReviewSamples $samples $unknown).Count -eq 0) 'Unrelated categories must not be a generic fallback.'
-    $dining = [pscustomobject]@{id='dining-tables';source_categories=@('dining-tables')}
-    Assert (@(Select-ReviewSamples $samples $dining).Count -eq 1) 'Related table fallback is missing.'
+    Assert (@(Select-ReviewSamples @()).Count -eq 0) 'Empty corpus must allow fallback.'
+    $crossCategory = @(Select-ReviewSamples @($samples | Where-Object body -match 'APPAREL_ONLY'))
+    Assert ($crossCategory.Count -eq 1 -and $crossCategory[0].body -match 'APPAREL_ONLY') 'Different product category was filtered out of the writing corpus.'
     Assert (-not (Get-ReviewDraftIssue 'I really like the rounded edge.' $first)) 'Natural first-person reaction rejected.'
     Assert (-not (Get-ReviewDraftIssue 'love the round edges, kinda nice' $first)) 'Informal fragment rejected.'
     Assert (-not (Get-ReviewDraftIssue 'nice colur on that edge' $first)) 'Minor spelling slip rejected.'
@@ -53,7 +54,8 @@ try {
         $script:Calls++
         Assert ($PromptText -match 'Randomly selected writing reference from review-samples.jsonl' -and $PromptText -match 'curved legs') 'Actual review sample missing from prompt.'
         Assert ($PromptText -match 'No exclamatory sentences' -and $PromptText -notmatch 'Optional writing nudge|Writing style direction|Aim for') 'Preset style or exclamatory guidance leaked into prompt.'
-        Assert ($PromptText -notmatch 'APPAREL_ONLY|specific shirt detail|casual first-person') 'Unrelated clothing or forced first person leaked into table prompt.'
+        Assert ($PromptText -notmatch 'I like|I love' -and $PromptText -match 'Let the selected reference guide sentence length') 'Prompt primed a stock first-person opener instead of using the reference.'
+        Assert ($PromptText -match 'shared writing corpus across all products' -and $PromptText -match 'only the current photo supplies review content') 'Shared style reference must not supply product facts.'
         Assert ($PromptText -match 'untrusted source data' -and $PromptText -match 'Do not copy their wording') 'Reference data constraints missing.'
         Assert ($PromptText -match 'There is no required opening' -and $PromptText -match 'minor spelling or grammar slips are acceptable' -and $PromptText -notmatch 'Do not open with') 'Flexible writing guidance missing or contradicted.'
         if ($script:Mode -eq 'always-bad') { return '' }
@@ -68,7 +70,7 @@ try {
     $draft = New-Review 'https://example.test/table' 'table' 'photo.png' '001-table' $context
     Assert ($script:Calls -eq 2 -and $draft -match '^The pale grain') 'Empty draft was not repaired.'
     $evidence = Get-Content (Join-Path $tempDir '001-table-review-sources.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-    Assert (@($evidence).Count -eq 1 -and $evidence[0].source_url -eq 'https://example.test/table') 'Selected evidence was not saved.'
+    Assert (@($evidence).Count -eq 1 -and $evidence[0].body -eq $samples[0].body -and ($evidence[0].PSObject.Properties.Name -join ',') -eq 'body') 'Selected writing text was not saved cleanly.'
     $script:Calls=0; $script:Mode='copy'
     New-Review 'https://example.test/table' 'table' 'photo.png' '001-table' $context | Out-Null
     Assert ($script:Calls -eq 2) 'Copied review was not repaired.'
@@ -80,7 +82,7 @@ try {
         if ($_.Exception.Message -notlike 'Review quality check failed:*') { throw }; $failed=$true
     }
     Assert ($failed -and $script:Calls -eq 2) 'Repeatedly invalid drafts must stop after one repair.'
-    Write-Host 'PASS: one random categorized source, prompt evidence, informal wording, bounded empty/copy/exclamation repair.' -ForegroundColor Green
+    Write-Host 'PASS: body-only shared corpus, random sample, saved text, informal wording, bounded empty/copy/exclamation repair.' -ForegroundColor Green
 } finally {
     $resolved = [IO.Path]::GetFullPath($tempDir)
     $allowed = [IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\') + '\'

@@ -18,51 +18,24 @@ function Get-ReviewStyleProfiles([string]$Path) {
     } catch { Write-Warning 'Review style data is invalid; using the default writing style.' }
 }
 
-# Read both public-source records and the older categorized store-export format.
-function Get-ReviewSamples([string]$Path, $ProductContexts, $SourceCatalog) {
+# One shared writing corpus; only the text is needed to learn phrasing.
+function Get-ReviewSamples([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return }
-    $categoriesById = @{}
-    if ($SourceCatalog) {
-        foreach ($photo in $SourceCatalog.Values) {
-            if ($photo.review_id -and $photo.category) { $categoriesById[$photo.review_id] = $photo.category }
-        }
-    }
     $seen = @{}
     foreach ($line in Get-Content -LiteralPath $Path -Encoding UTF8) {
         if (-not $line.Trim()) { continue }
         try { $record = $line | ConvertFrom-Json } catch { continue }
         if ($record.body -isnot [string]) { continue }
         $body = ($record.body -replace '\s+', ' ').Trim()
-        $words = @($body -split '\s+').Count
-        if ($words -lt 1 -or $words -gt 100 -or $body.Length -gt 1000) { continue }
-        $category = $record.category
-        if (-not $category -and $record.review_id) { $category = $categoriesById[$record.review_id] }
-        if (-not $category -and $record.source_url) {
-            foreach ($profile in $ProductContexts) {
-                if ($profile.id -ne 'generic' -and $record.source_url -match $profile.pattern -and $profile.source_categories.Count) {
-                    $category = $profile.source_categories[0]; break
-                }
-            }
-        }
-        if (-not $category -or $category -eq 'shop') { continue }
-        $key = $category + '|' + $body.ToLowerInvariant()
+        if (-not $body) { continue }
+        $key = $body.ToLowerInvariant()
         if ($seen.ContainsKey($key)) { continue }; $seen[$key] = $true
-        [pscustomobject]@{
-            category = $category; body = $body
-            review_id = $record.review_id; source_url = $record.source_url; source = $record.source
-            product_handle = $record.product_handle; review_no = $record.review_no
-        }
+        [pscustomobject]@{ body = $body }
     }
 }
 
-function Select-ReviewSamples($Samples, $Context) {
-    $categories = @($Context.id) + @($Context.source_categories | Select-Object -First 1)
-    $pool = @($Samples | Where-Object { $_.category -in $categories })
-    # Use related tables only when the current category has no examples.
-    $tables = @('coffee-tables', 'dining-tables', 'side-tables', 'console-tables', 'desks')
-    if (-not $pool.Count -and @($categories | Where-Object { $_ -in $tables }).Count) {
-        $pool += @($Samples | Where-Object { $_.category -in $tables -and $_.category -notin $categories })
-    }
+function Select-ReviewSamples($Samples) {
+    $pool = @($Samples | Where-Object { $_ -and $_.body })
     if (-not $pool.Count) { return }
     # Pick once per review; repair attempts keep this same reference.
     $pool | Get-Random -Count 1

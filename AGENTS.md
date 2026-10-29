@@ -8,7 +8,7 @@
 2. Nếu người dùng gắn ảnh sản phẩm gốc, kiểm tra file/hash rồi dùng trực tiếp, không truy cập web kể cả link chưa public; nếu không có ảnh gốc thì tải từ URL. Nhận diện từ ảnh thực tế. Ảnh bối cảnh là đầu vào riêng, không nhầm với ảnh sản phẩm. Ảnh review luôn do người dùng chọn (từ máy hoặc kho Drive); app không tự tìm trong kho.
 3. Lưu snapshot đầu vào và nguồn vào kết quả của lượt đang chạy. Đọc các bài học còn bật, khớp URL hoặc danh mục từ mục Bài học đã lưu bên dưới; áp dụng yêu cầu sửa hiện tại sau cùng.
 4. Tạo một ảnh hoàn chỉnh, kiểm tra PNG đọc được rồi xuất nguyên file AI tạo. Không chấm chất lượng bằng AI sau tạo, không tự sửa hoặc lặp tạo để cải thiện thẩm mỹ.
-5. Viết review mẫu từ nguồn tham khảo đúng danh mục, xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
+5. Viết review mẫu theo ảnh hiện tại, học cách diễn đạt từ kho review tham khảo chung rồi xuất ảnh và CSV. Giữ URL chưa hoàn tất để thử lại. Có ảnh xuất chưa có nghĩa người dùng đã duyệt.
 6. Người dùng duyệt từng ảnh (Giữ/Bỏ) rồi xuất file Loox; app không có bước làm lại ảnh.
 
 Chỉ tự thử lại lỗi kết nối/timeout khi chưa nhận đủ file, tối đa 3 lượt gửi với cùng đầu vào. Phải xác nhận tiến trình cũ đã dừng, tìm ảnh đã lưu trước khi gửi lại; có ảnh thì xuất, không tạo trùng. Lỗi đăng nhập, hết hạn mức hoặc đầu vào sai không tự thử lại. Không chạy lại ảnh hay test khi người dùng đã yêu cầu bỏ qua.
@@ -60,7 +60,8 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 
 - Rating mẫu random độc lập từng review: 55% cho 5 sao, 45% cho 4 sao; batch nhỏ không bắt buộc đúng tỉ lệ tuyệt đối.
 - Kho tên nam/nữ dùng dạng tên riêng + chữ cái đầu của họ, ví dụ `Josh K.`; mỗi tên riêng một dòng, không nhân từng tên với họ A–Z. Xáo trộn, dùng hết kho trước khi lặp; đây là tên cho dữ liệu mẫu.
-- Mỗi review chọn ngẫu nhiên một mẫu đúng danh mục từ `review-samples.jsonl`, học cách diễn đạt, nhịp và độ dài rồi viết mới theo ảnh hiện tại; không áp bộ kiểu viết định sẵn, chép nội dung hoặc trải nghiệm của người khác.
+- Dùng toàn bộ `review-samples.jsonl` làm một kho cách viết chung, không lọc theo danh mục hoặc phụ thuộc kho ảnh. Mỗi dòng chỉ giữ `body`, bỏ ID, URL nguồn và metadata sản phẩm; chuẩn hóa khoảng trắng, bỏ dòng rỗng và nội dung trùng trên toàn kho. Mỗi review chọn ngẫu nhiên một mẫu để học cách diễn đạt, nhịp và độ dài, lưu lại đúng đoạn mẫu đã dùng.
+- Nội dung review phải theo ảnh sản phẩm hiện tại; không lấy đặc điểm sản phẩm, tuyên bố hoặc trải nghiệm từ mẫu. Không áp bộ kiểu viết định sẵn hoặc gợi ý một cụm mở đầu cố định cho mọi review.
 - Không viết câu cảm thán, dấu chấm than hoặc thán từ phấn khích, kể cả mẫu tham khảo có dùng; diễn đạt nhận xét bằng câu bình thường.
 - Review mẫu viết như bình luận nhanh về điều nhìn thấy; không ép mở đầu bằng chi tiết sản phẩm hoặc lặp khuôn “The…”. Cho phép phản ứng cá nhân, câu cụt, viết thường, dấu câu thoải mái và lỗi chính tả/ngữ pháp nhỏ; không cố rải lỗi hay thay bằng một khuôn mở đầu khác.
 - Không bắt buộc hoặc cấm tuyệt đối “I like”, “I love”, “tôi thích”; dùng tự nhiên và đa dạng. Không bịa trải nghiệm mua hàng, giao hàng hay sử dụng. Đây là dữ liệu mẫu được tạo, không phải lời chứng thực khách thật.

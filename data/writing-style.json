@@ -6,7 +6,7 @@
     "adaptation": "Editorial rules 1, 3-9, 11, 12, 17 and 19. Factual accuracy overrides style. Benchmark and concealment instructions excluded. Scene rules are project-specific."
   },
   "review_rules": [
-    "Use one randomly selected matching review from review-samples.jsonl for writing rhythm, casualness and approximate length. Write original content from the current photo; do not apply preset style profiles.",
+    "Use review-samples.jsonl as one shared writing corpus across all categories. Randomly select one sample for rhythm, expression and approximate length; get all product content from the current photo. Do not apply category filters or preset style profiles.",
     "No exclamatory sentences, exclamation marks or excited interjections, even when the reference contains them. Keep opinions as plain comments.",
     "React to what you actually notice in the photo. No required opener: a personal reaction, fragment or visible detail can work. Avoid defaulting to The [detail] is/looks or any other repeated sentence frame.",
     "Use concrete ordinary words, contractions and occasional short fragments. Vary sentence rhythm and openings across items.",
