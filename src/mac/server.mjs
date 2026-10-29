@@ -3,7 +3,7 @@
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
-import { writeFile, mkdir, copyFile, rm, stat, appendFile } from "node:fs/promises";
+import { writeFile, mkdir, copyFile, rm, stat, appendFile, readFile } from "node:fs/promises";
 import { createReadStream, existsSync, mkdirSync, openSync, renameSync, statSync, appendFileSync } from "node:fs";
 import { join, dirname, extname, resolve, sep } from "node:path";
 import { tmpdir, homedir } from "node:os";
@@ -122,6 +122,21 @@ function stopRun() {
   try { process.kill(-run.proc.pid, "SIGKILL"); } catch { try { run.proc.kill("SIGKILL"); } catch {} }
 }
 
+// ----- Tải về máy in the background (src/sync-source.ps1, as on Windows); the window polls its status file -----
+const sync = { proc: null, statusFile: join(logs, "sync-status-mac.json") };
+async function startSync(groups) {
+  if (sync.proc) return false;
+  await rm(sync.statusFile, { force: true });
+  const out = openSync(logFile("mac-sync.log"), "a");
+  sync.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "sync-source.ps1"), "-Group", groups.join("|"), "-StatusFile", sync.statusFile], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  sync.proc.on("exit", () => { sync.proc = null; });
+  return true;
+}
+async function syncState() {
+  const status = await readFile(sync.statusFile, "utf8").then(JSON.parse).catch(() => null);
+  return { running: !!sync.proc, status };
+}
+
 // ----- HTTP -----
 const allowedFile = (p) => {
   const full = resolve(p);
@@ -145,6 +160,7 @@ async function handle(req, res) {
   if (path === "/api/quit" && req.method === "POST") {
     send(res, 200, { ok: true });
     stopRun();
+    sync.proc?.kill();
     rpcProc?.kill();
     setTimeout(() => process.exit(0), 200);
     return;
@@ -164,6 +180,13 @@ async function handle(req, res) {
     await writeFile(file, await body(req));
     return send(res, 200, { path: file });
   }
+  if (path === "/api/sync" && req.method === "POST") {
+    const { groups = [] } = JSON.parse((await body(req)).toString("utf8") || "{}");
+    const names = groups.map(String).filter((g) => /^[\p{L}\p{N}][\p{L}\p{N} -]{0,59}$/u.test(g));
+    if (!names.length) return send(res, 400, { error: "Chưa chọn danh mục." });
+    return (await startSync(names)) ? send(res, 200, { ok: true }) : send(res, 409, { error: "Đang có một lượt tải về máy." });
+  }
+  if (path === "/api/sync" && req.method === "GET") return send(res, 200, await syncState());
   if (path === "/api/run" && req.method === "POST") {
     try { await startRun(JSON.parse((await body(req)).toString("utf8") || "{}")); return send(res, 200, { ok: true }); }
     catch (e) { return send(res, 400, { error: e.message }); }

@@ -330,14 +330,13 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     # then filling as the thumbnails arrive.
     $loadBar=New-Object Windows.Forms.ProgressBar -Property @{Name='DriveLoad';Location='20,46';Size='720,4';Style='Continuous';Visible=$false}
     $grid=New-Object Windows.Forms.FlowLayoutPanel -Property @{Location='20,52';Size='720,420';AutoScroll=$true;BorderStyle='FixedSingle';BackColor=[Drawing.Color]::White;Padding='6,6,6,6'}
-    $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='20,480';Size='400,8';Style='Marquee';MarqueeAnimationSpeed=30;Visible=$false}
     $note=New-Object Windows.Forms.Label -Property @{Name='DriveNote';Location='20,494';Size='500,24';ForeColor=$ui.Error;AutoEllipsis=$true;Text=$(if($drive){''}else{$noLogin})}
     $add=New-Object Windows.Forms.Button -Property @{Text='Thêm';Location='536,490';Size='110,32';Enabled=$false}
     $cancel=New-Object Windows.Forms.Button -Property @{Text='Hủy';Location='656,490';Size='84,32';DialogResult='Cancel'}
     Set-FlatButton $add -Primary;Set-FlatButton $sync;Set-FlatButton $cancel
     $menu=New-Object Windows.Forms.ContextMenuStrip
     $syncOne=$menu.Items.Add('Danh mục đang chọn');$syncAll=$menu.Items.Add('Tất cả danh mục')
-    $dialog.Controls.AddRange(@($groups,$isDefault,$sync,$count,$loadBar,$grid,$bar,$note,$add,$cancel));$dialog.CancelButton=$cancel
+    $dialog.Controls.AddRange(@($groups,$isDefault,$sync,$count,$loadBar,$grid,$note,$add,$cancel));$dialog.CancelButton=$cancel
     $state=@{Files=@();Shown=0;Picked=[ordered]@{};Paths=@();Proc=$null;Syncing=$false;Listing=$null;Summary='';Total=0;Done=0;Queue=[Collections.Generic.List[object]]::new();Downloads=[Collections.Generic.List[object]]::new()}
     Add-Type -AssemblyName System.Net.Http
     [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -393,7 +392,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $load={
         & $clearGrid
         $state.Picked.Clear();$state.Files=@();$state.Listing=$null;$state.Summary=''
-        $note.Text=if($drive){''}else{$noLogin}
+        $note.ForeColor=$ui.Error;$note.Text=if($drive){''}else{$noLogin}
         if($groups.SelectedIndex -lt 1){& $refreshCount;return}
         $group=[string]$groups.SelectedItem
         if($drive){
@@ -408,7 +407,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         $next=if($listing.Task.Status -eq 'RanToCompletion'){
             try{@{Files=@(ConvertTo-SourceGroupFiles ($listing.Task.Result|ConvertFrom-Json) $libraryRoot $listing.Group);Error=''}}catch{Get-SourceOfflinePickerFiles $true $libraryRoot $listing.Group}
         }else{Get-SourceOfflinePickerFiles $true $libraryRoot $listing.Group}
-        $note.Text=$next.Error
+        $note.ForeColor=$ui.Error;$note.Text=$next.Error
         $files=@($next.Files)
         if($files.Count -ne @($state.Files).Count -or @($files|Where-Object{-not $_.local}).Count){
             $keep=@($state.Picked.Keys);$state.Picked.Clear()
@@ -440,37 +439,13 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if($state.Done -ne $before){& $refreshCount}
         if(-not $state.Queue.Count -and -not $state.Downloads.Count -and -not $state.Listing){$loader.Stop()}
     }.GetNewClosure())
-    # Tải về máy: one sync process per danh mục in turn, so the bar keeps moving and each step shows.
-    $out=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.out";$err=Join-Path ([IO.Path]::GetTempPath()) "prb-sync-$PID.err"
-    $timer=New-Object Windows.Forms.Timer -Property @{Interval=400}
-    $state.StartNext={
-        $name=$state.SyncQueue[$state.SyncDone]
-        $count.Text=if($state.SyncQueue.Count -gt 1){"Đang tải về máy: $name ($($state.SyncDone+1)/$($state.SyncQueue.Count))…"}else{"Đang tải $name về máy…"}
-        $state.Proc=Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path $Editor.ProjectRoot 'src\sync-source.ps1')+'"'),'-Group',('"'+$name+'"'))
-        [void]$state.Proc.Handle
-        $timer.Start()
-    }.GetNewClosure()
+    # Tải về máy runs in the background of the main window (progress in its header); this window stays usable.
     $state.Sync={
         param([string[]]$Names)
-        if(-not $Names.Count){return}
-        $state.SyncQueue=@($Names);$state.SyncDone=0;$state.SyncTotal=0;$state.Downloaded=0;$state.Removed=0;$state.Failed=@();$state.Syncing=$true
-        $sync.Enabled=$false;$groups.Enabled=$false;$add.Enabled=$false;$cancel.Enabled=$false;$bar.Visible=$true;$note.Text=''
-        & $state.StartNext
+        if(-not $Editor.StartSync){return}
+        $note.ForeColor=$ui.Muted
+        $note.Text=if(& $Editor.StartSync $Names){'Đang tải ngầm, xem tiến độ ở thanh trên cùng. Vẫn làm việc bình thường.'}else{'Đang có một lượt tải về máy, đợi xong rồi bấm lại.'}
     }.GetNewClosure()
-    $timer.Add_Tick({
-        if(-not $state.Proc.HasExited){return}
-        $timer.Stop();$state.Proc.WaitForExit();$code=$state.Proc.ExitCode;$state.Proc.Dispose();$state.Proc=$null
-        $text=try{(Get-Content -LiteralPath $out -Raw -ErrorAction Stop).Trim()}catch{''}
-        if($code -eq 0 -and $text -match '^(\d+)\|(\d+)\|(\d+)$'){$state.SyncTotal+=[int]$Matches[1];$state.Downloaded+=[int]$Matches[2];$state.Removed+=[int]$Matches[3]}
-        else{$state.Failed+=$state.SyncQueue[$state.SyncDone]}
-        $state.SyncDone++
-        if($state.SyncDone -lt $state.SyncQueue.Count){& $state.StartNext;return}
-        $state.Syncing=$false;$bar.Visible=$false;$sync.Enabled=$true;$groups.Enabled=$true;$cancel.Enabled=$true
-        & $load
-        $ok=$state.SyncQueue.Count-$state.Failed.Count
-        if($ok){$state.Summary="$(if($state.SyncQueue.Count -gt 1){"$ok danh mục"}else{$state.SyncQueue[0]}) đã có trên máy: $($state.SyncTotal) ảnh (vừa tải $($state.Downloaded), xoá $($state.Removed)).";& $refreshCount}
-        if($state.Failed.Count){$note.Text="Chưa tải được: $($state.Failed -join ', '). Kiểm tra mạng rồi thử lại."}
-    }.GetNewClosure())
     $syncOne.Add_Click({& $state.Sync @([string]$groups.SelectedItem)}.GetNewClosure())
     $syncAll.Add_Click({& $state.Sync @(@($groups.Items)|Select-Object -Skip 1|ForEach-Object{[string]$_})}.GetNewClosure())
     $sync.Add_Click({$syncOne.Enabled=$groups.SelectedIndex -gt 0;$syncAll.Text="Tất cả danh mục ($($groups.Items.Count-1))";$menu.Show($sync,0,$sync.Height)}.GetNewClosure())
@@ -492,7 +467,6 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         }catch{$count.Text='Chưa tải được ảnh đã chọn. Kiểm tra mạng rồi thử lại.';$add.Enabled=$true}
         finally{$dialog.Cursor='Default'}
     }.GetNewClosure())
-    $dialog.Add_FormClosing({if($state.Syncing){$_.Cancel=$true}}.GetNewClosure())
     $dialog.Add_Shown({
         [void]$groups.Items.Add('Chọn danh mục…')
         foreach($g in @(Get-SourceGroupChoices $Editor.ProjectRoot)){[void]$groups.Items.Add($g)}
@@ -500,7 +474,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
         if($groups.Items.Count -lt 2){$count.Text='Chưa có danh mục nào đang bật.';$sync.Enabled=$false}
     }.GetNewClosure())
     try{[void]$dialog.ShowDialog($Owner);return @($state.Paths)}
-    finally{$timer.Dispose();$loader.Dispose();$client.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
+    finally{$loader.Dispose();$client.Dispose();$menu.Dispose();foreach($c in @($grid.Controls)){if($c -is [Windows.Forms.PictureBox] -and $c.Image){$c.Image.Dispose()}};$dialog.Dispose();Remove-Item -LiteralPath $out,$err -Force -ErrorAction SilentlyContinue}
 }
 
 

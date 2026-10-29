@@ -56,11 +56,6 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'sourceIndexedFiles' { return @(Get-SourceIndexedFiles $libraryRoot ([string]$A.group)) }
         'sourcePick' { return @(Save-SourceGroupFiles $libraryRoot ([string]$A.group) @($A.files)) }
         'sourceLocalFiles' { return @(Get-LocalSourceFiles $libraryRoot ([string]$A.group)) }
-        'sourceSync' {
-            $drive = Get-DriveConfig $workspace.Root
-            if (-not $drive) { throw 'Đăng nhập Google Drive trước.' }
-            return (Sync-SourceGroup $drive $libraryRoot ([string]$A.group))
-        }
         'reviewFolder' {
             # "+ Máy" opens this app's own library: the group used last, else data/source-photos.
             $group = if ($A.group) { Join-Path $libraryRoot ([string]$A.group).Normalize([Text.NormalizationForm]::FormC) } else { '' }

@@ -191,7 +191,13 @@ function buildMain() {
   header.append(at(label("Product Review Batch", ""), 20, 19, null, 26));
   header.firstChild.style.fontSize = "17.33px";
   ui.btnUpdate = at(button("Cập nhật"), null, 16, 100, 32, { right: 24, left: false });
-  header.append(ui.btnUpdate);
+  // Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
+  ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 136 });
+  ui.syncLabel.style.textAlign = "right";
+  ui.syncBar = at(el("div", "progress"), null, 40, 200, 4, { right: 136, left: false });
+  ui.syncBar.append(el("span"));
+  ui.syncLabel.hidden = ui.syncBar.hidden = true;
+  header.append(ui.btnUpdate, ui.syncLabel, ui.syncBar);
 
   // Link sản phẩm & ảnh (20,78 820x344, Top/Left/Right).
   const cardList = at(el("div", "card"), 20, 78, null, 344, { right: 264 });
@@ -350,9 +356,6 @@ function showDrivePicker() {
     isDefault.input.disabled = true;
     const sync = at(button("Tải về máy ▾"), 342, 14, 120, 28);
     const count = at(label("", "muted"), 474, 18, 266, 24);
-    const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
-    bar.append(el("span"));
-    bar.hidden = true;
     const note = at(label(state.drive ? "" : noLogin), 20, 494, 500, 24);
     note.style.color = "var(--error)";
     // Background loading shows on a thin bar along the top of the grid: running while the Drive listing loads,
@@ -365,13 +368,13 @@ function showDrivePicker() {
     const add = at(button("Thêm", true), 536, 490, 110, 32), cancel = at(button("Hủy"), 656, 490, 84, 32);
     add.disabled = true;
     sync.disabled = !state.drive;
-    view.body.append(groups, isDefault, sync, count, loadBar, grid, bar, note, add, cancel);
+    view.body.append(groups, isDefault, sync, count, loadBar, grid, note, add, cancel);
     let files = [], shown = 0, result = [], all = [], syncing = false, loads = 0, listing = false, summary = "";
     const picked = new Map();
     view.onClose = () => resolve(result);
     view.cancel = () => { if (!syncing) view.close(); };
     cancel.onclick = view.cancel;
-    const busy = (on) => { syncing = on; sync.disabled = on || !state.drive || !all.length; groups.disabled = on; cancel.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
+    const busy = (on) => { syncing = on; sync.disabled = on || !state.drive || !all.length; groups.disabled = on; cancel.disabled = on; add.disabled = on || !picked.size; };
     // Thumbnails load top to bottom, six at a time, so a big danh mục never loads all at once.
     const thumbs = { queue: [], active: 0, round: 0, total: 0, done: 0 };
     const refreshCount = () => {
@@ -427,6 +430,7 @@ function showDrivePicker() {
     const load = async () => {
       const token = ++loads;
       clearGrid(); picked.clear(); files = []; listing = false; summary = "";
+      note.style.color = "var(--error)";
       note.textContent = state.drive ? "" : noLogin;
       if (!groups.value) return refreshCount();
       const group = groups.value;
@@ -439,6 +443,7 @@ function showDrivePicker() {
       const next = await api("sourceFiles", { group }).catch(() => ({ Files: files, Error: "Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy." }));
       if (token !== loads) return;
       listing = false;
+      note.style.color = "var(--error)";
       note.textContent = next.Error || "";
       const nextFiles = list(next.Files);
       if (nextFiles.length !== files.length || nextFiles.some((f) => !f.local) || !state.drive) {
@@ -449,22 +454,11 @@ function showDrivePicker() {
       }
       refreshCount();
     };
-    // Tải về máy: one danh mục at a time, so each step shows.
+    // Tải về máy runs in the background of the main window (progress in its header); this window stays usable.
     const runSync = async (names) => {
       if (!names.length) return;
-      busy(true); note.textContent = "";
-      let total = 0, downloaded = 0, removed = 0;
-      const failed = [];
-      for (const [i, name] of names.entries()) {
-        count.textContent = names.length > 1 ? `Đang tải về máy: ${name} (${i + 1}/${names.length})…` : `Đang tải ${name} về máy…`;
-        try { const r = await api("sourceSync", { group: name }); total += r.Total; downloaded += r.Downloaded; removed += r.Removed; }
-        catch { failed.push(name); }
-      }
-      busy(false);
-      await load();
-      const ok = names.length - failed.length;
-      if (ok) { summary = `${names.length > 1 ? `${ok} danh mục` : names[0]} đã có trên máy: ${total} ảnh (vừa tải ${downloaded}, xoá ${removed}).`; refreshCount(); }
-      if (failed.length) note.textContent = `Chưa tải được: ${failed.join(", ")}. Kiểm tra mạng rồi thử lại.`;
+      note.style.color = "var(--muted)";
+      note.textContent = (await startSync(names)) ? "Đang tải ngầm, xem tiến độ ở thanh trên cùng. Vẫn làm việc bình thường." : "Đang có một lượt tải về máy, đợi xong rồi bấm lại.";
     };
     sync.onclick = () => dropMenu(sync, [
       { text: "Danh mục đang chọn", disabled: !groups.value, onClick: () => runSync([groups.value]) },
@@ -1064,12 +1058,57 @@ async function checkUpdate() {
   ui.btnUpdate.textContent = next ? `Cập nhật ${next}` : "Cập nhật";
   ui.btnUpdate.style.width = next ? "150px" : "100px";
   ui.btnUpdate.classList.toggle("primary", !!next);
+  placeSync();
+}
+
+// The sync line always ends 12px before the update button, however wide the button is.
+function placeSync() {
+  const right = `${24 + ui.btnUpdate.offsetWidth + 12}px`;
+  ui.syncLabel.style.right = ui.syncBar.style.right = right;
+}
+const syncView = { timer: 0, hide: 0 };
+// Starts Tải về máy for these danh mục; false when one is already running.
+async function startSync(names) {
+  const r = await fetch("/api/sync", { method: "POST", body: JSON.stringify({ groups: names }) }).catch(() => null);
+  if (!r || !r.ok) return false;
+  clearTimeout(syncView.hide);
+  Object.assign(ui.syncLabel.style, { color: "" });
+  ui.syncLabel.textContent = "⟳ Đang tải về máy…"; ui.syncLabel.hidden = false;
+  ui.syncBar.firstChild.style.width = "0%"; ui.syncBar.hidden = false;
+  pollSync();
+  return true;
+}
+async function pollSync() {
+  clearTimeout(syncView.timer);
+  const r = await (await fetch("/api/sync")).json().catch(() => null);
+  if (!r) return;
+  const s = r.status;
+  if (r.running) {
+    if (s && !s.finished) {
+      const where = s.groups.length > 1 ? `${s.group} (${s.index}/${s.groups.length})` : s.group;
+      ui.syncLabel.textContent = `⟳ Đang tải về máy: ${where} · ${formatCount(s.done)}/${formatCount(s.missing)} ảnh`;
+      ui.syncBar.firstChild.style.width = `${s.missing ? Math.round((100 * s.done) / s.missing) : 0}%`;
+    }
+    ui.syncLabel.hidden = ui.syncBar.hidden = false;
+    syncView.timer = setTimeout(pollSync, 700);
+    return;
+  }
+  if (ui.syncLabel.hidden || !s) return;
+  ui.syncBar.hidden = true;
+  const ok = s.groups.length - s.failed.length, failed = list(s.failed);
+  ui.syncLabel.textContent = ok
+    ? `✓ Đã tải về máy ${s.groups.length > 1 ? `${ok} danh mục` : s.group}: ${formatCount(s.total)} ảnh (vừa tải ${formatCount(s.downloaded)})${failed.length ? ` · chưa tải được: ${failed.join(", ")}` : ""}`
+    : `Chưa tải được về máy: ${failed.join(", ")}. Kiểm tra mạng và mật khẩu app.`;
+  ui.syncLabel.style.color = failed.length ? "var(--error)" : "var(--ok)";
+  syncView.hide = setTimeout(() => { ui.syncLabel.hidden = true; }, 12000);
 }
 
 buildMain();
 wire();
 loadState().catch((e) => appendLog(e.message));
 setTimeout(checkUpdate, 3000);
+placeSync();
+fetch("/api/sync").then((r) => r.json()).then((r) => { if (r.running) { ui.syncLabel.hidden = false; pollSync(); } }).catch(() => {});
 updateUsage();
 setTimeout(refreshQuota, 2000);
 setInterval(refreshQuota, 15 * 60 * 1000);

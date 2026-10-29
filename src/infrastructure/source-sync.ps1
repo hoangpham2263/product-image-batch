@@ -25,7 +25,8 @@ function Get-SourceGroupChoices([string]$ProjectRoot) {
         Sort-Object @{ Expression = { if ($_ -eq 'Áo') { 0 } elseif ($_ -eq 'Nội thất') { 1 } else { 2 } } }, @{ Expression = { $_ } })
 }
 
-function Sync-SourceGroup($Drive, [string]$SourceDir, [string]$Group) {
+# $OnProgress (optional) gets (images downloaded so far, images to download) after the listing and each batch.
+function Sync-SourceGroup($Drive, [string]$SourceDir, [string]$Group, [scriptblock]$OnProgress) {
     $Group = $Group.Normalize([Text.NormalizationForm]::FormC)
     $folder = Get-SourcePhotoDirectory $SourceDir $Group
     $listing = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources/$([Uri]::EscapeDataString($Group))" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 60
@@ -53,6 +54,7 @@ function Sync-SourceGroup($Drive, [string]$SourceDir, [string]$Group) {
     $client = New-Object Net.Http.HttpClient
     $client.Timeout = [TimeSpan]::FromMinutes(2)
     $done = 0
+    if ($OnProgress) { & $OnProgress 0 $missing.Count }
     try {
         # Eight downloads at a time; the index is saved after each batch so a stopped sync resumes.
         for ($at = 0; $at -lt $missing.Count; $at += 8) {
@@ -66,6 +68,7 @@ function Sync-SourceGroup($Drive, [string]$SourceDir, [string]$Group) {
             $done += $batch.Count
             $index | ConvertTo-Json | Set-Content -LiteralPath $indexPath -Encoding UTF8
             Write-Host "  [SOURCE] $Group`: $done/$($missing.Count)" -ForegroundColor Cyan
+            if ($OnProgress) { & $OnProgress $done $missing.Count }
         }
     } finally { $client.Dispose() }
     $index | ConvertTo-Json | Set-Content -LiteralPath $indexPath -Encoding UTF8

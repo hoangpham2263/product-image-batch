@@ -21,6 +21,9 @@ try{
     Set-UpdateButton 'v9.9.9'
     Assert ($btnUpdate.Text -eq 'Cập nhật v9.9.9' -and $header.ClientSize.Width - $btnUpdate.Right -eq 24 -and $btnUpdate.Left -gt $title.Right) 'A newer release must show on the update button, still 24px from the right edge.'
     Set-UpdateButton ''
+    Set-UpdateButton 'v9.9.9'
+    Assert ($syncLabel.Right -le $btnUpdate.Left - 12 -and $syncBar.Right -le $btnUpdate.Left - 12) 'The sync line must end before the update button.'
+    Set-UpdateButton ''
     $script:runTokens = @{ In = 15600L; Cached = 8000L; Out = 2250L }; $script:quotaText = 'Hạn mức: 5 giờ còn 72%'; Update-UsageLabel
     Assert ($lblTokens.Text -match '^Token: 17.850 · vào 15.600 · ra 2.250$' -and $lblQuota.Text -eq 'Hạn mức: 5 giờ còn 72%') "Token and quota must each have their own line: '$($lblTokens.Text)' / '$($lblQuota.Text)'"
     Assert ($lblTokens.Bottom -le $lblQuota.Top -and $lblQuota.Bottom -le $lblQuota.Parent.ClientSize.Height -and $lblTokens.Right -lt $lblThr.Left) 'The token and quota lines must fit in the run card without overlapping.'

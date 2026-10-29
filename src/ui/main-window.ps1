@@ -148,7 +148,13 @@ $header=New-Object Windows.Forms.Panel -Property @{Size=(New-Object Drawing.Size
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review Batch';Location='20,19';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
-$header.Controls.AddRange(@($title,$btnUpdate))
+# Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
+$syncLabel=New-Object Windows.Forms.Label -Property @{Name='HeaderSync';Location='260,14';Size='700,22';Anchor='Top,Left,Right';ForeColor=$ui.Muted;AutoEllipsis=$true;TextAlign='MiddleRight';Visible=$false}
+$syncBar=New-Object Windows.Forms.ProgressBar -Property @{Name='HeaderSyncBar';Location='760,40';Size='200,4';Anchor='Top,Right';Style='Continuous';Visible=$false}
+$header.Controls.AddRange(@($btnUpdate,$title,$syncLabel,$syncBar))
+# The sync line always ends 12px before the update button, however wide the button is.
+function Set-HeaderLayout { $syncLabel.Width = $btnUpdate.Left - 12 - $syncLabel.Left; $syncBar.Left = $btnUpdate.Left - 12 - $syncBar.Width }
+Set-HeaderLayout
 
 $cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh' 20 78 820 344 'Top,Left,Right'
 $queueEditor=New-ProductQueueEditor $root
@@ -217,6 +223,7 @@ function Set-UpdateButton([string]$Next) {
     $btnUpdate.Width = $(if ($Next) { 150 } else { 100 })
     $btnUpdate.Left = $header.ClientSize.Width - 24 - $btnUpdate.Width
     Set-FlatButton $btnUpdate -Primary:([bool]$Next)
+    Set-HeaderLayout
 }
 $updateOut = Join-Path $workspace.Logs "update-check-$PID.out"
 $script:updateProc = $null
@@ -255,6 +262,37 @@ $quotaTimer.Add_Tick({
     $quotaTimer.Interval = 15 * 60 * 1000
 })
 if (-not $BuildOnly) { $quotaTimer.Start() }
+$script:syncProc = $null; $script:syncHideAt = $null
+$syncStatus = Join-Path $workspace.Logs "sync-status-$PID.json"
+function Format-SyncStatus($s) {
+    $percent = if ($s.missing) { [int][Math]::Round(100 * $s.done / $s.missing) } else { 0 }
+    $where = if (@($s.groups).Count -gt 1) { "$($s.group) ($($s.index)/$(@($s.groups).Count))" } else { [string]$s.group }
+    return [pscustomobject]@{ Text = "⟳ Đang tải về máy: $where · $(Format-Count $s.done)/$(Format-Count $s.missing) ảnh"; Percent = $percent }
+}
+# Starts Tải về máy for these danh mục; $false when one is already running.
+function Start-BackgroundSync([string[]]$Names) {
+    if ($script:syncProc -or -not @($Names).Count) { return $false }
+    Remove-Item -LiteralPath $syncStatus -Force -ErrorAction SilentlyContinue
+    $script:syncProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'sync-source.ps1') + '"'), '-Group', ('"' + ($Names -join '|') + '"'), '-StatusFile', ('"' + $syncStatus + '"'))
+    [void]$script:syncProc.Handle
+    $syncLabel.ForeColor = $ui.Muted; $syncLabel.Text = '⟳ Đang tải về máy…'; $syncLabel.Visible = $true; $syncBar.Value = 0; $syncBar.Visible = $true
+    $script:syncHideAt = $null; $syncTimer.Start()
+    return $true
+}
+$syncTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 700 }
+$syncTimer.Add_Tick({
+    if ($script:syncHideAt) { if ((Get-Date) -ge $script:syncHideAt) { $syncLabel.Visible = $false; $script:syncHideAt = $null; $syncTimer.Stop() }; return }
+    $s = try { Get-Content -LiteralPath $syncStatus -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json } catch { $null }
+    if ($s -and -not $s.finished) { $view = Format-SyncStatus $s; $syncLabel.Text = $view.Text; $syncBar.Value = [Math]::Min(100, $view.Percent) }
+    if (-not $script:syncProc.HasExited) { return }
+    $script:syncProc.Dispose(); $script:syncProc = $null; $syncBar.Visible = $false
+    Remove-Item -LiteralPath $syncStatus -Force -ErrorAction SilentlyContinue
+    $ok = if ($s) { @($s.groups).Count - @($s.failed).Count } else { 0 }
+    $syncLabel.Text = if ($s -and $ok) { "✓ Đã tải về máy $(if (@($s.groups).Count -gt 1) { "$ok danh mục" } else { $s.group }): $(Format-Count $s.total) ảnh (vừa tải $(Format-Count $s.downloaded))$(if (@($s.failed).Count) { " · chưa tải được: $(@($s.failed) -join ', ')" })" } else { "Chưa tải được về máy$(if ($s) { ": $(@($s.failed) -join ', ')" }). Kiểm tra mạng và mật khẩu app." }
+    $syncLabel.ForeColor = if ($s -and -not @($s.failed).Count) { $ui.Ok } else { $ui.Error }
+    $script:syncHideAt = (Get-Date).AddSeconds(12)
+})
+$queueEditor | Add-Member -NotePropertyName StartSync -NotePropertyValue { param([string[]]$Names) Start-BackgroundSync $Names } -Force
 $btnReview.Add_Click({ if (-not $script:proc) { Show-BatchReviewDialog $form $workspace.Output $script:resultFolder; Update-ReviewButton } })
 
 $btnOut.Add_Click({
