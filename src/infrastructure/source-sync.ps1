@@ -80,3 +80,45 @@ function Get-LocalSourceFiles([string]$SourceDir, [string]$Group) {
     if (-not (Test-Path -LiteralPath $folder)) { return @() }
     return @(Get-ChildItem -LiteralPath $folder -File | Where-Object { $_.Extension -match '^\.(png|jpe?g)$' } | Sort-Object Name | ForEach-Object FullName)
 }
+
+# A group's images on Drive, each with the local copy when one is already in place (synced or picked).
+function Get-SourceGroupFiles($Drive, [string]$SourceDir, [string]$Group) {
+    $Group = $Group.Normalize([Text.NormalizationForm]::FormC)
+    $folder = Join-Path $SourceDir $Group
+    $index = Read-SourceSyncIndex $folder
+    $listing = Invoke-RestMethod -Uri "$($Drive.ApiUrl)/api/sources/$([Uri]::EscapeDataString($Group))" -Headers @{ 'x-admin-key' = $Drive.AdminKey } -TimeoutSec 60
+    foreach ($file in @($listing.files)) {
+        $name = [string]$file.name
+        if (-not $name -or [IO.Path]::GetFileName($name) -ne $name) { continue }
+        $path = Join-Path $folder $name
+        $local = if ($index[$name] -eq $file.md5 -and (Test-Path -LiteralPath $path)) { $path } else { '' }
+        [pscustomobject]@{ name = $name; md5 = [string]$file.md5; url = [string]$file.url; local = $local }
+    }
+}
+
+# Uses picked Drive images directly: downloads only the ones not on this machine yet, into the group
+# folder and its sync index, so a later Đồng bộ never downloads them twice. Returns local paths.
+function Save-SourceGroupFiles([string]$SourceDir, [string]$Group, [object[]]$Files) {
+    $folder = Get-SourcePhotoDirectory $SourceDir $Group.Normalize([Text.NormalizationForm]::FormC)
+    $index = Read-SourceSyncIndex $folder
+    foreach ($file in @($Files)) {
+        $name = [IO.Path]::GetFileName([string]$file.name)
+        if (-not $name) { continue }
+        $path = Join-Path $folder $name
+        if ($index[$name] -ne $file.md5 -or -not (Test-Path -LiteralPath $path)) {
+            Invoke-WebRequest -Uri ([string]$file.url) -OutFile $path -UseBasicParsing -TimeoutSec 120
+            $index[$name] = [string]$file.md5
+            $index | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $folder '.drive-sync.json') -Encoding UTF8
+        }
+        $path
+    }
+}
+
+function Read-SourceSyncIndex([string]$Folder) {
+    $index = @{}
+    $indexPath = Join-Path $Folder '.drive-sync.json'
+    if (Test-Path -LiteralPath $indexPath) {
+        foreach ($p in (Get-Content -LiteralPath $indexPath -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties) { $index[$p.Name] = [string]$p.Value }
+    }
+    return $index
+}

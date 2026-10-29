@@ -311,14 +311,14 @@ async function chooseImages(folder) {
   return list(r.paths);
 }
 
-// "Từ kho Drive": the group's images already on this Mac; Đồng bộ brings it up to date with Drive
-// (new or changed files only, deleted ones removed), so picking never downloads or duplicates.
+// "Từ kho Drive": every image of a Drive group. Thêm uses the picked ones directly (downloading only those
+// not on this machine yet); Đồng bộ cả nhóm brings the whole group over once. Either way nothing is fetched twice.
 function showDrivePicker() {
   return new Promise((resolve) => {
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     const groups = at(combo(), 20, 16, 220, 24);
-    const sync = at(button("Đồng bộ"), 250, 14, 100, 28);
-    const count = at(label("", "muted"), 362, 18, 380, 24);
+    const sync = at(button("Đồng bộ cả nhóm"), 250, 14, 140, 28);
+    const count = at(label("", "muted"), 402, 18, 340, 24);
     const bar = at(el("div", "progress marquee"), 20, 478, 400, 8);
     bar.append(el("span"));
     bar.hidden = true;
@@ -328,18 +328,24 @@ function showDrivePicker() {
     add.disabled = true;
     view.body.append(groups, sync, count, grid, bar, add, cancel);
     let files = [], shown = 0, result = [];
-    const picked = new Set();
+    const picked = new Map();
     view.onClose = () => resolve(result);
     cancel.onclick = view.close;
-    const refreshCount = () => { count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh` : "Nhóm chưa có trên máy. Bấm Đồng bộ để tải đủ ảnh."; add.disabled = !picked.size; };
+    const busy = (on) => { sync.disabled = on; groups.disabled = on; bar.hidden = !on; add.disabled = on || !picked.size; };
+    const refreshCount = () => {
+      const local = files.filter((f) => f.local).length;
+      count.textContent = files.length ? `Đã chọn ${picked.size} / ${files.length} ảnh · ${local} ảnh có trên máy` : "Nhóm này chưa có ảnh.";
+      add.disabled = !picked.size;
+    };
     const showMore = () => {
       grid.querySelector(".more")?.remove();
-      for (const path of files.slice(shown, shown + 120)) {
+      for (const f of files.slice(shown, shown + 120)) {
         const tile = el("div", "", { style: { width: "100px", height: "100px", padding: "3px", background: "var(--smoke)", cursor: "pointer", flex: "none" } });
-        tile.append(el("img", "", { loading: "lazy", src: `/file?path=${encodeURIComponent(path)}`, style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } }));
+        const src = f.local ? `/file?path=${encodeURIComponent(f.local)}` : f.url;
+        tile.append(el("img", "", { loading: "lazy", src, style: { width: "100%", height: "100%", objectFit: "contain", display: "block" } }));
         tile.onclick = () => {
-          if (picked.has(path)) { picked.delete(path); tile.style.background = "var(--smoke)"; }
-          else { picked.add(path); tile.style.background = "var(--accent)"; }
+          if (picked.has(f.name)) { picked.delete(f.name); tile.style.background = "var(--smoke)"; }
+          else { picked.set(f.name, f); tile.style.background = "var(--accent)"; }
           refreshCount();
         };
         grid.append(tile);
@@ -353,27 +359,38 @@ function showDrivePicker() {
     };
     const load = async () => {
       grid.replaceChildren(); picked.clear(); shown = 0;
-      files = list(await api("sourceLocalFiles", { group: groups.value }).catch(() => []));
+      count.textContent = "Đang tải danh sách…";
+      files = list(await api("sourceFiles", { group: groups.value }).catch(() => []));
       showMore(); refreshCount();
     };
     sync.onclick = async () => {
       if (!state.drive) return messageBox("Đăng nhập mật khẩu app trước (Kiểm tra cấu hình).", "Kho Drive");
-      sync.disabled = true; groups.disabled = true; bar.hidden = false; count.textContent = `Đang đồng bộ nhóm ${groups.value}…`;
+      busy(true); count.textContent = `Đang đồng bộ nhóm ${groups.value}…`;
       try {
         const r = await api("sourceSync", { group: groups.value });
         await load();
         count.textContent = `Đã đồng bộ: ${r.Total} ảnh (tải mới ${r.Downloaded}, xoá ${r.Removed}).`;
       } catch { await load(); count.textContent = "Chưa đồng bộ được. Kiểm tra mạng và mật khẩu app rồi thử lại."; }
-      finally { sync.disabled = false; groups.disabled = false; bar.hidden = true; }
+      finally { busy(false); }
     };
     groups.onchange = load;
-    add.onclick = () => { result = [...picked]; state.group = groups.value; view.close(); };
+    add.onclick = async () => {
+      const chosen = [...picked.values()];
+      const missing = chosen.filter((f) => !f.local);
+      busy(true); count.textContent = missing.length ? `Đang tải ${missing.length} ảnh đã chọn…` : "Đang thêm…";
+      try {
+        const fetched = missing.length ? list(await api("sourcePick", { group: groups.value, files: missing.map(({ name, md5, url }) => ({ name, md5, url })) })) : [];
+        result = [...chosen.filter((f) => f.local).map((f) => f.local), ...fetched];
+        state.group = groups.value;
+        view.close();
+      } catch { count.textContent = "Chưa tải được ảnh đã chọn. Kiểm tra mạng rồi thử lại."; busy(false); }
+    };
     api("groups", { local: false }).then((g) => {
       g = list(g);
       groups.setItems(g);
       groups.value = g.includes(state.group) ? state.group : g[0] || "";
       load();
-    }).catch((e) => { count.textContent = e.message; });
+    }).catch(() => { count.textContent = "Chưa tải được danh sách nhóm."; });
   });
 }
 

@@ -46,6 +46,13 @@ function Invoke-Rpc([string]$Cmd, $A) {
         }
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root $libraryRoot }) }
+        'sourceFiles' {
+            # Drive listing with local copies; without the app password or network, only what is on this machine.
+            $drive = Get-DriveConfig $workspace.Root
+            try { if (-not $drive) { throw 'offline' }; return @(Get-SourceGroupFiles $drive $libraryRoot ([string]$A.group)) }
+            catch { return @(Get-LocalSourceFiles $libraryRoot ([string]$A.group) | ForEach-Object { [pscustomobject]@{ name = [IO.Path]::GetFileName($_); md5 = ''; url = ''; local = $_ } }) }
+        }
+        'sourcePick' { return @(Save-SourceGroupFiles $libraryRoot ([string]$A.group) @($A.files)) }
         'sourceLocalFiles' { return @(Get-LocalSourceFiles $libraryRoot ([string]$A.group)) }
         'sourceSync' {
             $drive = Get-DriveConfig $workspace.Root
