@@ -59,7 +59,7 @@ $driveState = 'fail'; $driveDetail = 'Chưa nhập; cần để tải ảnh lên
 if (Test-Path -LiteralPath $driveFile) {
     try {
         $saved = Get-Content -LiteralPath $driveFile -Raw -Encoding UTF8 | ConvertFrom-Json
-        Invoke-WebRequest -Uri (([string]$saved.apiUrl).TrimEnd('/') + '/api/app-check') -Headers @{ 'x-admin-key' = [string]$saved.adminKey } -UseBasicParsing -TimeoutSec 10 | Out-Null
+        Invoke-WebRequest -Uri ((([string]$saved.apiUrl) -replace '//product-images-api\.', '//product-review-batch-api.').TrimEnd('/') + '/api/app-check') -Headers @{ 'x-admin-key' = [string]$saved.adminKey } -UseBasicParsing -TimeoutSec 10 | Out-Null
         $driveState = 'ok'; $driveDetail = 'Đã đăng nhập; ảnh tạo xong tự tải lên Drive.'
     } catch {
         $code = 0; if ($_.Exception.Response) { try { $code = [int]$_.Exception.Response.StatusCode } catch {} }

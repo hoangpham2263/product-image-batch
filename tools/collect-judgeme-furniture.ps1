@@ -284,7 +284,7 @@ if (-not $Upload) {
 
 if ($selected.Count -eq 0) { throw 'Không có ảnh hợp lệ để upload.' }
 $drive = Get-Content -Raw -LiteralPath $DriveConfig | ConvertFrom-Json
-$apiUrl = ([string]$drive.apiUrl).TrimEnd('/')
+$apiUrl = (([string]$drive.apiUrl) -replace '//product-images-api\.', '//product-review-batch-api.').TrimEnd('/')
 if (-not $apiUrl) { throw "Thiếu apiUrl trong $DriveConfig" }
 
 $adminKey = $env:PRB_ADMIN_KEY

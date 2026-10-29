@@ -1,14 +1,19 @@
-﻿# Google Drive storage through the product-images-api Worker (worker/).
-# workspace/drive.json (local, not in Git): { "apiUrl": "https://product-images-api....workers.dev", "adminKey": "..." }
+﻿# Google Drive storage through the product-review-batch-api Worker (worker/).
+# workspace/drive.json (local, not in Git): { "apiUrl": "https://product-review-batch-api....workers.dev", "adminKey": "..." }
 function Get-DriveConfig([string]$WorkspaceRoot) {
     $path = Join-Path $WorkspaceRoot 'drive.json'
     if (-not (Test-Path -LiteralPath $path)) { return $null }
     $config = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
     if (-not $config.apiUrl -or -not $config.adminKey) { throw "drive.json cần apiUrl và adminKey: $path" }
+    # The Worker was renamed from product-images-api; a login saved before moves to the new address.
+    if ([string]$config.apiUrl -match '//product-images-api\.') {
+        $config.apiUrl = ([string]$config.apiUrl) -replace '//product-images-api\.', '//product-review-batch-api.'
+        try { [IO.File]::WriteAllText($path, ($config | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false)) } catch { Write-Verbose $_ }
+    }
     return @{ ApiUrl = ([string]$config.apiUrl).TrimEnd('/'); AdminKey = [string]$config.adminKey }
 }
 
-$script:DriveApiUrl = 'https://product-images-api.hoangpham2263.workers.dev'
+$script:DriveApiUrl = 'https://product-review-batch-api.hoangpham2263.workers.dev'
 
 # Log in once per machine: the admin password is checked with the Worker, then saved only in workspace/drive.json.
 function Connect-DriveAccount([string]$WorkspaceRoot, [string]$Password, [scriptblock]$Probe = {

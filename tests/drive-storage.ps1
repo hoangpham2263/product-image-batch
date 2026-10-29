@@ -10,6 +10,11 @@ try{
     '{"apiUrl":"https://api.test/","adminKey":"k"}'|Set-Content (Join-Path $temp 'drive.json') -Encoding UTF8
     $drive=Get-DriveConfig $temp
     Assert ($drive.ApiUrl -eq 'https://api.test' -and $drive.AdminKey -eq 'k') 'drive.json was not read.'
+    # A login saved with the Worker's old name moves to the new address, in the file too.
+    '{"apiUrl":"https://product-images-api.hoangpham2263.workers.dev","adminKey":"k"}'|Set-Content (Join-Path $temp 'drive.json') -Encoding UTF8
+    Assert ((Get-DriveConfig $temp).ApiUrl -eq 'https://product-review-batch-api.hoangpham2263.workers.dev') 'The old Worker address must move to the new one.'
+    Assert ((Get-Content (Join-Path $temp 'drive.json') -Raw) -match 'product-review-batch-api' -and (Get-DriveConfig $temp).AdminKey -eq 'k') 'The new address must be saved, keeping the password.'
+    '{"apiUrl":"https://api.test/","adminKey":"k"}'|Set-Content (Join-Path $temp 'drive.json') -Encoding UTF8
 
     $script:Config=@{Drive=$drive}
     $image=Join-Path $temp '001-tee.png'

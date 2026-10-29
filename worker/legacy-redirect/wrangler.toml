@@ -1,0 +1,5 @@
+# Old address of the Worker (before the rename); only redirects. No secrets or storage.
+name = "product-images-api"
+main = "index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true

@@ -114,11 +114,11 @@ app (PowerShell) → bridge/ (Node, 127.0.0.1:8765) → extension/ (Chrome) → 
 
 ## Lưu ảnh lên Google Drive và quản lý
 
-`worker/` là Cloudflare Worker `product-images-api` (cùng mẫu với memories-api): trên Drive mọi thứ nằm trong `Product Review Batch/`: ảnh đã tạo ở `Ảnh đã tạo/<batch>/`, kho ảnh mẫu ở `Nguồn ảnh/<nhóm>/`, log người dùng gửi ở `Logs/`, CSV dùng link cố định `https://product-images-api…/img/<id>.png`.
+`worker/` là Cloudflare Worker `product-review-batch-api` (cùng mẫu với memories-api): trên Drive mọi thứ nằm trong `Product Review Batch/`: ảnh đã tạo ở `Ảnh đã tạo/<batch>/`, kho ảnh mẫu ở `Nguồn ảnh/<nhóm>/`, log người dùng gửi ở `Logs/`, CSV dùng link cố định `https://product-review-batch-api…/img/<id>.png`.
 
 Cài một lần:
 
-1. Google Cloud Console: thêm redirect URI `https://product-images-api.hoangpham2263.workers.dev/oauth/callback` vào OAuth client đang dùng cho memories.
+1. Google Cloud Console: thêm redirect URI `https://product-review-batch-api.hoangpham2263.workers.dev/oauth/callback` vào OAuth client đang dùng cho memories.
 2. Trong `worker/`: `npx wrangler kv namespace create STORE`, dán id vào `wrangler.toml`, rồi `npx wrangler secret put GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `ADMIN_PASSWORD` và `npx wrangler deploy`.
 3. Trong app, bấm **Google Drive** và nhập mật khẩu quản lý (mỗi máy một lần). App kiểm tra mật khẩu rồi lưu vào `workspace/drive.json` (không lên Git).
 4. Mở trang quản lý `docs/index.html` (GitHub Pages: Settings → Pages → `main` / `docs`), nhập mật khẩu, bấm **Kết nối Drive**.
