@@ -70,3 +70,25 @@ try {
 } finally {
     $txtLog.Dispose(); $lblProgress.Dispose(); $bar.Dispose()
 }
+
+# A report, setup step or sync locks the main actions; Stop belongs only to a running batch.
+$definition=$ast.Find({param($node)$node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Update-ActionAvailability'},$true)
+. ([scriptblock]::Create($definition.Extent.Text))
+$actionButtons=@()
+foreach($name in @('btnRun','btnStop','btnReview','btnOut','btnSetup','btnLogs','btnClearLog','btnUpdate')){
+    $button=New-Object Windows.Forms.Button;Set-Variable -Name $name -Value $button;$actionButtons+= $button
+}
+$queueEditor=@{Panel=(New-Object Windows.Forms.Panel)};$numThr=New-Object Windows.Forms.NumericUpDown
+try{
+    $script:proc=$null;$script:logsProc=$null;$script:setupProc=$null;$script:syncProc=$null
+    foreach($kind in @('logsProc','setupProc','syncProc','proc')){
+        Set-Variable -Scope Script -Name $kind -Value ([pscustomobject]@{Running=$true})
+        Update-ActionAvailability
+        if(@($actionButtons|Where-Object{$_ -ne $btnStop -and $_.Enabled}).Count -or $queueEditor.Panel.Enabled -or $numThr.Enabled){throw "Actions remain enabled during $kind"}
+        if($btnStop.Enabled -ne ($kind -eq 'proc')){throw 'Stop must remain available only during a batch.'}
+        Set-Variable -Scope Script -Name $kind -Value $null
+    }
+    Update-ActionAvailability
+    if(-not $btnRun.Enabled -or -not $btnSetup.Enabled -or $btnStop.Enabled){throw 'Actions were not restored after work finished.'}
+    Write-Host 'PASS: action locking for reports, setup, sync and batches.'
+}finally{foreach($button in $actionButtons){$button.Dispose()};$queueEditor.Panel.Dispose();$numThr.Dispose()}

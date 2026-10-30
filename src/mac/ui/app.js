@@ -142,10 +142,12 @@ function openWindow(title, w, h, { white = false } = {}) {
     view.closed = true;
     modal.remove();
     stack.splice(stack.indexOf(view), 1);
+    updateActionAvailability();
     view.onClose?.();
   };
   close.onclick = () => (view.cancel || view.close)();
   stack.push(view);
+  updateActionAvailability();
   return view;
 }
 addEventListener("keydown", (e) => {
@@ -1051,12 +1053,21 @@ function showDriveDialog() {
 }
 
 // ----- run (Start-GuiBatch, timer ticks) -----
+const actionLocks = new Set();
+function updateActionAvailability() {
+  const busy = run.active || actionLocks.size > 0 || stack.length > 0;
+  for (const b of [ui.btnRun, ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnOut, ui.btnUpdate, ui.btnClearLog, ui.btnAdd, ui.btnBulk, ui.btnClear]) b.disabled = busy;
+  ui.btnStop.disabled = !run.active;
+  ui.numThr.enabled = !busy;
+  ui.flow.style.pointerEvents = busy ? "none" : "";
+}
+function setActionBusy(reason, on) {
+  if (on) actionLocks.add(reason); else actionLocks.delete(reason);
+  updateActionAvailability();
+}
 function setRunning(on) {
   run.active = on;
-  ui.btnRun.disabled = on; ui.btnStop.disabled = !on;
-  for (const b of [ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnAdd, ui.btnBulk, ui.btnClear]) b.disabled = on;
-  ui.numThr.enabled = !on;
-  ui.flow.style.pointerEvents = on ? "none" : "";
+  updateActionAvailability();
 }
 function updateRunDisplay() {
   if (!run.active) return;
@@ -1181,14 +1192,14 @@ function wire() {
     const rejected = await api("rejectedCount").catch(() => 0);
     const question = "Gửi lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
     if ((await messageBox(question, "Gửi lỗi", ["Yes", "No"])) !== "Yes") return;
-    ui.btnLogs.disabled = true; ui.btnLogs.textContent = "Đang gửi…";
-    const reset = () => setTimeout(() => { ui.btnLogs.textContent = "Gửi lỗi"; ui.btnLogs.disabled = run.active; }, 2500);
+    setActionBusy("report", true); ui.btnLogs.textContent = "Đang gửi lỗi…";
+    const reset = () => setTimeout(() => { ui.btnLogs.textContent = "Gửi lỗi"; setActionBusy("report", false); }, 2500);
     if (!(await fetch("/api/send-errors", { method: "POST" }).then((r) => r.ok).catch(() => false))) { appendLog("Chưa gửi lỗi được, thử lại sau."); return reset(); }
     let shown = "";
     const timer = setInterval(async () => {
       const { running, last } = await fetch("/api/send-errors").then((r) => r.json()).catch(() => ({ running: true, last: "" }));
       const [kind, a = "", b = ""] = last.split("|");
-      if (kind === "step" && a !== shown) { shown = a; ui.btnLogs.textContent = a.replace(/ \(.*\)/, ""); appendLog(a); }
+      if (kind === "step" && a !== shown) { shown = a; appendLog(a); }
       if (running) return;
       clearInterval(timer);
       if (kind === "sent") { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi lỗi: ${a}${Number(b) ? ` (kèm ${b} đánh giá đã Bỏ)` : ""}`); }
@@ -1230,6 +1241,7 @@ const syncView = { timer: 0, hide: 0 };
 async function startSync(names) {
   const r = await fetch("/api/sync", { method: "POST", body: JSON.stringify({ groups: names }) }).catch(() => null);
   if (!r || !r.ok) return false;
+  setActionBusy("sync", true);
   clearTimeout(syncView.hide);
   Object.assign(ui.syncLabel.style, { color: "" });
   ui.syncLabel.textContent = "⟳ Đang tải về máy…"; ui.syncLabel.hidden = false;
@@ -1239,9 +1251,10 @@ async function startSync(names) {
 }
 async function pollSync() {
   clearTimeout(syncView.timer);
-  const r = await (await fetch("/api/sync")).json().catch(() => null);
-  if (!r) return;
+  const r = await fetch("/api/sync").then((response) => response.json()).catch(() => null);
+  if (!r) { syncView.timer = setTimeout(pollSync, 1500); return; }
   const s = r.status;
+  setActionBusy("sync", !!r.running);
   if (r.running) {
     if (s && !s.finished) {
       const where = s.groups.length > 1 ? `${s.group} (${s.index}/${s.groups.length})` : s.group;

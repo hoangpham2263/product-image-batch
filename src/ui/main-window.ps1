@@ -213,6 +213,19 @@ $cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog))
 $btnClearLog.Add_Click({$txtLog.Clear()})
 
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
+# All foreground work shares the same main-window lock; background version/quota checks do not.
+function Update-ActionAvailability {
+    $busy=[bool]($script:proc -or $script:logsProc -or $script:setupProc -or $script:syncProc)
+    foreach($button in @($btnRun,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate)){$button.Enabled=-not $busy}
+    $queueEditor.Panel.Enabled=-not $busy;$numThr.Enabled=-not $busy
+    $btnStop.Enabled=[bool]$script:proc
+}
+foreach($button in @($btnRun,$btnStop,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate)){$button.AutoEllipsis=$true}
+$actionStateTimer=New-Object Windows.Forms.Timer -Property @{Interval=150}
+$actionStateTimer.Add_Tick({Update-ActionAvailability})
+$form.Add_FormClosed({$actionStateTimer.Dispose()})
+if(-not $BuildOnly){$actionStateTimer.Start()}
+
 $lblStatus.Anchor='Top,Left'
 $lblThr.Height=$numThr.Height
 $btnUpdate.Add_Click({
@@ -321,7 +334,7 @@ $setupTimer.Add_Tick({
 function Start-SetupStep([string]$Program, [string[]]$Arguments) {
     $btnSetup.Enabled = $false
     $script:setupProc = Start-Process $Program -ArgumentList $Arguments -PassThru
-    $setupTimer.Start()
+    $setupTimer.Start();Update-ActionAvailability
 }
 $btnSetup.Add_Click({
     switch (Show-SetupDialog $form $srcDir $workspace.Logs) {
@@ -341,7 +354,7 @@ $logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi lỗi'; $btnLogs
 $logsTimer.Add_Tick({
     # Each step of src/support-report.mjs shows on the button and in the log.
     $step = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^step\|' })[-1] -replace '^step\|', '' } catch { '' }
-    if ($step -and $step -ne $script:logsStep) { $script:logsStep = $step; $btnLogs.Text = ($step -replace ' \(.*\)', ''); Append-Log $step }
+    if ($step -and $step -ne $script:logsStep) { $script:logsStep = $step; Append-Log $step }
     if (-not $script:logsProc.HasExited) { return }
     $logsTimer.Stop(); $script:logsProc.WaitForExit(); $script:logsProc.Dispose(); $script:logsProc = $null
     $result = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^(sent|saved|error)\|' })[-1] } catch { '' }
@@ -358,12 +371,12 @@ $btnLogs.Add_Click({
     $rejected = @(Get-UnsentRejectedSamples $root).Count
     $question = "Gửi lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi lỗi', 'YesNo') -ne 'Yes') { return }
-    $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'; $script:logsStep = ''
+    $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi lỗi…'; $script:logsStep = ''
     $node=Get-Command node.exe -ErrorAction SilentlyContinue
     if (-not $node) { Append-Log 'Chưa có Node.js. Mở Kiểm tra cấu hình.';$btnLogs.Enabled=$true;return }
     $script:logsProc = Start-Process $node.Source -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @(('"' + (Join-Path $srcDir 'support-report.mjs') + '"'))
     [void]$script:logsProc.Handle
-    $logsTimer.Start()
+    $logsTimer.Start();Update-ActionAvailability
 })
 $queueEditor.OnChanged={ Update-Status; if (-not $script:loadingUrls) { try { Save-Urls } catch { Write-Verbose $_ } } }
 
