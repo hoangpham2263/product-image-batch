@@ -16,7 +16,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tools Hub</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
-<style>.tools{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}.tools form{margin:0}.tools button{display:flex;gap:14px;align-items:center;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:48px;height:48px;flex:none}.tools button:hover{border-color:var(--primary)}</style></head>
+<style>.tools{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));grid-auto-rows:1fr}.tools form{margin:0;display:flex}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:100%;min-height:88px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:48px;height:48px;flex:none}.tools button:hover{border-color:var(--primary)}</style></head>
 <body><main><header><img src="/hub/icon.svg" alt=""><h1>Tools Hub</h1></header><div class="tools">
 ${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span><span>${esc(t.name)}</span><br><span class="muted small">${esc(t.description)}</span></span></button></form>`).join("")}
 </div></main></body></html>`;
