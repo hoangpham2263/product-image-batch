@@ -8,8 +8,12 @@
   "mac": "src/mac/server.mjs",
   "platforms": [
     {
-      "name": "Shopify (Loox)",
-      "color": "#5E8E3E"
+      "name": "Mọi website",
+      "color": "#8E8E8E"
+    },
+    {
+      "name": "Loox",
+      "color": "#111111"
     }
   ],
   "features": [
