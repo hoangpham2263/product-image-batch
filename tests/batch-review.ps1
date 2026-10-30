@@ -27,14 +27,11 @@ try{
     Set-BatchReviewDecision $temp '002-tee' ok $rejected
     Assert (-not (Test-Path -LiteralPath $sample)) 'Changing a Bỏ before it is sent must drop the kept copy.'
     Set-BatchReviewDecision $temp '002-tee' bad $rejected -Reason ' sai màu áo '
-    . (Join-Path $root 'src/application/support-logs.ps1')
-    $bundle=New-SupportLogBundle $project
-    try{
-        Assert (@($bundle.Samples).Count -eq 1) 'Gửi lỗi must carry the rejected reviews not sent yet.'
-        $text=[IO.File]::ReadAllText($bundle.Path,[Text.Encoding]::UTF8)
-        Assert ($text -match '002-tee' -and $text -match 'sai màu áo') 'The error file must list the Bỏ review with the reason typed.'
-    }finally{Remove-Item -LiteralPath $bundle.Path -Force -ErrorAction SilentlyContinue}
-    Complete-RejectedSamples $bundle.Samples
+    $unsent=@(Get-UnsentRejectedSamples $project)
+    Assert ($unsent.Count -eq 1) 'Only unsent rejected samples belong to a report.'
+    $note=Get-Content -LiteralPath (Join-Path $unsent[0].FullName 'sample.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert ($note.id -eq '002-tee' -and $note.reason -eq 'sai màu áo') 'The AI must be able to read the saved rejection reason.'
+    Complete-RejectedSamples @($unsent[0].FullName)
     Assert (-not @(Get-UnsentRejectedSamples $project).Count) 'Samples sent once must not be sent again.'
     Set-BatchReviewDecision $temp '002-tee' bad $rejected
     Assert (-not (Test-Path (Join-Path $temp 'loox_import.csv'))) 'No Loox file may exist before the review is done.'
@@ -53,6 +50,8 @@ try{
         . (Join-Path $root 'src/ui/image-feedback.ps1')
         . (Join-Path $root 'src/ui/manual-references.ps1')
         . (Join-Path $root 'src/ui/batch-review.ps1')
+        # Supply the rejection dialog's answer so this UI test never waits for a person.
+        function Read-RejectReason { return 'Test rejection' }
         foreach($item in @(Get-BatchReview $temp)){Set-BatchReviewDecision $temp $item.Id ''}
         $view=New-BatchReviewDialog (Split-Path $temp -Parent) $temp
         $script:Preview=$null

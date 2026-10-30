@@ -1176,7 +1176,7 @@ function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
   ui.btnClear.onclick = () => { if (run.active) return; state.rows = []; renderRows(); updateStatus(); persist(); };
-  // Gửi lỗi: src/send-logs.ps1 runs in the background; each step shows on the button and in the log.
+  // Gửi lỗi: src/support-report.mjs runs in the background; each step shows on the button and in the log.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
     const question = "Gửi lỗi cho admin?\n\n" + (rejected ? `Gồm các lỗi từ lần gửi trước và ${rejected} đánh giá đã Bỏ (kèm lý do).` : "Gồm các lỗi từ lần gửi trước.") + " Không gửi ảnh hay mật khẩu.";
@@ -1193,7 +1193,7 @@ function wire() {
       clearInterval(timer);
       if (kind === "sent") { ui.btnLogs.textContent = "✓ Đã gửi"; appendLog(`Đã gửi lỗi: ${a}${Number(b) ? ` (kèm ${b} đánh giá đã Bỏ)` : ""}`); }
       else if (kind === "saved") { ui.btnLogs.textContent = "Gửi lỗi"; appendLog(`Chưa gửi được (${b || "không rõ lý do"}); file lỗi ở: ${a}`); api("revealPath", { path: a }); }
-      else { ui.btnLogs.textContent = "Gửi lỗi"; appendLog("Chưa tạo được file lỗi."); }
+      else { ui.btnLogs.textContent = "Gửi lỗi"; appendLog(kind === "error" ? `Chưa tạo được báo cáo AI: ${a}` : "Tiến trình dừng không trả kết quả; xem log gửi lỗi."); }
       reset();
     }, 700);
   };

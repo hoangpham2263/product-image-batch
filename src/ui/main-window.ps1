@@ -23,7 +23,6 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/batch-import.ps1')
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
-. (Join-Path $srcDir 'application/support-logs.ps1')
 . (Join-Path $PSScriptRoot 'image-feedback.ps1')
 . (Join-Path $PSScriptRoot 'manual-references.ps1')
 . (Join-Path $PSScriptRoot 'batch-review.ps1')
@@ -333,22 +332,26 @@ $btnSetup.Add_Click({
     }
 })
 # The list saves itself on every change; Bắt đầu checks that every link is ready.
-# Gửi lỗi: packs the logs and uploads them for the admin page; progress shows on the button.
+# Gửi lỗi: AI reads the guide and local logs; Node validates and uploads the report.
 $script:logsProc = $null
 $logsOut = Join-Path $workspace.Logs "send-logs-$PID.out"; $logsErr = Join-Path $workspace.Logs "send-logs-$PID.err"
 $logsTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
 $logsReset = New-Object Windows.Forms.Timer -Property @{ Interval = 2500 }
 $logsReset.Add_Tick({ $logsReset.Stop(); $btnLogs.Text = 'Gửi lỗi'; $btnLogs.Enabled = -not $script:proc })
 $logsTimer.Add_Tick({
-    # Each step of src/send-logs.ps1 shows on the button and in the log.
+    # Each step of src/support-report.mjs shows on the button and in the log.
     $step = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^step\|' })[-1] -replace '^step\|', '' } catch { '' }
     if ($step -and $step -ne $script:logsStep) { $script:logsStep = $step; $btnLogs.Text = ($step -replace ' \(.*\)', ''); Append-Log $step }
     if (-not $script:logsProc.HasExited) { return }
-    $logsTimer.Stop(); $script:logsProc.Dispose(); $script:logsProc = $null
-    $result = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^(sent|saved)\|' })[-1] } catch { '' }
+    $logsTimer.Stop(); $script:logsProc.WaitForExit(); $script:logsProc.Dispose(); $script:logsProc = $null
+    $result = try { @(Get-Content -LiteralPath $logsOut -Encoding UTF8 -ErrorAction Stop | Where-Object { $_ -match '^(sent|saved|error)\|' })[-1] } catch { '' }
     if ($result -match '^sent\|([^|]+)\|(\d+)$') { $btnLogs.Text = '✓ Đã gửi'; Append-Log "Đã gửi lỗi: $($Matches[1])$(if ([int]$Matches[2]) { " (kèm $($Matches[2]) đánh giá đã Bỏ)" })" }
     elseif ($result -match '^saved\|([^|]+)\|?(.*)$') { $btnLogs.Text = 'Gửi lỗi'; Append-Log "Chưa gửi được ($(if ($Matches[2]) { $Matches[2] } else { 'không rõ lý do' })); file lỗi ở: $($Matches[1])"; Start-Process explorer.exe -ArgumentList ('/select,"' + $Matches[1] + '"') }
-    else { $btnLogs.Text = 'Gửi lỗi'; Append-Log 'Chưa tạo được file lỗi.' }
+    else {
+        $btnLogs.Text = 'Gửi lỗi'
+        $reason = if ($result -match '^error\|(.+)$') { $Matches[1] } else { try { (Get-Content -LiteralPath $logsErr -Raw -Encoding UTF8).Trim() } catch { '' } }
+        Append-Log "Chưa tạo được báo cáo AI. $(if($reason){$reason}else{"Tiến trình dừng không trả kết quả; xem $logsOut và $logsErr."})"
+    }
     $logsReset.Start()
 })
 $btnLogs.Add_Click({
@@ -356,7 +359,9 @@ $btnLogs.Add_Click({
     $question = "Gửi lỗi cho admin?`r`n`r`n" + $(if ($rejected) { "Gồm các lỗi từ lần gửi trước và $rejected đánh giá đã Bỏ (kèm lý do)." } else { 'Gồm các lỗi từ lần gửi trước.' }) + ' Không gửi ảnh hay mật khẩu.'
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi lỗi', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi…'; $script:logsStep = ''
-    $script:logsProc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'send-logs.ps1') + '"'))
+    $node=Get-Command node.exe -ErrorAction SilentlyContinue
+    if (-not $node) { Append-Log 'Chưa có Node.js. Mở Kiểm tra cấu hình.';$btnLogs.Enabled=$true;return }
+    $script:logsProc = Start-Process $node.Source -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @(('"' + (Join-Path $srcDir 'support-report.mjs') + '"'))
     [void]$script:logsProc.Handle
     $logsTimer.Start()
 })

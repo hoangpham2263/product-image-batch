@@ -149,14 +149,15 @@ async function startImport(text, folder) {
   return true;
 }
 
-// ----- Gửi lỗi: src/send-logs.ps1 in its own process (Codex may take 2 minutes); its output lines are the progress -----
+// ----- Gửi lỗi: src/support-report.mjs in its own process (Codex may take 2 minutes); its output lines are the progress -----
 const errorsSend = { proc: null, outFile: join(logs, "send-errors-mac.out") };
 async function startSendErrors() {
   if (errorsSend.proc) return false;
   await rm(errorsSend.outFile, { force: true });
   const out = openSync(errorsSend.outFile, "a");
-  errorsSend.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "send-logs.ps1")], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
-  errorsSend.proc.on("exit", () => { errorsSend.proc = null; });
+  errorsSend.proc = spawn(process.execPath, [join(root, "src", "support-report.mjs")], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  errorsSend.proc.on("error", (error) => { appendFileSync(errorsSend.outFile, `error|${error.message.replace(/[\r\n|]/g, " ")}\n`); errorsSend.proc = null; });
+  errorsSend.proc.on("close", () => { errorsSend.proc = null; });
   return true;
 }
 
@@ -223,7 +224,7 @@ async function handle(req, res) {
   }
   if (path === "/api/send-errors" && req.method === "POST") return (await startSendErrors()) ? send(res, 200, { ok: true }) : send(res, 409, { error: "Đang gửi lỗi." });
   if (path === "/api/send-errors" && req.method === "GET") {
-    const lines = (await readFile(errorsSend.outFile, "utf8").catch(() => "")).split("\n").map((l) => l.trim()).filter((l) => /^(step|sent|saved)\|/.test(l));
+    const lines = (await readFile(errorsSend.outFile, "utf8").catch(() => "")).split("\n").map((l) => l.trim()).filter((l) => /^(step|sent|saved|error)\|/.test(l));
     return send(res, 200, { running: !!errorsSend.proc, last: lines.at(-1) || "" });
   }
   if (path === "/api/import" && req.method === "DELETE") { try { imports.proc?.kill("SIGKILL"); } catch {} return send(res, 200, { ok: true }); }

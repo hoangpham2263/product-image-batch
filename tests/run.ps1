@@ -1,5 +1,5 @@
 ﻿# All checks run in fresh PowerShell processes (Windows PowerShell 5.1 on Windows, pwsh on macOS); no paid AI calls.
-param([string[]]$Name = @('csv', 'workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-tool-errors', 'manual-references', 'review-writing', 'review-metadata', 'review-pipeline', 'browser-backend', 'drive-storage', 'drive-delivery', 'multi-scene', 'batch-review', 'app-update', 'support-logs', 'batch-import', 'bulk-dialog'))
+param([string[]]$Name = @('csv', 'workspace', 'gui-launch', 'ui-status', 'inline-ui', 'setup-check', 'quota', 'ai-retry', 'cli-process', 'source-data', 'reference-archive', 'product-input', 'manual-product', 'product-context', 'reference-fallback', 'scene-selection', 'image-output', 'image-delivery', 'image-tool-errors', 'manual-references', 'review-writing', 'review-metadata', 'review-pipeline', 'browser-backend', 'drive-storage', 'drive-delivery', 'multi-scene', 'batch-review', 'app-update', 'support-report', 'batch-import', 'bulk-dialog'))
 $ErrorActionPreference = 'Stop'
 $onWindows = ($PSVersionTable.PSEdition -eq 'Desktop') -or $IsWindows
 # WinForms suites test the Windows desktop window and are skipped on macOS.
@@ -28,6 +28,11 @@ foreach ($file in @(Get-ChildItem (Join-Path $project 'src'), $PSScriptRoot -Rec
 foreach ($testName in $Name) {
     if ($testName -notmatch '^[a-z][a-z0-9-]+$' -or $testName -eq 'run') { throw "Invalid test name: $testName" }
     $path = Join-Path $PSScriptRoot "$testName.ps1"
+    if ($testName -eq 'support-report') {
+        & node --test (Join-Path $PSScriptRoot 'support-report.test.mjs')
+        if ($LASTEXITCODE -ne 0) { $failures.Add($testName) }
+        continue
+    }
     if (-not (Test-Path -LiteralPath $path)) { throw "Test not found: $testName" }
     Write-Host "Testing: $testName" -ForegroundColor Cyan
     & $runner -NoProfile -ExecutionPolicy Bypass -File $path
