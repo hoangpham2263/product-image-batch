@@ -15,13 +15,13 @@ const root = resolve(here, "..", "..");
 // Tools Hub root: this tool is apps/<id>/ inside it (hub/update.ps1 updates the whole hub).
 const hubRoot = resolve(root, "..", "..");
 // Each install gets its own port (from its folder), so two copies on one Mac never share data.
-const BASE_PORT = Number(process.env.PRB_PORT || 47000 + (parseInt(createHash("sha1").update(resolve(here, "..", "..")).digest("hex").slice(0, 6), 16) % 1000));
+const BASE_PORT = Number(process.env.PR_PORT || 47000 + (parseInt(createHash("sha1").update(resolve(here, "..", "..")).digest("hex").slice(0, 6), 16) % 1000));
 let PORT = BASE_PORT;
 const workspace = join(root, "workspace");
 const logs = join(workspace, "logs");
 const uploads = join(workspace, "temp", "mac-uploads");
 // pwsh from PATH or the usual install places (Homebrew, dotnet tool, Microsoft pkg).
-const PWSH = process.env.PRB_PWSH || [
+const PWSH = process.env.PR_PWSH || [
   ...(process.env.PATH || "").split(":").map((d) => join(d, "pwsh")),
   "/opt/homebrew/bin/pwsh", "/usr/local/bin/pwsh", join(homedir(), ".dotnet", "tools", "pwsh"), "/usr/local/microsoft/powershell/7/pwsh",
 ].find((p) => existsSync(p)) || "pwsh";
@@ -282,7 +282,7 @@ return out`;
       send(res, 200, { ok: true });
       setTimeout(() => {
         const out = openSync(logFile("mac-server.log"), "a");
-        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: ["ignore", out, out], env: { ...process.env, PRB_WAIT_PORT: "1" } }).unref();
+        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: ["ignore", out, out], env: { ...process.env, PR_WAIT_PORT: "1" } }).unref();
         rpcProc?.kill();
         // The Tools Hub menu runs on the old files too: restart it, without a window of its own.
         const picker = join(hubRoot, "hub", "picker.mjs");
@@ -311,8 +311,8 @@ return out`;
 // A star in the macOS menu bar while the app runs (src/mac/menubar.js); it goes away with the server.
 let menuBar = null;
 function startMenuBar() {
-  if (process.platform !== "darwin" || process.env.PRB_NO_MENUBAR) return;
-  menuBar = spawn("osascript", ["-l", "JavaScript", join(here, "menubar.js")], { env: { ...process.env, PRB_PORT: String(PORT) }, stdio: "ignore" });
+  if (process.platform !== "darwin" || process.env.PR_NO_MENUBAR) return;
+  menuBar = spawn("osascript", ["-l", "JavaScript", join(here, "menubar.js")], { env: { ...process.env, PR_PORT: String(PORT) }, stdio: "ignore" });
   menuBar.on("error", () => { menuBar = null; });
 }
 process.on("exit", () => { try { menuBar?.kill(); } catch {} });
@@ -326,7 +326,7 @@ const server = createServer((req, res) => handle(req, res).catch((e) => send(res
 function listen(attempt = 0) {
   server.once("error", (e) => {
     // Already running (or the old server is still closing after an update).
-    if (e.code === "EADDRINUSE" && process.env.PRB_WAIT_PORT && attempt < 50) return setTimeout(() => listen(attempt + 1), 200);
+    if (e.code === "EADDRINUSE" && process.env.PR_WAIT_PORT && attempt < 50) return setTimeout(() => listen(attempt + 1), 200);
     if (e.code === "EADDRINUSE") {
       // Already running for this folder: just show its window. Another program on the port: try the next one.
       return fetch(`http://127.0.0.1:${PORT}/api/root`).then((r) => r.json()).then((body) => {

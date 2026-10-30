@@ -54,3 +54,13 @@ header .update { margin-left: auto; margin-right: 4px; }
 .dialog .actions { display: flex; justify-content: flex-end; gap: 10px; }
 .dialog .btn[hidden] { display: none; }
 @keyframes hub-marquee { from { transform: translateX(-100%); } to { transform: translateX(460%); } }
+/* Layout like Product Review's window: bordered groups with a heading inside (Link sản phẩm & ảnh, Thao tác…),
+   the main group on the left, "Thao tác" in a 224px column on the right, wide groups below; 20px between groups. */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: 20px; align-items: stretch; }
+.group { position: relative; background: var(--control); border: 1px solid var(--line); padding: 38px 14px 14px; min-width: 0; }
+.group.wide { grid-column: 1 / -1; }
+.group > h2 { position: absolute; top: 10px; left: 14px; margin: 0; font-size: 13.33px; font-weight: 400; color: var(--ink); }
+.group > label:first-of-type { margin-top: 0; }
+.actions-col { display: flex; flex-direction: column; gap: 8px; }
+.actions-col .btn { width: 100%; }
+.actions-col label { margin: 4px 0 0; }

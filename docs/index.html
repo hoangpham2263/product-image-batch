@@ -417,7 +417,7 @@
       <li>Chép ảnh vào <code>data/source-photos/&lt;nhóm&gt;/</code> trong thư mục source (bản git).</li>
       <li>Mở Terminal ở thư mục source và chạy lệnh dưới. Chỉ ảnh chưa có mới được đẩy lên; nhóm mới tự được tạo.</li>
     </ol>
-    <div class="cmd"><code id="srcCmd">PRB_ADMIN_KEY='mật khẩu admin' node tools/upload-sources.mjs</code><button id="copyCmdBtn" type="button">Copy</button></div>
+    <div class="cmd"><code id="srcCmd">HUB_ADMIN_KEY='mật khẩu admin' node scripts/upload-sources.mjs</code><button id="copyCmdBtn" type="button">Copy</button></div>
     <p class="muted small">App chỉ tải nhóm đang chọn về máy khi chạy, ảnh đã có không tải lại.</p>
   </form>
 </dialog>
@@ -919,7 +919,7 @@ $("tmpMake").onclick = async () => {
 };
 // Copies the message for an AI with this key; any live key can be copied again from the list.
 async function copyTempKey(k, button) {
-  const text = `Dùng API kho ảnh Tools Hub (Product Review) để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến PRB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
+  const text = `Dùng API kho ảnh Tools Hub (Product Review) để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến HUB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
   try {
     await navigator.clipboard.writeText(text);
     toast("Đã copy lời nhắn cho AI");

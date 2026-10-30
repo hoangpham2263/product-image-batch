@@ -255,7 +255,7 @@ test("a temporary key adds images to the library until it expires, and reaches n
   assert.equal((await call("/api/temp-keys", { method: "POST", headers: { "x-admin-key": "app-pass" }, body: "{}" })).status, 403, "the app password cannot make keys");
   assert.equal((await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 5 }) })).status, 400);
   const made = await (await call("/api/temp-keys", { method: "POST", headers: admin, body: JSON.stringify({ hours: 24 }) })).json();
-  assert.match(made.key, /^prb_tmp_[0-9a-f]{40}$/);
+  assert.match(made.key, /^hub_tmp_[0-9a-f]{40}$/);
   const tmp = { "x-admin-key": made.key };
   assert.equal((await call("/api/sources", { method: "POST", headers: { ...tmp, "content-type": "application/json" }, body: JSON.stringify({ name: "Đèn" }) })).status, 201);
   assert.equal((await call(`/api/sources/${encodeURIComponent("Đèn")}?name=a.jpg`, { method: "POST", headers: { ...tmp, "content-type": "image/jpeg" }, body: "x" })).status, 201);

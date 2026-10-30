@@ -13,26 +13,31 @@
 <main>
   <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Grok Video Prompt</h1></header>
 
-  <div class="row">
-    <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
-    <input id="product" placeholder="Tên sản phẩm, ví dụ: Bàn trà gỗ óc chó chân vòm">
+  <div class="layout">
+    <section class="group">
+      <h2>Style</h2>
+      <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
+      <div class="list" id="styles" style="margin-top:10px"></div>
+    </section>
+    <section class="group actions-col">
+      <h2>Thao tác</h2>
+      <label for="product">Tên sản phẩm</label>
+      <input id="product" placeholder="Bàn trà gỗ óc chó chân vòm">
+      <button class="btn primary" id="copy" type="button">Copy prompt</button>
+      <button class="btn" id="toggleAdd" type="button">Thêm prompt</button>
+      <div class="muted small" id="meta"></div>
+    </section>
+    <section class="group wide" id="addGroup" hidden>
+      <h2>Thêm prompt cho thời lượng đang chọn</h2>
+      <label for="newName">Tên style</label><input id="newName">
+      <label for="newPrompt">Prompt (dùng [SẢN PHẨM] chỗ cần điền tên)</label><textarea id="newPrompt"></textarea>
+      <div class="row" style="margin-top:10px"><div class="muted small">Prompt thêm ở đây chỉ lưu trên máy này.</div><button class="btn primary" id="add" type="button">Lưu prompt</button></div>
+    </section>
+    <section class="group wide">
+      <h2>Prompt</h2>
+      <pre class="out" id="out" style="margin:0"></pre>
+    </section>
   </div>
-
-  <label>Style</label>
-  <div class="list" id="styles"></div>
-
-  <div class="row" style="margin-top:16px">
-    <div class="muted small" id="meta"></div>
-    <button class="btn primary" id="copy" type="button">Copy prompt</button>
-  </div>
-  <pre class="out" id="out"></pre>
-
-  <details style="margin-top:20px">
-    <summary class="muted">Thêm prompt cho thời lượng đang chọn</summary>
-    <label for="newName">Tên style</label><input id="newName">
-    <label for="newPrompt">Prompt (dùng [SẢN PHẨM] chỗ cần điền tên)</label><textarea id="newPrompt"></textarea>
-    <div class="row" style="margin-top:10px"><div class="note">Prompt thêm ở đây chỉ lưu trên trình duyệt này.</div><button class="btn" id="add" type="button">Lưu prompt</button></div>
-  </details>
 </main>
 <div class="toast" id="toast"></div>
 <script>
@@ -72,6 +77,7 @@ function render() {
 }
 $("product").value = state.product;
 $("product").oninput = (e) => { state.product = e.target.value; render(); };
+$("toggleAdd").onclick = () => { $("addGroup").hidden = !$("addGroup").hidden; };
 $("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy prompt"); };
 $("add").onclick = () => {
   const name = $("newName").value.trim(), prompt = $("newPrompt").value.trim();
@@ -79,7 +85,7 @@ $("add").onclick = () => {
   const custom = store.get(KEY, {});
   const code = `custom-${state.seconds}s-${Date.now()}`;
   (custom[state.seconds] ||= []).push({ code, name, prompt });
-  store.set(KEY, custom); state.code = code; $("newName").value = $("newPrompt").value = ""; render(); toast("Đã lưu prompt");
+  store.set(KEY, custom); state.code = code; $("addGroup").hidden = true; $("newName").value = $("newPrompt").value = ""; render(); toast("Đã lưu prompt");
 };
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 render();

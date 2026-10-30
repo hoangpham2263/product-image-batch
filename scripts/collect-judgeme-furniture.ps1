@@ -4,8 +4,8 @@ khử trùng và có thể upload vào kho Drive. Ảnh và manifest nằm trong
 không được commit vào Git.
 
 Ví dụ:
-  pwsh -File tools/collect-judgeme-furniture.ps1 -Target 500
-  pwsh -File tools/collect-judgeme-furniture.ps1 -Target 500 -Upload
+  pwsh -File scripts/collect-judgeme-furniture.ps1 -Target 500
+  pwsh -File scripts/collect-judgeme-furniture.ps1 -Target 500 -Upload
 #>
 param(
     [ValidateRange(1, 5000)]
@@ -287,7 +287,7 @@ $drive = Get-Content -Raw -LiteralPath $DriveConfig | ConvertFrom-Json
 $apiUrl = (([string]$drive.apiUrl) -replace '//(product-images-api|product-review-batch-api)\.', '//tools-hub-api.').TrimEnd('/')
 if (-not $apiUrl) { throw "Thiếu apiUrl trong $DriveConfig" }
 
-$adminKey = $env:PRB_ADMIN_KEY
+$adminKey = $env:HUB_ADMIN_KEY
 if (-not $adminKey) {
     $secure = Read-Host 'Nhập mật khẩu admin (không hiện trên màn hình)' -AsSecureString
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
@@ -323,7 +323,7 @@ foreach ($item in $selected) {
 }
 
 $adminKey = $null
-$env:PRB_ADMIN_KEY = $null
+$env:HUB_ADMIN_KEY = $null
 [GC]::Collect()
 $uploadSummary = [pscustomobject]@{group=$DriveGroup;selected=$selected.Count;uploaded=$uploaded;skipped_existing=$skipped;failed=$uploadFailed;completed_at=(Get-Date).ToUniversalTime().ToString('o')}
 Write-JsonFile (Join-Path $outputRoot 'upload-summary.json') $uploadSummary

@@ -2,7 +2,7 @@
 // `osascript -l JavaScript`; it quits by itself once the server stops answering.
 ObjC.import("Cocoa");
 const env = $.NSProcessInfo.processInfo.environment;
-const base = "http://127.0.0.1:" + env.objectForKey("PRB_PORT").js;
+const base = "http://127.0.0.1:" + env.objectForKey("PR_PORT").js;
 const app = $.NSApplication.sharedApplication;
 app.setActivationPolicy(1); // accessory: no Dock icon, menu bar item only
 
@@ -15,14 +15,14 @@ function request(path, method) {
 }
 
 ObjC.registerSubclass({
-  name: "PRBMenuTarget",
+  name: "ProductReviewMenuTarget",
   methods: {
     "open:": { types: ["void", ["id"]], implementation: function () { request("/api/open", "POST"); } },
     "quit:": { types: ["void", ["id"]], implementation: function () { request("/api/quit", "POST"); app.terminate(null); } },
     "tick:": { types: ["void", ["id"]], implementation: function () { if (!request("/api/root")) app.terminate(null); } },
   },
 });
-const target = $.PRBMenuTarget.alloc.init;
+const target = $.ProductReviewMenuTarget.alloc.init;
 
 const item = $.NSStatusBar.systemStatusBar.statusItemWithLength(-1);
 const star = $.NSImage.imageWithSystemSymbolNameAccessibilityDescription("star.fill", "Product Review");

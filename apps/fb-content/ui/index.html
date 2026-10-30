@@ -12,19 +12,29 @@
 <main>
   <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Content FB</h1></header>
 
-  <div class="row">
-    <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
-    <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
+  <div class="layout">
+    <section class="group">
+      <h2>Thông tin sản phẩm</h2>
+      <div class="row">
+        <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
+        <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
+      </div>
+      <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
+      <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
+      <label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra">
+    </section>
+    <section class="group actions-col">
+      <h2>Thao tác</h2>
+      <label for="tone">Giọng văn</label>
+      <select id="tone"><option value="story">Kể chuyện</option><option value="short">Ngắn gọn</option><option value="sale">Giới thiệu bán hàng</option></select>
+      <button class="btn primary" id="copy" type="button">Copy bài đăng</button>
+      <div class="muted small" id="meta"></div>
+    </section>
+    <section class="group wide">
+      <h2>Bài đăng</h2>
+      <pre class="out" id="out" style="margin:0"></pre>
+    </section>
   </div>
-  <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
-  <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
-  <div class="row">
-    <div><label for="tone">Giọng văn</label><select id="tone"><option value="story">Kể chuyện</option><option value="short">Ngắn gọn</option><option value="sale">Giới thiệu bán hàng</option></select></div>
-    <div><label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra"></div>
-  </div>
-
-  <div class="row" style="margin-top:16px"><div class="muted small" id="meta"></div><button class="btn primary" id="copy" type="button">Copy bài đăng</button></div>
-  <pre class="out" id="out"></pre>
 </main>
 <div class="toast" id="toast"></div>
 <script>

@@ -1,13 +1,13 @@
 // Push local sample photos to the Drive library: one folder per group, new names only.
 // Names already on Drive are skipped, so rerunning only uploads what was added.
-// Usage (from the repo root): PRB_ADMIN_KEY=<admin password> node tools/upload-sources.mjs [dir] [drive.json]
+// Usage (from the repo root): HUB_ADMIN_KEY=<admin password> node scripts/upload-sources.mjs [dir] [drive.json]
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 const [dir = "data/source-photos", configPath = "workspace/drive.json"] = process.argv.slice(2);
 const apiUrl = JSON.parse((await readFile(configPath, "utf8")).replace(/^\uFEFF/, "")).apiUrl.replace(/\/\/(product-images-api|product-review-batch-api)\./, "//tools-hub-api.");
 // Uploading to the library is a management task: it needs the admin password, not the app password.
-const adminKey = process.env.PRB_ADMIN_KEY;
-if (!adminKey) { console.error("Đặt mật khẩu admin: PRB_ADMIN_KEY='...' node tools/upload-sources.mjs"); process.exit(1); }
+const adminKey = process.env.HUB_ADMIN_KEY;
+if (!adminKey) { console.error("Đặt mật khẩu admin: HUB_ADMIN_KEY='...' node scripts/upload-sources.mjs"); process.exit(1); }
 const api = async (path, init = {}) => {
   for (let attempt = 1; ; attempt++) {
     const r = await fetch(apiUrl.replace(/\/$/, "") + path, { ...init, headers: { ...(init.headers || {}), "x-admin-key": adminKey } });

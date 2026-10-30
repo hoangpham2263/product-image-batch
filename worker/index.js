@@ -35,18 +35,20 @@ export function sameKey(a = "", b = "") {
 const isAdmin = (req, env) => !!env.ADMIN_PASSWORD && sameKey(req.headers.get("x-admin-key") || "", env.ADMIN_PASSWORD);
 // Two passwords: ADMIN_PASSWORD signs in to the management page; APP_PASSWORD is typed into the desktop
 // app and only reaches what the app needs, so sharing the app never exposes the management page.
-// A temporary key (made on the API page, prb_tmp_…) lets an AI add images to the library until it expires.
+// A temporary key (made on the API page, hub_tmp_…) lets an AI add images to the library until it expires.
 const keyRole = async (req, env) => {
   if (isAdmin(req, env)) return "admin";
   const key = req.headers.get("x-admin-key") || "";
   if (env.APP_PASSWORD && sameKey(key, env.APP_PASSWORD)) return "app";
-  if (key.startsWith(TEMP_PREFIX)) {
+  if (isTempKey(key)) {
     const hash = await sha256(key);
     if ((await readTempKeys(env)).some((k) => k.hash === hash)) return "upload";
   }
   return "";
 };
-const TEMP_PREFIX = "prb_tmp_";
+const TEMP_PREFIX = "hub_tmp_";
+// Keys made before the rename (prb_tmp_…) keep working until they expire.
+const isTempKey = (key) => key.startsWith(TEMP_PREFIX) || key.startsWith("prb_tmp_");
 const TEMP_HOURS = [1, 24, 168];
 async function sha256(text) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -433,7 +435,7 @@ async function handle(req, env, ctx) {
   // ----- signed in below: admin for everything, app password for the app's own calls -----
   if (!path.startsWith("/api/")) return new Response("Not found", { status: 404 });
   const role = await keyRole(req, env);
-  if (!role) return json({ error: (req.headers.get("x-admin-key") || "").startsWith(TEMP_PREFIX) ? "Mã tạm sai hoặc đã hết hạn." : "Sai mật khẩu." }, 401);
+  if (!role) return json({ error: isTempKey(req.headers.get("x-admin-key") || "") ? "Mã tạm sai hoặc đã hết hạn." : "Sai mật khẩu." }, 401);
   if (role === "app" && !appAllowed(req.method, path)) return json({ error: "Mật khẩu app không dùng được cho trang quản lý." }, 403);
   if (role === "upload" && !uploadAllowed(req.method, path)) return json({ error: "Mã tạm chỉ dùng để xem và thêm ảnh vào kho." }, 403);
 
