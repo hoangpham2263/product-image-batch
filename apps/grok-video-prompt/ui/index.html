@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grok Video Prompt</title>
+<link rel="icon" href="../icon.svg">
+<link rel="stylesheet" href="../../../hub/assets/tool.css">
+<script src="../data/prompts.js"></script>
+</head>
+<body>
+<main>
+  <header><img src="../icon.svg" alt=""><div><h1>Grok Video Prompt</h1><div class="muted small">Chọn thời lượng và style, điền tên sản phẩm rồi copy prompt.</div></div></header>
+
+  <div class="row">
+    <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
+    <input id="product" placeholder="Tên sản phẩm, ví dụ: Bàn trà gỗ óc chó chân vòm">
+  </div>
+
+  <label>Style</label>
+  <div class="list" id="styles"></div>
+
+  <div class="row" style="margin-top:16px">
+    <div class="muted small" id="meta"></div>
+    <button class="btn primary" id="copy" type="button">Copy prompt</button>
+  </div>
+  <pre class="out" id="out"></pre>
+
+  <details style="margin-top:20px">
+    <summary class="muted">Thêm prompt cho thời lượng đang chọn</summary>
+    <label for="newName">Tên style</label><input id="newName">
+    <label for="newPrompt">Prompt (dùng [SẢN PHẨM] chỗ cần điền tên)</label><textarea id="newPrompt"></textarea>
+    <div class="row" style="margin-top:10px"><div class="note">Prompt thêm ở đây chỉ lưu trên trình duyệt này.</div><button class="btn" id="add" type="button">Lưu prompt</button></div>
+  </details>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+// Prompts come from data/prompts.js (by length: 6, 10, 15 s); ones added here are kept in localStorage.
+const $ = (id) => document.getElementById(id);
+const KEY = "grok-video-prompt:custom", LAST = "grok-video-prompt:last";
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+const state = Object.assign({ seconds: "10", code: "", product: "" }, store.get(LAST, {}));
+
+function stylesFor(seconds) {
+  return [...(PROMPTS.durations[seconds] || []), ...(store.get(KEY, {})[seconds] || [])];
+}
+function render() {
+  $("durations").replaceChildren(...Object.keys(PROMPTS.durations).map((s) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = `${s}s (${stylesFor(s).length})`; b.setAttribute("aria-pressed", s === state.seconds);
+    b.onclick = () => { state.seconds = s; state.code = ""; render(); };
+    return b;
+  }));
+  const styles = stylesFor(state.seconds);
+  if (!styles.some((x) => x.code === state.code)) state.code = styles[0]?.code || "";
+  $("styles").replaceChildren(...(styles.length ? styles.map((x) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "card"; b.setAttribute("aria-pressed", x.code === state.code);
+    b.innerHTML = `<div></div><div class="muted small"></div>`;
+    b.children[0].textContent = x.name; b.children[1].textContent = x.code;
+    b.onclick = () => { state.code = x.code; render(); };
+    return b;
+  }) : [Object.assign(document.createElement("div"), { className: "note", textContent: `Chưa có prompt ${state.seconds}s. Thêm ở mục bên dưới.` })]));
+  const style = styles.find((x) => x.code === state.code);
+  const name = state.product.trim();
+  $("out").textContent = style ? (name ? style.prompt.split(PROMPTS.placeholder).join(name) : style.prompt) : "";
+  $("meta").textContent = style ? (name ? `${style.prompt.length} ký tự` : `Chưa điền tên sản phẩm: prompt giữ ${PROMPTS.placeholder}`) : "";
+  $("copy").disabled = !style;
+  store.set(LAST, state);
+}
+$("product").value = state.product;
+$("product").oninput = (e) => { state.product = e.target.value; render(); };
+$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy prompt"); };
+$("add").onclick = () => {
+  const name = $("newName").value.trim(), prompt = $("newPrompt").value.trim();
+  if (!name || !prompt) return toast("Điền tên style và prompt");
+  const custom = store.get(KEY, {});
+  const code = `custom-${state.seconds}s-${Date.now()}`;
+  (custom[state.seconds] ||= []).push({ code, name, prompt });
+  store.set(KEY, custom); state.code = code; $("newName").value = $("newPrompt").value = ""; render(); toast("Đã lưu prompt");
+};
+function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
+render();
+</script>
+</body>
+</html>

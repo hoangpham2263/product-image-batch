@@ -5,6 +5,10 @@ Bộ công cụ bán hàng chạy trên Windows và macOS, mở bằng một lau
 | Tool | Chức năng |
 |---|---|
 | [Product Review](apps/product-review/) | Ghép sản phẩm vào ảnh review, viết review mẫu, xuất CSV Loox |
+| [Grok Video Prompt](apps/grok-video-prompt/) | Chọn thời lượng 6s/10s/15s và style, copy prompt video cho Grok (prompt tạm lấy từ tài liệu GRENHEIM) |
+| [Content FB](apps/fb-content/) | Soạn bài đăng Facebook từ thông tin sản phẩm (giao diện và logic tạm) |
+
+Mở app hiện màn hình chọn tool, mỗi tool một icon. Tool dạng web (`"web"` trong `tool.json`) mở trong trình duyệt, không cần cài thêm.
 
 ## Product Review
 
@@ -76,7 +80,7 @@ scripts/            công cụ chuẩn bị dữ liệu, đẩy ảnh lên kho
 workspace/          trạng thái của hub (phiên bản, bản sao lưu), không lên Git
 ```
 
-Thêm tool mới: tạo `apps/<id>/tool.json` (`id`, `name`, `description`, `icon`, `windows`, `mac`); launcher tự hiện tool đó.
+Thêm tool mới: tạo `apps/<id>/tool.json` (`id`, `name`, `description`, `icon`, và `windows` + `mac` hoặc `web`) cùng `icon.svg` + `icon.png`; launcher tự hiện tool đó. Giao diện web dùng chung `hub/assets/tool.css`.
 Kiểm thử Product Review: `apps/product-review/test.cmd` (Windows), `apps/product-review/test.sh` (Mac). Chi tiết workflow: [apps/product-review/docs/workflow.txt](apps/product-review/docs/workflow.txt); hướng dẫn cho AI: [AGENTS.md](AGENTS.md) và [apps/product-review/AGENTS.md](apps/product-review/AGENTS.md).
 
 ## Phát hành

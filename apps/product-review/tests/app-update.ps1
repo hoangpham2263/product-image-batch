@@ -80,5 +80,13 @@ try{
     New-Item -ItemType Directory -Force -Path "$legacy/.git","$legacy/data"|Out-Null
     Move-LegacyLayout $legacy
     Assert (Test-Path "$legacy/data") 'A git checkout must never be tidied.'
+    # Every tool in this hub declares a name, its own icon and an entry that exists.
+    $tools=@(Get-HubTools (Join-Path $root '../..'))
+    Assert ($tools.Count -ge 3 -and @($tools|ForEach-Object id) -contains 'product-review') 'The hub must list its tools.'
+    foreach($t in $tools){
+        Assert ($t.name -and (Test-Path (Join-Path $t.Root $t.icon)) -and (Test-Path (Join-Path $t.Root ([IO.Path]::ChangeExtension($t.icon,'.png'))))) "$($t.id) needs a name and its own icon (SVG and PNG)."
+        $entries=@(@($t.windows,$t.mac,$t.web)|Where-Object{$_})
+        Assert ($entries.Count -and -not @($entries|Where-Object{-not (Test-Path (Join-Path $t.Root $_))}).Count) "$($t.id) entries must exist."
+    }
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}
 Write-Host 'PASS: updates replace app files and keep workspace and local lessons while adding new shared ones; the check names the new version.'

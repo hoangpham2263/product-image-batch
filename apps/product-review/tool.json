@@ -2,7 +2,7 @@
   "id": "product-review",
   "name": "Product Review",
   "description": "Tạo ảnh review sản phẩm, viết review mẫu và xuất CSV cho Loox.",
-  "icon": "star.fill",
+  "icon": "icon.svg",
   "windows": "src/gui.ps1",
   "mac": "src/mac/server.mjs"
 }

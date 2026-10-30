@@ -1,6 +1,7 @@
-﻿# Opens Tools Hub: tidies an install updated from before Tools Hub, then opens the tool chosen (apps/*/tool.json).
-# One tool opens straight away. Windows (start-app.cmd) runs the tool's "windows" entry here; macOS (start-app.command)
-# gets the tool's "mac" entry printed and starts it with Node. -Migrate only tidies the layout.
+﻿# Opens Tools Hub: tidies an install updated from before Tools Hub, then shows the tools (apps/*/tool.json, each with
+# its icon) and opens the one picked. A tool runs as "windows" (PowerShell), "mac" (Node server) or "web" (a page
+# opened in the browser). Windows (start-app.cmd) shows the picker here; macOS (start-app.command) gets the Node entry
+# to start printed: hub/picker.mjs when there is more than one tool. -Migrate only tidies the layout.
 param([switch]$Mac, [switch]$Migrate)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -10,27 +11,32 @@ if ($Migrate) { return }
 
 $tools = @(Get-HubTools $root)
 if (-not $tools.Count) { throw 'Không tìm thấy tool nào trong apps/.' }
+if ($Mac) {
+    if ($tools.Count -gt 1) { return (Join-Path $PSScriptRoot 'picker.mjs') }
+    if ($tools[0].web) { & open (Join-Path $tools[0].Root $tools[0].web); return }
+    return (Join-Path $tools[0].Root $tools[0].mac)
+}
+
 $tool = $tools[0]
 if ($tools.Count -gt 1) {
-    if ($Mac) {
-        $names = ($tools | ForEach-Object { '"' + ([string]$_.name -replace '"', '') + '"' }) -join ', '
-        $picked = (& osascript -e "choose from list {$names} with title `"Tools Hub`" with prompt `"Chọn tool`" default items {$(($names -split ', ')[0])}" 2>$null | Out-String).Trim()
-        if (-not $picked -or $picked -eq 'false') { return }
-        $tool = @($tools | Where-Object name -eq $picked)[0]
-    } else {
-        Add-Type -AssemblyName System.Windows.Forms
-        $form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; Width = 360; Height = 120 + 36 * $tools.Count; StartPosition = 'CenterScreen'; FormBorderStyle = 'FixedDialog'; MaximizeBox = $false; MinimizeBox = $false }
-        $y = 16
-        foreach ($item in $tools) {
-            $button = New-Object Windows.Forms.Button -Property @{ Text = [string]$item.name; Left = 16; Top = $y; Width = 310; Height = 30; Tag = $item }
-            $button.Add_Click({ param($s) $form.Tag = $s.Tag; $form.Close() })
-            $form.Controls.Add($button); $y += 36
-        }
-        [void]$form.ShowDialog()
-        if (-not $form.Tag) { return }
-        $tool = $form.Tag
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+    $form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; ClientSize = '420,80'; StartPosition = 'CenterScreen'; FormBorderStyle = 'FixedDialog'; MaximizeBox = $false; MinimizeBox = $false; BackColor = [Drawing.Color]::White; Font = New-Object Drawing.Font('Segoe UI', 10) }
+    $hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
+    if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
+    $y = 16
+    foreach ($item in $tools) {
+        $button = New-Object Windows.Forms.Button -Property @{ Left = 16; Top = $y; Width = 388; Height = 64; Tag = $item; FlatStyle = 'Flat'; TextAlign = 'MiddleLeft'; ImageAlign = 'MiddleLeft'; TextImageRelation = 'ImageBeforeText'; Padding = '10,0,0,0'; Cursor = 'Hand' }
+        $button.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(226, 232, 240)
+        $button.Text = "  $($item.name)`r`n  $($item.description)"
+        $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
+        if (Test-Path -LiteralPath $png) { $button.Image = New-Object Drawing.Bitmap((New-Object Drawing.Bitmap($png)), 40, 40) }
+        $button.Add_Click({ param($s) $form.Tag = $s.Tag; $form.Close() })
+        $form.Controls.Add($button); $y += 72
     }
+    $form.ClientSize = "420,$($y + 8)"
+    [void]$form.ShowDialog()
+    if (-not $form.Tag) { return }
+    $tool = $form.Tag
 }
-$entry = Join-Path $tool.Root $(if ($Mac) { $tool.mac } else { $tool.windows })
-if ($Mac) { return $entry }
-& $entry
+if ($tool.web) { Start-Process (Join-Path $tool.Root $tool.web); return }
+& (Join-Path $tool.Root $tool.windows)

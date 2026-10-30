@@ -1,12 +1,13 @@
 #!/bin/bash
-# Opens Tools Hub on macOS: hub/launch.ps1 picks the tool, then its local server (apps/<tool>/src/mac/server.mjs) opens the window.
+# Opens Tools Hub on macOS: hub/launch.ps1 names what to start: the picker (hub/picker.mjs) or a tool's own server.
 cd "$(dirname "$0")" || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.dotnet/tools:$PATH"
 if ! command -v node >/dev/null || ! command -v pwsh >/dev/null; then bash apps/product-review/src/mac/setup.sh || { read -r -p "Chưa cài xong. Nhấn Enter để đóng."; exit 1; }; fi
 entry=$(pwsh -NoProfile -File hub/launch.ps1 -Mac) || { read -r -p "Không mở được Tools Hub. Nhấn Enter để đóng."; exit 1; }
 [ -n "$entry" ] || exit 0
-# The server's own output (a crash, say) is kept in the tool's workspace/logs/mac-server.log for Gửi lỗi.
-logs="$(dirname "$entry")/../../workspace/logs"
+# The server's own output (a crash, say) is kept in the tool's workspace/logs/mac-server.log for Gửi lỗi
+# (the picker's in the hub's workspace/logs).
+case "$entry" in */hub/*) logs=workspace/logs ;; *) logs="$(dirname "$entry")/../../workspace/logs" ;; esac
 mkdir -p "$logs"
 log="$logs/mac-server.log"
 [ -f "$log" ] && [ "$(wc -c < "$log")" -gt 1048576 ] && mv "$log" "$logs/mac-server.old.log"

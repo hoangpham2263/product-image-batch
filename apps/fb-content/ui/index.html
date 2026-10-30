@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content FB</title>
+<link rel="icon" href="../icon.svg">
+<link rel="stylesheet" href="../../../hub/assets/tool.css">
+</head>
+<body>
+<main>
+  <header><img src="../icon.svg" alt=""><div><h1>Content FB</h1><div class="muted small">Soạn bài đăng Facebook từ thông tin sản phẩm.</div></div></header>
+  <div class="note">Bản tạm: bài được ghép từ khung mẫu ngay trên máy, chưa dùng AI hay tài liệu thương hiệu.</div>
+
+  <div class="row">
+    <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
+    <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
+  </div>
+  <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
+  <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
+  <div class="row">
+    <div><label for="tone">Giọng văn</label><select id="tone"><option value="story">Kể chuyện</option><option value="short">Ngắn gọn</option><option value="sale">Giới thiệu bán hàng</option></select></div>
+    <div><label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra"></div>
+  </div>
+
+  <div class="row" style="margin-top:16px"><div class="muted small" id="meta"></div><button class="btn primary" id="copy" type="button">Copy bài đăng</button></div>
+  <pre class="out" id="out"></pre>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+// Temporary logic: fills a fixed template per tone. The real generator (brand voice, AI) replaces compose().
+const $ = (id) => document.getElementById(id);
+const FIELDS = ["name", "brand", "link", "points", "tone", "tags"], KEY = "fb-content:draft";
+const OPENING = {
+  story: (n) => `Có những món đồ mình chọn vì đẹp, và có những món ở lại lâu vì hợp với nhịp sống trong nhà. ${n} là một món như vậy.`,
+  short: (n) => `${n}.`,
+  sale: (n) => `Giới thiệu ${n}.`,
+};
+function compose(v) {
+  const name = v.name.trim() || "[Tên sản phẩm]";
+  const points = v.points.split("\n").map((s) => s.trim()).filter(Boolean);
+  const parts = [OPENING[v.tone](name)];
+  if (points.length) parts.push(points.map((p) => `- ${p}`).join("\n"));
+  if (v.brand.trim()) parts.push(`${v.brand.trim()} — ${v.tone === "story" ? "vẻ đẹp tự nhiên, qua đôi tay người thợ." : "xem thêm tại link bên dưới."}`);
+  if (v.link.trim()) parts.push(v.link.trim());
+  const tags = v.tags.split(/\s+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`));
+  if (tags.length) parts.push(tags.join(" "));
+  return parts.join("\n\n");
+}
+function render() {
+  const v = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+  try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
+  const text = compose(v);
+  $("out").textContent = text;
+  $("meta").textContent = `${text.length} ký tự`;
+}
+try { const saved = JSON.parse(localStorage.getItem(KEY)) || {}; FIELDS.forEach((f) => { if (saved[f] != null) $(f).value = saved[f]; }); } catch {}
+FIELDS.forEach((f) => $(f).addEventListener("input", render));
+$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy bài đăng"); };
+function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
+render();
+</script>
+</body>
+</html>

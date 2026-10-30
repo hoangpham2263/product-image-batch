@@ -1,0 +1,7 @@
+{
+  "id": "grok-video-prompt",
+  "name": "Grok Video Prompt",
+  "description": "Chọn thời lượng 6s/10s/15s và style, copy prompt video cho Grok.",
+  "icon": "icon.svg",
+  "web": "ui/index.html"
+}
