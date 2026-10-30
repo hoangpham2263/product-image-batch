@@ -519,11 +519,13 @@ function Show-ProductQueueDialog($Editor,$Target=$null) {
 # the background, which downloads and attaches the images, then its links join the list.
 $script:ImportGuideUrl='https://hoangpham.is-a.dev/product-review-batch/#nhap'
 function Show-ProductQueueBulkDialog($Editor) {
+    $ui=$script:Ui
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Nhập hàng loạt';ClientSize='760,480';MinimumSize='640,420';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import hay file nén của nó (hoặc bấm Chọn file… và chọn products.csv) để app gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
     $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,56';Size='200,22'}
-    $pick=New-Object Windows.Forms.Button -Property @{Text='Chọn file…';Location='634,50';Size='110,30';Anchor='Top,Right'}
-    $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,88';Size='728,270';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
+    # Keep the button below the full-width hint (bottom=54), which otherwise covers its top edge.
+    $pick=New-Object Windows.Forms.Button -Property @{Name='PickImportFile';Text='Chọn file…';Location='634,58';Size='110,30';Anchor='Top,Right'}
+    $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,96';Size='728,262';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
     $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='16,368';Size='728,6';Anchor='Bottom,Left,Right';Visible=$false}
     $status=New-Object Windows.Forms.Label -Property @{Location='16,380';Size='728,48';Anchor='Bottom,Left,Right'}
     $save=New-Object Windows.Forms.Button -Property @{Text='Nhập';Location='520,436';Size='110,32';Anchor='Bottom,Right'}
@@ -532,23 +534,24 @@ function Show-ProductQueueBulkDialog($Editor) {
     $dialog.Controls.AddRange(@($hint,$guide,$pick,$text,$bar,$status,$save,$cancel))
     $st=@{Proc=$null;StatusFile='';InputFile='';Folder=''}
     $timer=New-Object Windows.Forms.Timer -Property @{Interval=500}
-    $fail={param($Message)$status.ForeColor=$script:Ui.Error;$status.Text=$Message}
+    $fail={param($Message)$status.ForeColor=$ui.Error;$status.Text=$Message}.GetNewClosure()
     $guide.Add_LinkClicked({Start-Process $script:ImportGuideUrl})
-    $pick.Add_Click({
-        $open=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='products.csv (*.csv)|*.csv'}
-        try{if($open.ShowDialog($dialog) -eq 'OK'){$text.Text=[IO.File]::ReadAllText($open.FileName);$st.Folder=Split-Path -Parent $open.FileName}}finally{$open.Dispose()}
-    }.GetNewClosure())
-    # Kéo thả the product-import folder (or its products.csv) onto the dialog.
     $over={param($s,$e)if($e.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop) -and -not $text.ReadOnly){$e.Effect='Copy'}}.GetNewClosure()
-    $drop={param($s,$e)
-        $path=@($e.Data.GetData([Windows.Forms.DataFormats]::FileDrop))[0]
+    $load={param($path)
         if($path -match '\.(zip|rar|7z)$'){
-            try{$temp=Join-Path $Editor.Root 'workspace/temp';New-Item -ItemType Directory -Force -Path $temp|Out-Null;$path=Expand-ProductBatchArchive $path $temp}catch{& $fail $_.Exception.Message;return}
+            $temp=Join-Path $Editor.Root 'workspace/temp';New-Item -ItemType Directory -Force -Path $temp|Out-Null;$path=Expand-ProductBatchArchive $path $temp
         }
         $csv=if(Test-Path -LiteralPath $path -PathType Container){Get-ChildItem -LiteralPath $path -Filter *.csv -File|Sort-Object {$_.Name -ne 'products.csv'}|Select-Object -First 1 -ExpandProperty FullName}elseif($path -match '\.csv$'){$path}
         if(-not $csv){& $fail 'Kéo thư mục (có products.csv và images/) hoặc file nén (.zip, .rar, .7z) của nó vào đây.';return}
-        $text.Text=[IO.File]::ReadAllText($csv);$st.Folder=Split-Path -Parent $csv
-        $status.ForeColor=$script:Ui.Ink;$status.Text="Đã nhận $(Split-Path -Leaf $st.Folder). Bấm Nhập."
+        $text.Text=[IO.File]::ReadAllText($csv) -replace '\r?\n',"`r`n";$st.Folder=Split-Path -Parent $csv
+        $status.ForeColor=$ui.Ink;$status.Text="Đã nhận $(Split-Path -Leaf $st.Folder). Bấm Nhập."
+    }.GetNewClosure()
+    $pick.Add_Click({
+        $open=New-Object Windows.Forms.OpenFileDialog -Property @{Filter='CSV / ZIP / RAR / 7Z|*.csv;*.zip;*.rar;*.7z'}
+        try{if($open.ShowDialog($dialog) -eq 'OK'){& $load $open.FileName}}catch{& $fail $_.Exception.Message}finally{$open.Dispose()}
+    }.GetNewClosure())
+    $drop={param($s,$e)
+        try{& $load (@($e.Data.GetData([Windows.Forms.DataFormats]::FileDrop))[0])}catch{& $fail $_.Exception.Message}
     }.GetNewClosure()
     foreach($c in $dialog,$text){$c.AllowDrop=$true;$c.Add_DragEnter($over);$c.Add_DragDrop($drop)}
     $finish={
@@ -564,7 +567,7 @@ function Show-ProductQueueBulkDialog($Editor) {
         if(@($s.failed).Count){
             & $fail ("$summary Lỗi $(@($s.failed).Count) ảnh:`n"+((@($s.failed)|Select-Object -First 2|ForEach-Object{"Dòng $($_.line): $($_.reason)"}) -join '; '))
             $text.Text=(@('# Ảnh chưa nhập được (sửa rồi nhập lại các dòng này):')+@($s.failed|ForEach-Object{"# Dòng $($_.line): $($_.image) - $($_.reason)"})) -join "`r`n"
-        }else{$status.ForeColor=$script:Ui.Ok;$status.Text=$summary;$dialog.Close()}
+        }else{$status.ForeColor=$ui.Ok;$status.Text=$summary;$dialog.Close()}
     }.GetNewClosure()
     $timer.Add_Tick({
         $s=try{Get-Content -LiteralPath $st.StatusFile -Raw -Encoding UTF8 -ErrorAction Stop|ConvertFrom-Json}catch{$null}
@@ -572,7 +575,7 @@ function Show-ProductQueueBulkDialog($Editor) {
         if($st.Proc.HasExited){& $finish}
     }.GetNewClosure())
     $save.Add_Click({
-        $status.ForeColor=$script:Ui.Ink;$status.Text=''
+        $status.ForeColor=$ui.Ink;$status.Text=''
         try{
             if(-not $text.Text.Trim()){throw 'Dán link hoặc bảng nhập trước.'}
             $parsed=ConvertFrom-ProductBatch $text.Text $st.Folder

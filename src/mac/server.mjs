@@ -244,10 +244,10 @@ async function handle(req, res) {
   }
   if (path === "/api/choose-images" && req.method === "POST") {
     // macOS file dialog: opens the app's own folder and returns real paths (no copy through the browser).
-    // table: one CSV / TSV / text file for Nhập hàng loạt instead of images.
+    // table: a CSV or ZIP / RAR / 7Z archive for Nhập hàng loạt instead of images.
     const { folder = "", table = false } = JSON.parse((await body(req)).toString("utf8") || "{}");
     const at = folder && existsSync(folder) ? ` default location (POSIX file ${JSON.stringify(folder)})` : "";
-    const what = table ? `"Chọn bảng nhập" of type {"public.comma-separated-values-text", "public.tab-separated-values-text", "public.plain-text"}` : `"Chọn ảnh" of type {"public.png", "public.jpeg"}`;
+    const what = table ? `"Chọn bảng nhập" of type {"csv", "zip", "rar", "7z"}` : `"Chọn ảnh" of type {"public.png", "public.jpeg"}`;
     const script = `set picked to choose file with prompt ${what} with multiple selections allowed${at}
 set out to ""
 repeat with f in picked

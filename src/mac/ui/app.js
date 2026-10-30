@@ -716,9 +716,18 @@ function showBulkDialog() {
   const fail = (message) => { status.style.color = "var(--error)"; status.textContent = message; };
   const busy = (on) => { text.readOnly = on; save.disabled = on; pick.disabled = on; bar.hidden = !on; };
   pick.onclick = async () => {
-    // products.csv names its images by file name: they are files in its folder.
-    const [path] = await chooseImages("", true);
-    if (path) { text.value = await api("importFile", { path }); folder = path.slice(0, path.lastIndexOf("/")); }
+    try {
+      const [path] = await chooseImages("", true);
+      if (!path) return;
+      if (/\.(zip|rar|7z)$/i.test(path)) {
+        const r = await api("importArchive", { path });
+        text.value = r.text; folder = r.folder;
+      } else {
+        text.value = await api("importFile", { path });
+        folder = path.slice(0, path.lastIndexOf("/"));
+      }
+      status.style.color = ""; status.textContent = "";
+    } catch (err) { fail(err.message); }
   };
   // Kéo thả the product-import folder: products.csv is read here, the images/ files are copied for the import.
   const entries = (dir) => new Promise((done) => { const all = [], r = dir.createReader(); const next = () => r.readEntries((b) => b.length ? (all.push(...b), next()) : done(all)); next(); });
