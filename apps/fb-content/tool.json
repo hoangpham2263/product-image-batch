@@ -2,7 +2,7 @@
   "id": "fb-content",
   "name": "Content FB",
   "order": 3,
-  "description": "Soạn bài đăng Facebook từ thông tin sản phẩm (bản tạm).",
+  "description": "Từ tên sản phẩm và ảnh gốc: tạo ảnh và soạn bài đăng Facebook (bản tạm).",
   "icon": "icon.svg",
   "web": "ui/index.html"
 }
