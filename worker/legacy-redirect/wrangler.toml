@@ -1,4 +1,5 @@
-# Old address of the Worker (before the rename); only redirects. No secrets or storage.
+# Old addresses of the Worker; only redirects. Deployed once per old name:
+#   npx wrangler deploy  (product-images-api)   and   npx wrangler deploy --name product-review-batch-api
 name = "product-images-api"
 main = "index.js"
 compatibility_date = "2026-10-01"

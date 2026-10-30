@@ -1,13 +1,16 @@
 #!/bin/bash
-# Opens Product Review Batch on macOS: a local server (src/mac/server.mjs) and the app window.
+# Opens Tools Hub on macOS: hub/launch.ps1 picks the tool, then its local server (apps/<tool>/src/mac/server.mjs) opens the window.
 cd "$(dirname "$0")" || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.dotnet/tools:$PATH"
-if ! command -v node >/dev/null || ! command -v pwsh >/dev/null; then bash src/mac/setup.sh || { read -r -p "Chưa cài xong. Nhấn Enter để đóng."; exit 1; }; fi
-# The server's own output (a crash, say) is kept in workspace/logs/mac-server.log for Gửi lỗi.
-mkdir -p workspace/logs
-log=workspace/logs/mac-server.log
-[ -f "$log" ] && [ "$(wc -c < "$log")" -gt 1048576 ] && mv "$log" workspace/logs/mac-server.old.log
-nohup node src/mac/server.mjs >>"$log" 2>&1 &
+if ! command -v node >/dev/null || ! command -v pwsh >/dev/null; then bash apps/product-review/src/mac/setup.sh || { read -r -p "Chưa cài xong. Nhấn Enter để đóng."; exit 1; }; fi
+entry=$(pwsh -NoProfile -File hub/launch.ps1 -Mac) || { read -r -p "Không mở được Tools Hub. Nhấn Enter để đóng."; exit 1; }
+[ -n "$entry" ] || exit 0
+# The server's own output (a crash, say) is kept in the tool's workspace/logs/mac-server.log for Gửi lỗi.
+logs="$(dirname "$entry")/../../workspace/logs"
+mkdir -p "$logs"
+log="$logs/mac-server.log"
+[ -f "$log" ] && [ "$(wc -c < "$log")" -gt 1048576 ] && mv "$log" "$logs/mac-server.old.log"
+nohup node "$entry" >>"$log" 2>&1 &
 disown
 # The app keeps running on its own; close this Terminal window once the script has ended.
 # nohup: Terminal hangs up this session's processes when the script exits, before the close would run.

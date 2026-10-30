@@ -1,4 +1,4 @@
-# API kho ảnh – Product Review Batch
+# API kho ảnh – Tools Hub · Product Review
 
 Dùng để tạo danh mục và đưa ảnh lên kho Google Drive của app, từ file trên máy hoặc từ link ảnh.
 
@@ -6,7 +6,7 @@ Dùng để tạo danh mục và đưa ảnh lên kho Google Drive của app, t�
 
 | Mục | Giá trị |
 |---|---|
-| Địa chỉ | `https://product-review-batch-api.hoangpham2263.workers.dev` |
+| Địa chỉ | `https://tools-hub-api.hoangpham2263.workers.dev` |
 | Mã truy cập | Header `x-admin-key: <mã>` ở mọi lệnh `/api/...` |
 | Mã tạm (nên dùng) | Tạo ở trang quản lý → API → **Tạo mã**. Dạng `prb_tmp_…`, tự hết hạn (1 giờ / 24 giờ / 7 ngày), chỉ xem và thêm ảnh, không xoá được |
 | Tên danh mục | Đúng dấu tiếng Việt, mã hoá URL trong đường dẫn: `Nội thất` → `N%E1%BB%99i%20th%E1%BA%A5t` |
@@ -29,7 +29,7 @@ Dùng để tạo danh mục và đưa ảnh lên kho Google Drive của app, t�
 
 ```bash
 export PRB_KEY='prb_tmp_...'
-API=https://product-review-batch-api.hoangpham2263.workers.dev
+API=https://tools-hub-api.hoangpham2263.workers.dev
 curl -s "$API/api/sources" -H "x-admin-key: $PRB_KEY"
 curl -s -X POST "$API/api/sources/%C3%81o?name=polo-001.jpg" -H "x-admin-key: $PRB_KEY" -H 'content-type: image/jpeg' --data-binary @polo-001.jpg
 curl -s -X POST "$API/api/sources/%C3%81o?url=$(jq -rn --arg u 'https://shop.example.com/img/polo.jpg' '$u|@uri')" -H "x-admin-key: $PRB_KEY"
@@ -40,7 +40,7 @@ Tải cả thư mục vào một danh mục, bỏ qua ảnh đã có (Node 18+):
 // PRB_KEY='prb_tmp_...' node upload.mjs "Nội thất" ./anh
 import { readdir, readFile } from "node:fs/promises";
 import { join, extname } from "node:path";
-const API = "https://product-review-batch-api.hoangpham2263.workers.dev", headers = { "x-admin-key": process.env.PRB_KEY };
+const API = "https://tools-hub-api.hoangpham2263.workers.dev", headers = { "x-admin-key": process.env.PRB_KEY };
 const [group, dir] = process.argv.slice(2), g = encodeURIComponent(group);
 const types = { ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp" };
 await fetch(`${API}/api/sources`, { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ name: group }) });

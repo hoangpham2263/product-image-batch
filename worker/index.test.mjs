@@ -200,7 +200,8 @@ test("the old Product Image Batch folder is renamed and its run folders move int
   nodes.set("src", { name: "Nguồn ảnh", parents: ["old-root"], folder: true }); kv.set("folder:old-root:Nguồn ảnh", "src");
   const first = await (await call("/api/organize", { method: "POST", headers: admin })).json();
   assert.deepEqual(first, { moved: 15, remaining: 5 });
-  assert.equal(nodes.get("old-root").name, "Product Review Batch");
+  assert.equal(nodes.get("old-root").name, "Product Review");
+  assert.equal(nodes.get(nodes.get("old-root").parents[0]).name, "Tools Hub", "the tool folder sits in Tools Hub");
   assert.deepEqual(await (await call("/api/organize", { method: "POST", headers: admin })).json(), { moved: 5, remaining: 0 });
   assert.deepEqual(await (await call("/api/organize", { method: "POST", headers: admin })).json(), { moved: 0, remaining: 0 });
   const runs = [...nodes].find(([, n]) => n.name === "Ảnh đã tạo")[0];
@@ -279,4 +280,23 @@ test("a temporary key adds images to the library until it expires, and reaches n
   assert.equal((await call("/api/sources", { headers: { "x-admin-key": two.key } })).status, 200);
   assert.equal((await call("/api/temp-keys", { method: "DELETE", headers: admin })).status, 200);
   assert.equal((await call("/api/sources", { headers: { "x-admin-key": two.key } })).status, 401);
+});
+
+test("the Product Review Batch folder moves into Tools Hub as Product Review, keeping its id", async () => {
+  const { call, env } = setup();
+  const nodes = env.__nodes, kv = env.__kv;
+  nodes.set("drive-root", { name: "My Drive", parents: [], folder: true });
+  nodes.set("prb", { name: "Product Review Batch", parents: ["drive-root"], folder: true });
+  kv.set("folder:app-root", "prb");
+  kv.set("organized:runs", "1");
+  await call("/api/images?batch=run1&name=a.png", { method: "POST", headers: { "x-admin-key": "secret" }, body: "png" });
+  const hub = [...nodes].find(([, n]) => n.name === "Tools Hub")[0];
+  assert.equal(nodes.get("prb").name, "Product Review");
+  assert.deepEqual(nodes.get("prb").parents, [hub]);
+  const runs = [...nodes].find(([, n]) => n.name === "Ảnh đã tạo");
+  assert.equal(runs[1].parents[0], "prb", "runs stay in the same, moved folder");
+  // Once moved, it is not moved again.
+  nodes.get("prb").name = "renamed by hand";
+  await call("/api/images?batch=run1&name=b.png", { method: "POST", headers: { "x-admin-key": "secret" }, body: "png" });
+  assert.equal(nodes.get("prb").name, "renamed by hand");
 });

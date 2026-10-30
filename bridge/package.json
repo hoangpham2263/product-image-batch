@@ -1,8 +1,0 @@
-{
-  "name": "product-review-bridge",
-  "private": true,
-  "type": "module",
-  "description": "Local bridge between Product Review Batch and the browser extension.",
-  "scripts": { "start": "node server.mjs", "test": "node --test" },
-  "dependencies": { "ws": "8.18.0" }
-}

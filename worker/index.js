@@ -1,11 +1,13 @@
-// Product Images API — stores generated images in a private Google Drive folder and serves
+// Tools Hub API — Product Review's routes: stores generated images in a private Google Drive folder and serves
 // them through stable public links for the review CSV. Same pattern as memories-api:
 // refresh token in KV, drive.file scope, admin password header for writes.
 const ORIGINS = ["https://hoangpham.is-a.dev", "http://localhost:8000"];
 const SCOPE = "openid email https://www.googleapis.com/auth/drive.file";
 const OWNER_EMAILS = ["quochoang.idx@gmail.com", "hoangpham2263@gmail.com"];
-// Drive layout: "Product Review Batch/" holds "Ảnh đã tạo/<run>/", "Nguồn ảnh/<group>/" and "Logs/".
-const FOLDER_NAME = "Product Review Batch";
+// Drive layout: "Tools Hub/" holds one folder per tool. "Tools Hub/Product Review/" holds "Ảnh đã tạo/<run>/",
+// "Nguồn ảnh/<group>/" and "Logs/".
+const HUB_FOLDER = "Tools Hub";
+const FOLDER_NAME = "Product Review";
 const OLD_FOLDER_NAME = "Product Image Batch";
 const RUNS_FOLDER = "Ảnh đã tạo";
 const LIST_KEY = "images";
@@ -136,17 +138,22 @@ async function folder(env, name, parent) {
 
 // The app's top folder. It was "Product Image Batch" with run folders directly inside; the same folder is
 // renamed (ids and links stay), and organizeRuns() moves the old run folders into "Ảnh đã tạo".
+// Later it was "Product Review Batch" at the top of the Drive; it moves into "Tools Hub" as "Product Review", the
+// same folder again, so every image link stays.
 async function appRoot(env) {
   const saved = await env.STORE.get("folder:app-root");
-  if (saved) return saved;
-  const old = await env.STORE.get(`folder:root:${OLD_FOLDER_NAME}`);
-  let id = old;
-  if (old) {
-    await drive(env, `/drive/v3/files/${old}?fields=id`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: FOLDER_NAME }) });
+  if (saved && (await env.STORE.get("folder:hub-layout"))) return saved;
+  const hub = await folder(env, HUB_FOLDER);
+  let id = saved || (await env.STORE.get(`folder:root:${OLD_FOLDER_NAME}`));
+  if (id) {
+    const { parents = [] } = await (await drive(env, `/drive/v3/files/${id}?fields=parents`)).json();
+    const move = parents.includes(hub) ? "" : `&addParents=${hub}&removeParents=${parents.join(",")}`;
+    await drive(env, `/drive/v3/files/${id}?fields=id${move}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: FOLDER_NAME }) });
   } else {
-    id = await folder(env, FOLDER_NAME);
+    id = await folder(env, FOLDER_NAME, hub);
   }
   await env.STORE.put("folder:app-root", id);
+  await env.STORE.put("folder:hub-layout", "1");
   return id;
 }
 const runsRoot = async (env) => folder(env, RUNS_FOLDER, await appRoot(env));
@@ -333,7 +340,7 @@ async function handleSources(req, env, url, parts, role) {
     let mime, bytes, from = url.searchParams.get("url") || "";
     if (from) {
       if (!/^https?:\/\//i.test(from)) return json({ error: "Link ảnh phải bắt đầu bằng http:// hoặc https://." }, 400);
-      const r = await fetch(from, { redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (product-review-batch)" } }).catch(() => null);
+      const r = await fetch(from, { redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (tools-hub)" } }).catch(() => null);
       if (!r || !r.ok) return json({ error: `Không tải được ảnh từ link${r ? ` (HTTP ${r.status})` : ""}.` }, 400);
       mime = (r.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
       bytes = await r.arrayBuffer();

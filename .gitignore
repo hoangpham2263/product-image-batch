@@ -1,7 +1,9 @@
-# All generated files and machine-local state live here. Base data stays versioned.
+# Machine-local state: hub/ (version, backups) and each tool's own workspace. Base data stays versioned.
 /workspace/
-/bridge/node_modules/
+/apps/*/workspace/
+/apps/*/bridge/node_modules/
 /worker/.wrangler/
+/worker/*/.wrangler/
 # Sample photos are downloaded per group from Drive; only the catalog is versioned.
-/data/source-photos/*/
+/apps/*/data/source-photos/*/
 .DS_Store

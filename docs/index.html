@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Product Review Batch</title>
-<meta name="description" content="Quản lý ảnh sản phẩm tạo bởi Product Review Batch, lưu trên Google Drive." />
+<title>Tools Hub</title>
+<meta name="description" content="Trang quản lý Tools Hub: ảnh Product Review, kho ảnh và log, lưu trên Google Drive." />
 <link rel="icon" href="brand/favicon.ico" sizes="any" />
 <link rel="icon" href="brand/hp-favicon.svg" type="image/svg+xml" />
-<link rel="preconnect" href="https://product-review-batch-api.hoangpham2263.workers.dev" crossorigin />
+<link rel="preconnect" href="https://tools-hub-api.hoangpham2263.workers.dev" crossorigin />
 <script>try { if (sessionStorage.getItem("pib-key")) document.documentElement.classList.add("signed-in"); } catch {}</script>
 <style>
   /* Same tokens and controls as hoangpham.is-a.dev/memories */
@@ -231,10 +231,10 @@
   <header class="top">
     <a class="home-link" id="homeLink" href="./" title="Trang chính">
       <span class="brand"><img src="brand/hp-icon.svg" alt="" width="40" height="40" /></span>
-      <h1>Product Review Batch</h1>
+      <h1>Tools Hub</h1>
     </a>
     <div class="top-text"></div>
-    <a id="dlIcon" class="btn labeled" hidden href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip" title="Tải app" aria-label="Tải app">
+    <a id="dlIcon" class="btn labeled" hidden href="https://github.com/hoangpham2263/tools-hub/releases/latest/download/tools-hub.zip" title="Tải app" aria-label="Tải app">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>Tải app
     </a>
     <button id="lockBtn" class="labeled" type="button" title="Đăng nhập quản lý" aria-label="Đăng nhập quản lý">
@@ -247,12 +247,12 @@
 
   <section id="download" class="card hero">
     <div class="get">
-      <a class="btn primary" href="https://github.com/hoangpham2263/product-review-batch/releases/latest/download/product-review-batch.zip">
+      <a class="btn primary" href="https://github.com/hoangpham2263/tools-hub/releases/latest/download/tools-hub.zip">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         Tải về
       </a>
       <span id="version" class="muted small"></span>
-      <a class="small" href="https://github.com/hoangpham2263/product-review-batch/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
+      <a class="small" href="https://github.com/hoangpham2263/tools-hub/releases" target="_blank" rel="noopener">Các phiên bản trước</a>
     </div>
     <div class="guide">
       <div class="sec-head">
@@ -381,7 +381,7 @@
     <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
   </section>
 
-  <footer class="muted small">© <span id="year">2026</span> Product Review Batch</footer>
+  <footer class="muted small">© <span id="year">2026</span> Tools Hub</footer>
 </main>
 
 <dialog id="loginDlg" class="dlg">
@@ -456,7 +456,7 @@
 <div id="toast" class="toast" role="status"></div>
 
 <script>
-const API = "https://product-review-batch-api.hoangpham2263.workers.dev";
+const API = "https://tools-hub-api.hoangpham2263.workers.dev";
 const PAGE = 120;
 const $ = (id) => document.getElementById(id);
 // view: home (menu), anh (generated images) or nguon (source groups; group = the open one).
@@ -804,7 +804,7 @@ function downloadCsv(items = visible()) {
   const csv = rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" }));
-  a.download = "product-review-batch.csv";
+  a.download = "product-review-images.csv";
   a.click();
 }
 
@@ -919,7 +919,7 @@ $("tmpMake").onclick = async () => {
 };
 // Copies the message for an AI with this key; any live key can be copied again from the list.
 async function copyTempKey(k, button) {
-  const text = `Dùng API kho ảnh Product Review Batch để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến PRB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
+  const text = `Dùng API kho ảnh Tools Hub (Product Review) để đưa ảnh lên kho.\nTài liệu: ${$("apiLink").href}\nAPI: ${API}\nMã (header x-admin-key, đặt vào biến PRB_KEY): ${k.key}\nMã hết hạn ${when(k.expiresAt)}, chỉ xem và thêm ảnh được.\n`;
   try {
     await navigator.clipboard.writeText(text);
     toast("Đã copy lời nhắn cho AI");
@@ -990,7 +990,7 @@ async function load() {
   if (state.connected) organizeDrive();
 }
 
-// Drive keeps runs in "Product Review Batch/Ảnh đã tạo/", beside "Nguồn ảnh" and "Logs". Runs made before that
+// Drive keeps runs in "Tools Hub/Product Review/Ảnh đã tạo/", beside "Nguồn ảnh" and "Logs". Runs made before that
 // are moved there a few at a time; once done the Worker answers at once.
 async function organizeDrive() {
   let moved = 0;
@@ -1096,7 +1096,7 @@ document.addEventListener("keydown", (event) => {
 // Refresh the Drive state when returning from the Google consent tab.
 window.addEventListener("focus", () => { if (store.get() && !state.connected) load().catch(() => {}); });
 
-fetch("https://api.github.com/repos/hoangpham2263/product-review-batch/releases/latest")
+fetch("https://api.github.com/repos/hoangpham2263/tools-hub/releases/latest")
   .then((r) => r.json())
   .then((r) => { if (r.tag_name) $("version").textContent = `${r.tag_name} · ${new Date(r.published_at).toLocaleDateString("vi-VN")}`; })
   .catch(() => {});
