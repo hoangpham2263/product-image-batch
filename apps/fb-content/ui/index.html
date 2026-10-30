@@ -10,7 +10,7 @@
 /* Laid out like Product Review's window: the product list with Thao tác beside it, the run row, then the results of the
    chosen product (its images and a post to copy) where Product Review shows its progress. Fits the window. */
 body { height: 100vh; overflow: hidden; }
-main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
+main { height: 100%; display: flex; flex-direction: column; }
 .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 400px; grid-template-rows: auto auto minmax(0, 1fr); }
 .tools-row { display: flex; gap: 12px; margin-bottom: 10px; }
 #rows { height: 224px; padding: 10px 10px 6px; }
@@ -31,7 +31,7 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
 #btnRun { width: 160px; } #btnStop { width: 100px; }
 /* Results of the chosen product: its images on the left, the post on the right. */
 #resultGroup { grid-column: 1 / -1; display: flex; flex-direction: column; min-height: 0; }
-#result { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; min-height: 0; }
+#result { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; min-height: 0; }
 #result .side { display: flex; flex-direction: column; min-height: 0; }
 #result .side > label { margin: 0 0 6px; display: flex; align-items: center; justify-content: space-between; height: 32px; }
 #out { flex: 1; min-height: 0; max-height: none; margin: 0; }

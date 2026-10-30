@@ -202,6 +202,18 @@
   /* Download (signed out) */
   /* Download on the left, guide on the right; stacked on phones. */
   .home { display: grid; gap: 20px; }
+  .tool-card { cursor: pointer; }
+  .tool-card:hover { background: var(--soft); }
+  .tool-page { display: grid; gap: 20px; }
+  .tool-head { display: flex; gap: 16px; align-items: center; }
+  .tool-head img { flex: none; }
+  .tool-head p { margin: 2px 0 0; max-width: 720px; }
+  .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
+  .tool-grid .card { gap: 8px; padding: 16px 18px; font-size: 14px; }
+  .tool-grid h3 { margin: 0; font-size: 15px; font-weight: 500; }
+  .tool-grid ul, .tool-grid ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+  .badge { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 400; vertical-align: middle; }
+  .side img { flex: none; border-radius: 4px; }
   .intro { display: grid; gap: 4px; }
   .intro p { margin: 0; max-width: 720px; }
   .page-title { font-size: 22px; }
@@ -270,6 +282,10 @@
     <span class="side-label">Bắt đầu</span>
     <button type="button" data-go=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Trang chủ</button>
     <button type="button" data-go="nhap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Nhập hàng loạt</button>
+    <span class="side-label">Công cụ</span>
+    <button type="button" data-go="product-review"><img src="tools/product-review.svg" alt="" width="18" height="18" />Product Review</button>
+    <button type="button" data-go="grok-video-prompt"><img src="tools/grok-video-prompt.svg" alt="" width="18" height="18" />Grok Video Prompt</button>
+    <button type="button" data-go="fb-content"><img src="tools/fb-content.svg" alt="" width="18" height="18" />Content FB</button>
     <span class="side-label admin-only">Quản lý</span>
     <button class="admin-only" type="button" data-go="anh"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>Ảnh đã tạo</button>
     <button class="admin-only" type="button" data-go="nguon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>Nguồn ảnh</button>
@@ -321,19 +337,73 @@
     <div class="tools">
       <h2>Công cụ trong app</h2>
       <ul class="tool-list">
-        <li><img src="tools/product-review.svg" alt="" width="40" height="40" /><div><b>Product Review</b>
+        <li class="tool-card" data-go="product-review" role="link" tabindex="0"><img src="tools/product-review.svg" alt="" width="40" height="40" /><div><b>Product Review</b>
           <p class="muted small">Tạo ảnh review sản phẩm, viết review mẫu và xuất CSV cho Loox.</p>
           <ul class="small"><li>Nhiều sản phẩm một lần, mỗi sản phẩm nhiều ảnh gốc và ảnh review.</li><li>Nhập hàng loạt từ bảng CSV hoặc thư mục nén.</li><li>Duyệt từng ảnh trước khi xuất file; ảnh lưu trên Google Drive.</li></ul></div></li>
-        <li><img src="tools/grok-video-prompt.svg" alt="" width="40" height="40" /><div><b>Grok Video Prompt</b>
+        <li class="tool-card" data-go="grok-video-prompt" role="link" tabindex="0"><img src="tools/grok-video-prompt.svg" alt="" width="40" height="40" /><div><b>Grok Video Prompt</b>
           <p class="muted small">Prompt video dựng sẵn cho Grok, điền tên sản phẩm là dùng được.</p>
           <ul class="small"><li>Chọn thời lượng 6s / 10s / 15s và style.</li><li>Mỗi style có video mẫu để xem trước.</li><li>Copy prompt bằng một nút.</li></ul></div></li>
-        <li><img src="tools/fb-content.svg" alt="" width="40" height="40" /><div><b>Content FB</b>
+        <li class="tool-card" data-go="fb-content" role="link" tabindex="0"><img src="tools/fb-content.svg" alt="" width="40" height="40" /><div><b>Content FB</b>
           <p class="muted small">Từ tên sản phẩm và ảnh gốc: tạo ảnh và soạn bài đăng Facebook (đang làm).</p>
           <ul class="small"><li>Một ảnh gốc ra nhiều bối cảnh.</li><li>Chọn giọng văn, thêm lời nhắn cho AI.</li><li>Copy bài viết và hashtag ngay trên app.</li></ul></div></li>
       </ul>
     </div>
   </section>
 
+
+  <!-- One page per tool, from the left menu: what it is for, how to use it, what it needs. -->
+  <section id="tool-product-review" class="tool-page" data-tool="product-review" hidden>
+    <div class="tool-head"><img src="tools/product-review.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Product Review</h2><p class="muted">Tạo ảnh review sản phẩm bằng AI, viết review mẫu và xuất CSV để nhập vào Loox.</p></div></div>
+    <div class="tool-grid">
+      <div class="card"><h3>Làm được gì</h3><ul>
+        <li>Nhiều sản phẩm một lần: mỗi link có một hoặc nhiều ảnh sản phẩm, mỗi ảnh có các ảnh review đi kèm.</li>
+        <li>AI ghép sản phẩm vào bối cảnh của ảnh review và viết nội dung review.</li>
+        <li><b>Nhập hàng loạt</b> từ bảng CSV hoặc thư mục nén (ZIP / RAR / 7Z).</li>
+        <li>Duyệt từng ảnh (Giữ / Bỏ) rồi xuất file CSV cho Loox; ảnh tự tải lên Google Drive.</li>
+        <li>Theo dõi token đã dùng và hạn mức ChatGPT ngay khi chạy.</li></ul></div>
+      <div class="card"><h3>Cách dùng</h3><ol>
+        <li>Bấm <b>+ Thêm sản phẩm</b>: dán link, thêm ảnh sản phẩm và ảnh review. Hoặc <b>Nhập hàng loạt</b>.</li>
+        <li>Bấm <b>Bắt đầu</b>, chọn số luồng nếu muốn chạy nhanh hơn.</li>
+        <li>Xong thì bấm <b>Duyệt &amp; xuất file</b>, giữ ảnh đẹp, bỏ ảnh lỗi, rồi xuất CSV.</li>
+        <li>Lỗi khó hiểu thì bấm <b>Gửi lỗi</b>: AI đọc log và gửi báo cáo.</li></ol></div>
+      <div class="card"><h3>Cần có</h3><ul>
+        <li><b>Cấu hình</b> đủ các bước: mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.</li>
+        <li>Chuẩn file nhập: xem <a href="#nhap">Nhập hàng loạt</a>.</li></ul></div>
+    </div>
+  </section>
+  <section id="tool-grok-video-prompt" class="tool-page" data-tool="grok-video-prompt" hidden>
+    <div class="tool-head"><img src="tools/grok-video-prompt.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Grok Video Prompt</h2><p class="muted">Prompt video dựng sẵn cho Grok: chọn style, điền tên sản phẩm, copy là dùng được.</p></div></div>
+    <div class="tool-grid">
+      <div class="card"><h3>Làm được gì</h3><ul>
+        <li>Prompt theo thời lượng <b>6s</b>, <b>10s</b>, <b>15s</b>, mỗi thời lượng nhiều style.</li>
+        <li>Mỗi style có <b>video mẫu</b> để xem trước kết quả.</li>
+        <li>Tên sản phẩm tự điền vào prompt.</li></ul></div>
+      <div class="card"><h3>Cách dùng</h3><ol>
+        <li>Chọn thời lượng rồi chọn style trong danh sách.</li>
+        <li>Điền <b>Tên sản phẩm</b>.</li>
+        <li>Bấm <b>Copy prompt</b> rồi dán vào Grok.</li></ol></div>
+      <div class="card"><h3>Cần có</h3><ul>
+        <li>Không cần cấu hình; chỉ cần mạng để xem video mẫu.</li>
+        <li>Prompt mới do quản trị thêm, cập nhật app là có.</li></ul></div>
+    </div>
+  </section>
+  <section id="tool-fb-content" class="tool-page" data-tool="fb-content" hidden>
+    <div class="tool-head"><img src="tools/fb-content.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Content FB <span class="badge">Đang làm</span></h2><p class="muted">Từ tên sản phẩm và ảnh gốc: tạo ảnh bối cảnh và soạn bài đăng Facebook.</p></div></div>
+    <div class="tool-grid">
+      <div class="card"><h3>Làm được gì</h3><ul>
+        <li>Nhiều sản phẩm một lần, mỗi sản phẩm nhiều ảnh gốc.</li>
+        <li>Mỗi ảnh gốc tạo ra nhiều ảnh <b>bối cảnh</b> (chọn số lượng).</li>
+        <li>Bài đăng theo <b>giọng văn</b> chọn sẵn, kèm hashtag; thêm <b>lời nhắn cho AI</b> để viết theo ý.</li>
+        <li>Copy bài viết ngay trên app.</li></ul></div>
+      <div class="card"><h3>Cách dùng</h3><ol>
+        <li>Bấm <b>+ Thêm sản phẩm</b>: điền tên, điểm nổi bật, hashtag, thêm ảnh gốc.</li>
+        <li>Chọn giọng văn, ghi lời nhắn nếu cần.</li>
+        <li>Bấm <b>Bắt đầu</b>, xem ảnh tạo thành và copy bài đăng.</li></ol></div>
+      <div class="card"><h3>Trạng thái</h3><ul>
+        <li>Giao diện đã có; phần tạo ảnh và viết bài đang làm.</li>
+        <li>Sẽ dùng chung <b>Cấu hình</b> với Product Review.</li></ul></div>
+    </div>
+  </section>
   <section id="home" class="blocks" hidden>
     <h2 class="blocks-title">Product Review</h2>
     <button class="block" type="button" data-go="anh">
@@ -994,11 +1064,13 @@ $("apiCopy").onclick = async () => {
 function route() {
   const signedIn = !!store.get();
   const [view, group] = location.hash.slice(1).split("/");
-  state.view = view === "nhap" || (signedIn && ["anh", "nguon", "log", "api"].includes(view)) ? view : "";
+  const TOOLS = ["product-review", "grok-video-prompt", "fb-content"];
+  state.view = view === "nhap" || TOOLS.includes(view) || (signedIn && ["anh", "nguon", "log", "api"].includes(view)) ? view : "";
   const nextGroup = state.view === "nguon" && group ? decodeURIComponent(group) : "";
   const groupChanged = nextGroup !== state.group;
   state.group = nextGroup;
   $("download").hidden = state.view !== "";
+  for (const page of document.querySelectorAll(".tool-page")) page.hidden = page.dataset.tool !== state.view;
   for (const b of document.querySelectorAll("#side [data-go]")) b.classList.toggle("on", b.dataset.go === state.view);
   $("nhap").hidden = state.view !== "nhap";
   $("nhapBack").textContent = signedIn ? "← Quản lý" : "← Trang chính";
@@ -1093,6 +1165,7 @@ $("search").oninput = () => { state.imgShown = PAGE; render(); };
 $("batch").onchange = () => { state.imgShown = PAGE; render(); };
 $("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
 for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
+for (const c of document.querySelectorAll(".tool-card")) c.onkeydown = (e) => { if (e.key === "Enter") go(c.dataset.go); };
 // Logo and name go back to the management home (or the download page when signed out).
 $("homeLink").onclick = (e) => { e.preventDefault(); go(""); };
 $("srcBack").onclick = () => go(state.group ? "nguon" : "");

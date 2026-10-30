@@ -8,8 +8,10 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--control); color: var(--ink); font: 13.33px/1.35 var(--font); -webkit-font-smoothing: antialiased; }
-/* Full width with 20px sides, like Product Review's window (1120 x 840 by default). */
-main { padding: 0 20px 24px; }
+/* The same frame as Product Review's window (1120 x 840 by default): 20px left, 24px right, 20px at the bottom,
+   the 64px header, then 14px to the first group; groups 16px apart side by side and 12px apart above and below. */
+main { padding: 0 24px 20px 20px; }
+header + * { margin-top: 14px; }
 header { display: flex; align-items: center; gap: 12px; height: 64px; }
 header img { width: 32px; height: 32px; }
 h1 { font-size: 17.33px; font-weight: 400; margin: 0; }
@@ -56,7 +58,7 @@ details summary { cursor: default; color: var(--muted); }
 .toast.show { opacity: 1; }
 /* Header: [← Menu] Title … [Cập nhật], the update button at the top right as in Product Review (24px from the edge). */
 header .config { margin-left: auto; }
-header .update { margin-left: auto; margin-right: 4px; }
+header .update { margin-left: auto; }
 header .config + .update { margin-left: 0; }
 /* Cấu hình (hub.js): each step with its state and fix button, then Model AI. */
 .dialog.setup { width: 520px; }
@@ -78,7 +80,7 @@ header .config + .update { margin-left: 0; }
 @keyframes hub-marquee { from { transform: translateX(-100%); } to { transform: translateX(460%); } }
 /* Layout like Product Review's window: bordered groups with a heading inside (Link sản phẩm & ảnh, Thao tác…),
    the main group on the left, "Thao tác" in a 224px column on the right, wide groups below; 20px between groups. */
-.layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: 20px; align-items: stretch; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 224px; gap: 12px 16px; align-items: stretch; }
 .group { position: relative; background: var(--control); border: 1px solid var(--line); padding: 38px 14px 14px; min-width: 0; }
 .group.wide { grid-column: 1 / -1; }
 .group > h2 { position: absolute; top: 10px; left: 14px; margin: 0; font-size: 13.33px; font-weight: 400; color: var(--ink); }
