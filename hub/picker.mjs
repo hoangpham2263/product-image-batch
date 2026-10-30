@@ -1,13 +1,19 @@
-// macOS tool picker (start-app.command runs it when there is more than one tool): a local page lists apps/*/tool.json
-// with each tool's icon; picking one starts its Node server ("mac") or opens its page ("web"), then this server exits.
+// macOS Tools Hub menu (start-app.command runs it when there is more than one tool): one app window lists
+// apps/*/tool.json with each tool's icon, and a tool opens in that same window. Web tools are served from here;
+// a tool with its own server ("mac", e.g. Product Review) is started and the window moves to it. Each tool shows a
+// "← Menu" button back here (?hub=<port>). One menu per install: a second start just opens a window on it.
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
-import { readFileSync, readdirSync, existsSync, openSync, mkdirSync } from "node:fs";
-import { dirname, join, resolve, extname } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { createHash } from "node:crypto";
+import { readFileSync, readdirSync, existsSync, openSync, mkdirSync, statSync } from "node:fs";
+import { dirname, join, resolve, extname, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
+const portFor = (dir, base) => base + (parseInt(createHash("sha1").update(dir).digest("hex").slice(0, 6), 16) % 1000);
+// HUB_PICKER_PORT (tests): a fixed port and no window.
+const PORT = Number(process.env.HUB_PICKER_PORT) || portFor(root, 46000);
 const tools = readdirSync(join(root, "apps"), { withFileTypes: true })
   .filter((d) => d.isDirectory() && existsSync(join(root, "apps", d.name, "tool.json")))
   .map((d) => ({ ...JSON.parse(readFileSync(join(root, "apps", d.name, "tool.json"), "utf8")), dir: join(root, "apps", d.name) }))
@@ -27,35 +33,57 @@ function appWindow(url, size = "1120,840") {
   execFile("open", ["-na", "Google Chrome", "--args", `--app=${url}`, `--window-size=${size}`], (err) => { if (err) execFile("open", [url]); });
 }
 
-function open(tool) {
-  if (tool.web) return appWindow(pathToFileURL(join(tool.dir, tool.web)).href, "960,820");
+// A tool with its own server: start it without a window of its own (or find it running) and return its address.
+async function startServer(tool) {
+  const base = portFor(tool.dir, 47000);
+  const find = async () => {
+    for (let port = base; port <= base + 20; port++) {
+      const body = await fetch(`http://127.0.0.1:${port}/api/root`).then((r) => r.json()).catch(() => null);
+      if (body?.root === tool.dir) return `http://127.0.0.1:${port}/`;
+    }
+    return "";
+  };
+  let url = await find();
+  if (url) return url;
   const logs = join(tool.dir, "workspace", "logs");
   mkdirSync(logs, { recursive: true });
   const out = openSync(join(logs, "mac-server.log"), "a");
-  spawn(process.execPath, [join(tool.dir, tool.mac)], { cwd: tool.dir, detached: true, stdio: ["ignore", out, out] }).unref();
+  spawn(process.execPath, [join(tool.dir, tool.mac), "--no-open"], { cwd: tool.dir, detached: true, stdio: ["ignore", out, out] }).unref();
+  for (let i = 0; i < 60 && !url; i++) { await new Promise((r) => setTimeout(r, 250)); url = await find(); }
+  return url;
 }
 
-const TYPES = { ".svg": "image/svg+xml", ".png": "image/png", ".css": "text/css; charset=utf-8" };
-const server = createServer((req, res) => {
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
+function sendFile(res, file) {
+  if (!existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); return res.end(); }
+  res.writeHead(200, { "content-type": TYPES[extname(file)] || "application/octet-stream", "cache-control": "no-store" });
+  res.end(readFileSync(file));
+}
+
+const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
-  const send = (code, type, body) => { res.writeHead(code, { "content-type": type }); res.end(body); };
-  if (url.pathname === "/") return send(200, "text/html; charset=utf-8", page());
-  if (url.pathname === "/hub/icon.svg") return send(200, TYPES[".svg"], readFileSync(join(here, "assets", "icon.svg")));
-  if (url.pathname === "/hub/tool.css") return send(200, TYPES[".css"], readFileSync(join(here, "assets", "tool.css")));
-  const tool = tools.find((t) => t.id === decodeURIComponent(url.pathname.split("/")[2] || ""));
-  if (tool && url.pathname.startsWith("/icon/")) {
-    const file = join(tool.dir, tool.icon || "icon.svg");
-    return existsSync(file) ? send(200, TYPES[extname(file)] || "application/octet-stream", readFileSync(file)) : send(404, "text/plain", "");
+  const parts = url.pathname.split("/").map(decodeURIComponent);
+  if (url.pathname === "/") { res.writeHead(200, { "content-type": TYPES[".html"] }); return res.end(page()); }
+  if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"] }); return res.end(JSON.stringify({ root, hub: true })); }
+  // /hub/icon.svg, /hub/tool.css, and /hub/assets/tool.css (web tools link it as ../../../hub/assets/tool.css).
+  if (parts[1] === "hub") return sendFile(res, join(here, "assets", parts.at(-1) === "icon.svg" ? "icon.svg" : "tool.css"));
+  const tool = tools.find((t) => t.id === parts[2]);
+  if (tool && parts[1] === "icon") return sendFile(res, join(tool.dir, tool.icon || "icon.svg"));
+  if (tool && parts[1] === "apps") {
+    const file = resolve(tool.dir, ...parts.slice(3));
+    return file.startsWith(tool.dir + sep) ? sendFile(res, file) : (res.writeHead(404), res.end());
   }
-  if (tool && url.pathname.startsWith("/open/") && req.method === "POST") {
-    open(tool);
-    send(200, "text/html; charset=utf-8", `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/hub/tool.css"><main><p>Đang mở ${esc(tool.name)}…</p><script>setTimeout(() => window.close(), 800)</script></main>`);
-    return setTimeout(() => process.exit(0), 500);
+  if (tool && parts[1] === "open" && req.method === "POST") {
+    const target = tool.web ? `/apps/${encodeURIComponent(tool.id)}/${tool.web}?hub=${PORT}` : await startServer(tool).then((u) => (u ? `${u}?hub=${PORT}` : ""));
+    if (!target) { res.writeHead(500, { "content-type": TYPES[".html"] }); return res.end(`<meta charset="utf-8"><link rel="stylesheet" href="/hub/tool.css"><main><header><h1>Không mở được ${esc(tool.name)}</h1></header><a class="btn" href="/">← Menu</a></main>`); }
+    res.writeHead(303, { location: target });
+    return res.end();
   }
-  send(404, "text/plain", "");
+  res.writeHead(404); res.end();
 });
-// HUB_PICKER_PORT (tests): a fixed port and no browser window.
-const fixed = Number(process.env.HUB_PICKER_PORT) || 0;
-server.listen(fixed, "127.0.0.1", () => fixed || appWindow(`http://127.0.0.1:${server.address().port}/`, "560,360"));
-// Nobody picked: stop after 10 minutes rather than linger.
-setTimeout(() => process.exit(0), 10 * 60000).unref();
+server.once("error", (e) => {
+  // Already running for this install: just show its window.
+  if (e.code !== "EADDRINUSE") throw e;
+  fetch(`http://127.0.0.1:${PORT}/api/root`).then((r) => r.json()).then((b) => { if (b.root === root) appWindow(`http://127.0.0.1:${PORT}/`); process.exit(0); }, () => process.exit(1));
+});
+server.listen(PORT, "127.0.0.1", () => process.env.HUB_PICKER_PORT || appWindow(`http://127.0.0.1:${PORT}/`));

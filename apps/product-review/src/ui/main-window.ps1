@@ -149,13 +149,21 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
 # Full width before the button is anchored: a docked panel starts 200px wide, which would push a
 # right-anchored button past the window edge once the panel stretches.
 $header=New-Object Windows.Forms.Panel -Property @{Size=(New-Object Drawing.Size($form.ClientSize.Width,64));Dock='Top';BackColor=$ui.Page}
-$title=New-Object Windows.Forms.Label -Property @{Text='Product Review';Location='20,19';AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
+# Opened from the Tools Hub menu (hub/launch.ps1 sets TOOLS_HUB_MENU): "← Menu" closes this window and shows the menu.
+$fromHub=[bool]$env:TOOLS_HUB_MENU
+$btnMenu=New-Object Windows.Forms.Button -Property @{Text='← Menu';Location='20,16';Size='90,32';Visible=$fromHub}
+Set-FlatButton $btnMenu
+$btnMenu.Add_Click({
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path (Get-HubRoot $root) 'hub\launch.ps1')+'"'))
+    $form.Close()
+})
+$title=New-Object Windows.Forms.Label -Property @{Text='Product Review';Location=$(if($fromHub){'122,19'}else{'20,19'});AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
 Set-FlatButton $btnUpdate
 # Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
 $syncLabel=New-Object Windows.Forms.Label -Property @{Name='HeaderSync';Location='260,14';Size='700,22';Anchor='Top,Left,Right';ForeColor=$ui.Muted;AutoEllipsis=$true;TextAlign='MiddleRight';Visible=$false}
 $syncBar=New-Object Windows.Forms.ProgressBar -Property @{Name='HeaderSyncBar';Location='760,40';Size='200,4';Anchor='Top,Right';Style='Continuous';Visible=$false}
-$header.Controls.AddRange(@($btnUpdate,$title,$syncLabel,$syncBar))
+$header.Controls.AddRange(@($btnMenu,$btnUpdate,$title,$syncLabel,$syncBar))
 # The sync line always ends 12px before the update button, however wide the button is.
 function Set-HeaderLayout { $syncLabel.Width = $btnUpdate.Left - 12 - $syncLabel.Left; $syncBar.Left = $btnUpdate.Left - 12 - $syncBar.Width }
 Set-HeaderLayout
@@ -216,7 +224,7 @@ $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 # All foreground work shares the same main-window lock; background version/quota checks do not.
 function Update-ActionAvailability {
     $busy=[bool]($script:proc -or $script:logsProc -or $script:setupProc -or $script:syncProc)
-    foreach($button in @($btnRun,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate)){$button.Enabled=-not $busy}
+    foreach($button in @($btnRun,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate,$btnMenu)){$button.Enabled=-not $busy}
     $queueEditor.Panel.Enabled=-not $busy;$numThr.Enabled=-not $busy
     $btnStop.Enabled=[bool]$script:proc
 }

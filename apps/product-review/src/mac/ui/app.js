@@ -225,8 +225,16 @@ function buildMain() {
   const c = ui.client;
   // Header (Dock Top, 64).
   const header = at(el("div", "panel"), 0, 0, null, 64, { right: 0 });
-  header.append(at(label("Product Review", ""), 20, 19, null, 26));
+  // Opened from the Tools Hub menu (?hub=<its port>, kept for reloads): "← Menu" goes back to it.
+  const hub = new URLSearchParams(location.search).get("hub") || sessionStorage.getItem("hub");
+  if (hub) sessionStorage.setItem("hub", hub);
+  header.append(at(label("Product Review", ""), hub ? 122 : 20, 19, null, 26));
   header.firstChild.style.fontSize = "17.33px";
+  if (hub) {
+    ui.btnMenu = at(button("← Menu"), 20, 16, 90, 32);
+    ui.btnMenu.onclick = () => { location.href = `http://127.0.0.1:${hub}/`; };
+    header.append(ui.btnMenu);
+  }
   ui.btnUpdate = at(button("Cập nhật"), null, 16, 100, 32, { right: 24, left: false });
   // Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
   ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 136 });

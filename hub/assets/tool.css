@@ -8,7 +8,8 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--control); color: var(--ink); font: 13.33px/1.35 var(--font); -webkit-font-smoothing: antialiased; }
-main { max-width: 880px; margin: 0 auto; padding: 0 20px 32px; }
+/* Full width with 20px sides, like Product Review's window (1120 x 840 by default). */
+main { padding: 0 20px 24px; }
 header { display: flex; align-items: center; gap: 12px; height: 64px; }
 header img { width: 32px; height: 32px; }
 h1 { font-size: 17.33px; font-weight: 400; margin: 0; }

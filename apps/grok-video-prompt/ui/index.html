@@ -10,7 +10,7 @@
 </head>
 <body>
 <main>
-  <header><img src="../icon.svg" alt=""><div><h1>Grok Video Prompt</h1><div class="muted small">Chọn thời lượng và style, điền tên sản phẩm rồi copy prompt.</div></div></header>
+  <header><a class="btn" id="menu" href="/" hidden>← Menu</a><img src="../icon.svg" alt=""><div><h1>Grok Video Prompt</h1><div class="muted small">Chọn thời lượng và style, điền tên sản phẩm rồi copy prompt.</div></div></header>
 
   <div class="row">
     <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
@@ -35,6 +35,8 @@
 </main>
 <div class="toast" id="toast"></div>
 <script>
+// Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
+document.getElementById("menu").hidden = !location.protocol.startsWith("http");
 // Prompts come from data/prompts.js (by length: 6, 10, 15 s); ones added here are kept in localStorage.
 const $ = (id) => document.getElementById(id);
 const KEY = "grok-video-prompt:custom", LAST = "grok-video-prompt:last";
