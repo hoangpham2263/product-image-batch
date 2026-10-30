@@ -24,7 +24,7 @@ if ($Mac) {
 $tool = $tools[0]
 if ($tools.Count -gt 1) {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-    $form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; Size = '1120,840'; MinimumSize = '1040,760'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240); Font = New-Object Drawing.Font('Segoe UI', 10) }
+    $form = New-Object Windows.Forms.Form -Property @{ Text = ('Tools Hub ' + (Get-InstalledVersion $root)).Trim(); Size = '1120,840'; MinimumSize = '1040,760'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240); Font = New-Object Drawing.Font('Segoe UI', 10) }
     $hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
     if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
     # Same size and 20px sides as Product Review's window; the title row is 64px high like its header.

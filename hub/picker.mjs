@@ -3,7 +3,7 @@
 // a tool with its own server ("mac", e.g. Product Review) is started and the window moves to it. Each tool shows a
 // "← Menu" button back here (?hub=<port>). One menu per install: a second start just opens a window on it.
 import { createServer } from "node:http";
-import { spawn, execFile } from "node:child_process";
+import { spawn, execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, openSync, mkdirSync, statSync } from "node:fs";
 import { dirname, join, resolve, extname, sep } from "node:path";
@@ -19,10 +19,16 @@ const tools = readdirSync(join(root, "apps"), { withFileTypes: true })
   .filter((d) => d.isDirectory() && existsSync(join(root, "apps", d.name, "tool.json")))
   .map((d) => ({ ...JSON.parse(readFileSync(join(root, "apps", d.name, "tool.json"), "utf8")), dir: join(root, "apps", d.name) }))
   .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.dir.localeCompare(b.dir));
+// The installed version, as Get-InstalledVersion reads it (workspace/version.txt, or the last tag in a Git checkout);
+// every page the menu serves shows it in its window title (hub.js).
+const version = (() => {
+  try { return readFileSync(join(root, "workspace", "version.txt"), "utf8").trim(); }
+  catch { try { return execFileSync("git", ["-C", root, "describe", "--tags", "--abbrev=0"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); } catch { return ""; } }
+})();
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tools Hub</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
+<title>${esc(`Tools Hub ${version}`.trim())}</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
 <style>.tools{display:grid;gap:8px}.tools form{margin:0}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:64px;padding:0 14px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:40px;height:40px;flex:none}body{min-height:100vh;display:flex;flex-direction:column}main{flex:1}footer{padding:0 20px 16px;text-align:center;font-size:12px}</style><script src="/hub/hub.js" defer></script></head>
 <body><main><header><h1>Tools Hub</h1></header><div class="setup-status" id="setupStatus" role="status"></div><section class="group"><h2>Công cụ</h2><div class="tools list">
 ${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span class="name">${esc(t.name)}</span></button></form>`).join("")}
@@ -74,7 +80,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const parts = url.pathname.split("/").map(decodeURIComponent);
   if (url.pathname === "/") { res.writeHead(200, { "content-type": TYPES[".html"] }); return res.end(page()); }
-  if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"] }); return res.end(JSON.stringify({ root, hub: true })); }
+  if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"] }); return res.end(JSON.stringify({ root, hub: true, version })); }
   // Shared files: /hub/<name>, or /hub/assets/<name> as web tools link them (../../../hub/assets/<name>).
   if (parts[1] === "hub") return ASSETS.includes(parts.at(-1)) ? sendFile(res, join(here, "assets", parts.at(-1))) : (res.writeHead(404), res.end());
   if (await configApi(req, res, url.pathname)) return;

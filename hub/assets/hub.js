@@ -9,6 +9,8 @@
   const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn update", textContent: "Cập nhật" });
   const config = Object.assign(document.createElement("button"), { type: "button", className: "btn config", textContent: "Cấu hình" });
   header.append(config, btn);
+  // The window title carries the installed version, as Product Review's does: "Grok Video Prompt v2.0.21".
+  fetch("/api/root").then((r) => r.json()).then((r) => { if (r.version && !document.title.endsWith(r.version)) document.title = `${document.title} ${r.version}`; }).catch(() => {});
   config.onclick = showSetup;
   // The menu says whether Cấu hình is done: every step but the quota (which only reads what is left) must be OK.
   // Cấu hình turns green while something is missing; closing the window checks again.
