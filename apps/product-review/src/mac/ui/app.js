@@ -236,13 +236,15 @@ function buildMain() {
     header.append(ui.btnMenu);
   }
   ui.btnUpdate = at(button("Cập nhật"), null, 16, 100, 32, { right: 24, left: false });
+  // Cấu hình: shared by every tool (hub/setup), left of Cập nhật as on the Tools Hub menu.
+  ui.btnSetup = at(button("Cấu hình"), null, 16, 100, 32, { right: 132, left: false });
   // Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
-  ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 136 });
+  ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 244 });
   ui.syncLabel.style.textAlign = "right";
-  ui.syncBar = at(el("div", "progress"), null, 40, 200, 4, { right: 136, left: false });
+  ui.syncBar = at(el("div", "progress"), null, 40, 200, 4, { right: 244, left: false });
   ui.syncBar.append(el("span"));
   ui.syncLabel.hidden = ui.syncBar.hidden = true;
-  header.append(ui.btnUpdate, ui.syncLabel, ui.syncBar);
+  header.append(ui.btnSetup, ui.btnUpdate, ui.syncLabel, ui.syncBar);
 
   // Link sản phẩm & ảnh (20,78 820x344, Top/Left/Right).
   const cardList = at(el("div", "card"), 20, 78, null, 344, { right: 264 });
@@ -259,8 +261,8 @@ function buildMain() {
   // Thao tác (856,78 224x344, Top/Right).
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
-  // In the order they are used: review the results, open them, then setup and support.
-  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi lỗi"], ["btnClearLog", "Xóa thông báo"]];
+  // In the order they are used: review the results, open them, then support. Cấu hình is in the header.
+  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnLogs", "Gửi lỗi"], ["btnClearLog", "Xóa thông báo"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -396,7 +398,7 @@ async function chooseImages(folder, table = false) {
 // every danh mục, over in one go. Either way nothing is fetched twice.
 function showDrivePicker() {
   return new Promise((resolve) => {
-    const noLogin = "Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.";
+    const noLogin = "Chưa đăng nhập mật khẩu app. Mở Cấu hình để đăng nhập.";
     const view = openWindow("Chọn ảnh review từ kho Drive", 760, 540);
     // One toolbar row, 28px tall: danh mục, Mặc định and Tải về máy share its height and centre line.
     const groups = at(combo(), 20, 14, 220, 28);
@@ -922,9 +924,9 @@ function showReviewPreview(item, decide) {
   b.append(original, at(label("Ảnh kết quả"), 548, 12, 500, 24), product, sceneLabel, scene, result, body, state_, keep, skip);
 }
 
-// ----- Kiểm tra cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
+// ----- Cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
 async function showSetupDialog() {
-  const view = openWindow("Kiểm tra cấu hình", 520, 430);
+  const view = openWindow("Cấu hình", 520, 430);
   const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
   const rows = titles.map((title, i) => {
     const y = 16 + i * 58;
@@ -1134,10 +1136,10 @@ function receive(event) {
 }
 async function startBatch() {
   if (run.active) return;
-  if (!state.drive) return appendLog("Nhập mật khẩu app trước khi chạy (Kiểm tra cấu hình).");
+  if (!state.drive) return appendLog("Nhập mật khẩu app trước khi chạy (Cấu hình).");
   try { await saveQueue(true); } catch (e) { return appendLog(e.message); }
   if (!countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
-  if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Kiểm tra cấu hình" để xem hướng dẫn.');
+  if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Cấu hình" để xem hướng dẫn.');
   ui.txtLog.value = "";
   Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "", tokens: { in: 0, cached: 0, out: 0 } });
   updateUsage();
@@ -1239,9 +1241,10 @@ async function checkUpdate() {
   placeSync();
 }
 
-// The sync line always ends 12px before the update button, however wide the button is.
+// Cấu hình sits 8px left of the update button and the sync line ends 12px before it, however wide the button is.
 function placeSync() {
-  const right = `${24 + ui.btnUpdate.offsetWidth + 12}px`;
+  ui.btnSetup.style.right = `${24 + ui.btnUpdate.offsetWidth + 8}px`;
+  const right = `${24 + ui.btnUpdate.offsetWidth + 8 + ui.btnSetup.offsetWidth + 12}px`;
   ui.syncLabel.style.right = ui.syncBar.style.right = right;
 }
 const syncView = { timer: 0, hide: 0 };

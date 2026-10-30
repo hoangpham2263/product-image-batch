@@ -47,5 +47,12 @@ try{
     Assert ((Get-DriveConfig $login).AdminKey -eq 'right') 'Login did not save drive.json.'
     Disconnect-DriveAccount $login
     Assert ($null -eq (Get-DriveConfig $login)) 'Logout did not remove drive.json.'
-    Write-Host 'PASS: Drive config is optional, uploads carry the admin key and return the public link.'
+    # In an install the settings live once in <hub>/workspace/config; one left in a tool's workspace moves there.
+    $hub=Join-Path $temp 'hub-install';New-Item -ItemType Directory -Force (Join-Path $hub 'hub'),(Join-Path $hub 'apps/a/workspace')|Out-Null
+    Set-Content (Join-Path $hub 'hub/update.ps1') ''
+    '{"apiUrl":"https://api.test","adminKey":"old"}'|Set-Content (Join-Path $hub 'apps/a/workspace/drive.json') -Encoding UTF8
+    Assert ((Get-DriveConfig (Join-Path $hub 'apps/b/workspace')).AdminKey -eq 'old') 'Another tool did not get the moved setting.'
+    Assert ((Test-Path (Join-Path $hub 'workspace/config/drive.json')) -and -not (Test-Path (Join-Path $hub 'apps/a/workspace/drive.json'))) 'drive.json was not moved to the hub.'
+    Assert ((Get-SharedConfigPath (Join-Path $hub 'workspace') 'ai-model.json') -eq (Join-Path $hub 'workspace/config/ai-model.json')) 'The hub and its tools must share one path.'
+    Write-Host 'PASS: Drive config is optional, shared by every tool in an install, uploads carry the admin key and return the public link.'
 }finally{Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue}

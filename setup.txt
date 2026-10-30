@@ -9,14 +9,14 @@ CÁC BƯỚC
   1. Giải nén app vào thư mục bất kỳ.
   2. Mở app: start-app.cmd (Windows) hoặc start-app.command (Mac).
      Mac lần đầu tự cài Homebrew, Node.js và PowerShell 7 nếu chưa có.
-  3. Bấm Kiểm tra cấu hình. Bước nào chưa đạt thì bấm Cài hoặc Đăng nhập ngay trên dòng đó:
+  3. Bấm Cấu hình. Bước nào chưa đạt thì bấm Cài hoặc Đăng nhập ngay trên dòng đó:
      mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
   4. Thêm sản phẩm, gắn ảnh rồi bấm Bắt đầu.
 
 LỖI THƯỜNG GẶP
   "codex is not recognized"     Chưa cài Codex hoặc chưa mở lại app sau khi cài.
   Không đăng nhập được          Chạy codex logout rồi codex login.
-  Hết hạn mức                   Xem giờ đặt lại ở dòng hạn mức, hoặc đổi model nhẹ hơn trong Kiểm tra cấu hình.
+  Hết hạn mức                   Xem giờ đặt lại ở dòng hạn mức, hoặc đổi model nhẹ hơn trong Cấu hình.
   Chạy nhiều luồng bị chậm/lỗi  Giảm ô Luồng xuống 1-2.
   Lỗi khác                      Bấm Gửi lỗi để gửi cho admin.
 

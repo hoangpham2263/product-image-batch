@@ -1,8 +1,14 @@
-﻿# Kiểm tra cấu hình: every step the app needs, in order (app password, installed, signed in, usable). A step that is
-# not done has its own button that runs the fix; the window returns that step's action, or '' when closed.
-function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$LogDir) {
+﻿# Cấu hình, shared by every tool (opened from the Tools Hub menu and from each tool's header): every step the tools
+# need, in order (app password, installed, signed in, usable), and Model AI. A step that is not done has its own
+# button that runs the fix; the window returns that step's action, or '' when closed. HubRoot is the install folder.
+. (Join-Path $PSScriptRoot '../winforms.ps1')
+. (Join-Path $PSScriptRoot 'ai-settings.ps1')
+. (Join-Path $PSScriptRoot 'drive.ps1')
+. (Join-Path $PSScriptRoot 'drive-login.ps1')
+function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$HubRoot) {
+    $LogDir = Join-Path $HubRoot 'workspace/logs'; New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
     $ui = $script:Ui
-    $dialog = New-Object Windows.Forms.Form -Property @{ Text = 'Kiểm tra cấu hình'; ClientSize = '520,430'; StartPosition = 'CenterParent'; FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false; ShowInTaskbar = $false; Font = (New-Object Drawing.Font('Segoe UI', 10)) }
+    $dialog = New-Object Windows.Forms.Form -Property @{ Text = 'Cấu hình'; ClientSize = '520,430'; StartPosition = 'CenterParent'; FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false; ShowInTaskbar = $false; Font = (New-Object Drawing.Font('Segoe UI', 10)) }
     $titles = @('Mật khẩu app', 'Node.js', 'Codex', 'Đăng nhập ChatGPT', 'Hạn mức sử dụng')
     $rows = @()
     for ($i = 0; $i -lt $titles.Count; $i++) {
@@ -32,7 +38,7 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
         $dialog.Refresh()
         $out = Join-Path $LogDir "setup-check-$PID.json"; $err = Join-Path $LogDir "setup-check-$PID.err.log"
         try {
-            Start-Process powershell.exe -WindowStyle Hidden -Wait -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $SrcDir 'setup-check.ps1') + '"'), '-AsJson')
+            Start-Process powershell.exe -WindowStyle Hidden -Wait -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'setup-check.ps1') + '"'), '-AsJson')
             $steps = @((Get-Content -LiteralPath $out -Raw -Encoding UTF8 | ConvertFrom-Json).Steps)
             for ($i = 0; $i -lt [Math]::Min($rows.Count, $steps.Count); $i++) {
                 $row = $rows[$i]
@@ -62,12 +68,12 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
         if ($ai.Filling) { return }
         $ai.Filling = $true
         try { & $fillEfforts $(if ($aiEffort.SelectedIndex -gt 0) { $ai.Efforts[$aiEffort.SelectedIndex] } else { '' }) } finally { $ai.Filling = $false }
-        Set-AiSettings (Split-Path $SrcDir -Parent) $(if ($aiModel.SelectedIndex -gt 0) { $ai.Models[$aiModel.SelectedIndex - 1].slug } else { '' }) $ai.Efforts[$aiEffort.SelectedIndex]
+        Set-AiSettings $HubRoot $(if ($aiModel.SelectedIndex -gt 0) { $ai.Models[$aiModel.SelectedIndex - 1].slug } else { '' }) $ai.Efforts[$aiEffort.SelectedIndex]
     }.GetNewClosure()
     $loadAi = {
         $ai.Filling = $true
         try {
-            $saved = Get-AiSettings (Split-Path $SrcDir -Parent)
+            $saved = Get-AiSettings $HubRoot
             $ai.Models = @(Get-AiModels)
             if ($saved.model -and -not @($ai.Models | Where-Object slug -eq $saved.model).Count) { $ai.Models = @([pscustomobject]@{ slug = $saved.model; name = $saved.model; efforts = @('low', 'medium', 'high'); default_effort = '' }) + $ai.Models }
             $aiModel.Items.Clear(); [void]$aiModel.Items.Add('Model mặc định của Codex')
@@ -80,4 +86,26 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$SrcDir, [string]$
     $again.Add_Click($check)
     $dialog.Add_Shown({ & $loadAi; & $check }.GetNewClosure())
     try { if ($dialog.ShowDialog($Owner) -eq 'OK') { return $state.Action } else { return '' } } finally { $dialog.Dispose() }
+}
+
+# Opens Cấu hình and runs the fix a step asks for, then opens it again to show the result, until it is closed.
+# Install and sign-in run in their own window (progress, the sign-in link) while this window waits for them.
+function Show-HubSetup([Windows.Forms.Form]$Owner, [string]$HubRoot) {
+    while ($true) {
+        $action = Show-SetupDialog $Owner $HubRoot
+        $run = switch ($action) {
+            'install' { @('powershell.exe', @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'setup-install.ps1') + '"'))) }
+            'login' { @('cmd.exe', @('/c', 'codex login')) }
+            'drive' { [void](Show-DriveLogin $Owner (Join-Path $HubRoot 'workspace')); $null }
+            default { return }
+        }
+        if ($run) {
+            $proc = Start-Process $run[0] -ArgumentList $run[1] -PassThru
+            if ($Owner) { $Owner.Cursor = 'WaitCursor' }
+            try { while (-not $proc.HasExited) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 200 } }
+            finally { $proc.Dispose(); if ($Owner) { $Owner.Cursor = 'Default' } }
+            # npm installs into a folder Windows adds to PATH only for new processes.
+            $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+        }
+    }
 }

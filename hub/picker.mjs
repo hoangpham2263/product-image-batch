@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, openSync, mkdirSync, statSync } from "node:fs";
 import { dirname, join, resolve, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createConfigApi } from "./setup/config-api.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -57,6 +58,9 @@ const ASSETS = ["icon.svg", "tool.css", "hub.js"];
 const q = (p) => p.replace(/'/g, "''");
 // pwsh from PATH or the usual install places, as Product Review's server finds it.
 const PWSH = ["/opt/homebrew/bin/pwsh", "/usr/local/bin/pwsh", join(process.env.HOME || "", ".dotnet", "tools", "pwsh"), "/usr/local/microsoft/powershell/7/pwsh"].find((p) => existsSync(p)) || "pwsh";
+// Cấu hình (hub/setup/config-api.mjs), with Node, npm and codex found where a Finder-opened app misses them.
+const toolPath = ["/opt/homebrew/bin", "/usr/local/bin", join(process.env.HOME || "", ".npm-global", "bin"), dirname(process.execPath)];
+const configApi = createConfigApi({ hubRoot: root, pwsh: PWSH, env: { ...process.env, PATH: [...new Set([...(process.env.PATH || "").split(":"), ...toolPath])].filter(Boolean).join(":") } });
 const pwsh = (command) => new Promise((done, fail) => execFile(PWSH, ["-NoProfile", "-Command", command], { cwd: root, timeout: 300000 }, (err, out) => (err ? fail(err) : done(String(out).trim()))));
 
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json" };
@@ -73,6 +77,7 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"] }); return res.end(JSON.stringify({ root, hub: true })); }
   // Shared files: /hub/<name>, or /hub/assets/<name> as web tools link them (../../../hub/assets/<name>).
   if (parts[1] === "hub") return ASSETS.includes(parts.at(-1)) ? sendFile(res, join(here, "assets", parts.at(-1))) : (res.writeHead(404), res.end());
+  if (await configApi(req, res, url.pathname)) return;
   if (url.pathname === "/api/update-check") {
     const out = await pwsh(`. '${q(join(here, "update.ps1"))}' -NoRun; [pscustomobject]@{ current = (Get-InstalledVersion '${q(root)}'); next = (Get-AppUpdate '${q(root)}') } | ConvertTo-Json -Compress`).catch(() => "");
     res.writeHead(out ? 200 : 502, { "content-type": TYPES[".json"] });

@@ -1,10 +1,12 @@
 ﻿# Model AI: the model and reasoning level Codex uses for every call (writing reviews and making images), chosen in
-# Kiểm tra cấu hình and kept in workspace/ai-model.json. Empty values keep Codex's own default (~/.codex/config.toml).
+# Cấu hình and kept once for every tool in workspace/config/ai-model.json. Empty values keep Codex's own default
+# (~/.codex/config.toml). ProjectRoot is the hub or a tool folder; either finds the shared file.
 # A lighter model or a lower reasoning level uses fewer tokens.
+. (Join-Path $PSScriptRoot 'config.ps1')
 $script:AiEfforts = @('low', 'medium', 'high', 'xhigh', 'max', 'ultra')
 
 function Get-AiSettings([string]$ProjectRoot) {
-    $path = Join-Path $ProjectRoot 'workspace/ai-model.json'
+    $path = Get-SharedConfigPath (Join-Path $ProjectRoot 'workspace') 'ai-model.json'
     $saved = if (Test-Path -LiteralPath $path) { try { Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json } catch { $null } }
     $model = [string]$saved.model; $effort = [string]$saved.effort
     return [pscustomobject]@{
@@ -16,7 +18,7 @@ function Get-AiSettings([string]$ProjectRoot) {
 function Set-AiSettings([string]$ProjectRoot, [string]$Model, [string]$Effort) {
     if ($Model -and $Model -notmatch '^[\w./:-]{1,80}$') { throw 'Tên model không hợp lệ.' }
     if ($Effort -and $script:AiEfforts -notcontains $Effort) { throw 'Mức suy nghĩ không hợp lệ.' }
-    $path = Join-Path $ProjectRoot 'workspace/ai-model.json'
+    $path = Get-SharedConfigPath (Join-Path $ProjectRoot 'workspace') 'ai-model.json'
     New-Item -ItemType Directory -Force -Path (Split-Path $path -Parent) | Out-Null
     [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject ([ordered]@{ model = $Model; effort = $Effort })), [Text.UTF8Encoding]::new($false))
 }
@@ -50,7 +52,7 @@ function Get-AiModelSummary([string]$ProjectRoot) {
     $names = @{ low = 'thấp'; medium = 'vừa'; high = 'cao'; xhigh = 'rất cao'; max = 'tối đa'; ultra = 'siêu cao' }
     $text = $(if ($model) { $model } else { 'model mặc định của Codex' })
     if ($effort) { $text += " · suy nghĩ $(if ($names[$effort]) { $names[$effort] } else { $effort })" }
-    $text += $(if ($chosen.model -or $chosen.effort) { ' (chọn trong Kiểm tra cấu hình)' } else { ' (mặc định của Codex)' })
+    $text += $(if ($chosen.model -or $chosen.effort) { ' (chọn trong Cấu hình)' } else { ' (mặc định của Codex)' })
     if ($provider -and $provider -ne 'openai') { $text += " · qua $provider" }
     return $text
 }

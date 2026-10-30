@@ -44,10 +44,18 @@ if ($tools.Count -gt 1) {
         }
     })
     $form.Controls.Add($btnUpdate)
+    # Cấu hình: the settings every tool shares (hub/setup), left of Cập nhật as in each tool's window.
+    . (Join-Path $PSScriptRoot 'setup/setup-dialog.ps1')
+    $btnConfig = New-Object Windows.Forms.Button -Property @{ Text = 'Cấu hình'; Size = '100,32'; Anchor = 'Top,Right' }
+    Set-FlatButton $btnConfig
+    $placeConfig = { $btnConfig.Location = New-Object Drawing.Point(($btnUpdate.Left - 8 - 100), 16) }
+    & $placeConfig
+    $btnConfig.Add_Click({ Show-HubSetup $form $root })
+    $form.Controls.Add($btnConfig)
     $form.Add_Shown({
         try {
             $next = Get-AppUpdate $root
-            if ($next) { $btnUpdate.Text = "Cập nhật $next"; $btnUpdate.Width = 150; $btnUpdate.Left = $form.ClientSize.Width - 24 - 150; Set-FlatButton $btnUpdate -Primary }
+            if ($next) { $btnUpdate.Text = "Cập nhật $next"; $btnUpdate.Width = 150; $btnUpdate.Left = $form.ClientSize.Width - 24 - 150; Set-FlatButton $btnUpdate -Primary; & $placeConfig }
         } catch { }
     })
     $y = 64

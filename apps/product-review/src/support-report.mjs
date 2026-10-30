@@ -10,6 +10,12 @@ import * as tls from 'node:tls';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const clean = (text) => String(text).replace(/[\r\n|]/g, ' ');
 const emit = (kind, text) => process.stdout.write(`${kind}|${clean(text)}\n`);
+// Settings every tool shares live in <hub>/workspace/config (hub/setup/config.ps1); a tool outside an install, or
+// one not yet moved there, keeps them in its own workspace.
+const sharedConfig = (name, project = root) => {
+  const hub = resolve(project, '..', '..'), shared = join(hub, 'workspace', 'config', name);
+  return existsSync(join(hub, 'hub', 'update.ps1')) && existsSync(shared) ? shared : join(project, 'workspace', name);
+};
 const json = async (file) => JSON.parse((await readFile(file, 'utf8')).replace(/^\uFEFF/, ''));
 
 export function codexLaunch(env = process.env, platform = process.platform) {
@@ -22,7 +28,7 @@ export function codexLaunch(env = process.env, platform = process.platform) {
       if (existsSync(launcher)) return { command: process.execPath, prefix: [launcher] };
     }
   }
-  throw new Error('Không tìm thấy Codex. Mở Kiểm tra cấu hình để kiểm tra cài đặt.');
+  throw new Error('Không tìm thấy Codex. Mở Cấu hình để kiểm tra cài đặt.');
 }
 
 export function validateReport(text, secrets = []) {
@@ -38,7 +44,7 @@ export function validateReport(text, secrets = []) {
 
 async function generate(prompt, output, trace, timeoutMs = 120000) {
   const launch = codexLaunch();
-  const settings = await json(join(root, 'workspace', 'ai-model.json')).catch(() => ({}));
+  const settings = await json(sharedConfig('ai-model.json')).catch(() => ({}));
   const args = [...launch.prefix, 'exec', '--skip-git-repo-check', '-s', 'read-only', '-C', root, '-c', 'model_reasoning_effort=low', '-o', output];
   if (/^[\w./:-]{1,80}$/.test(settings.model || '')) args.push('-m', settings.model);
   args.push('-');
@@ -72,7 +78,7 @@ export async function main({ generateOnly = false, projectRoot = root, generateR
   const id = `${new Date().toISOString().replace(/[:.]/g, '-')}_${process.platform}_${randomUUID().slice(0, 8)}`;
   const file = join(temp, `${id}.md`);
   const trace = join(temp, `${id}.console.log`);
-  const drive = await json(join(workspace, 'drive.json')).catch(() => null);
+  const drive = await json(sharedConfig('drive.json', projectRoot)).catch(() => null);
   const rejectedRoot = join(workspace, 'rejected');
   const samples = [];
   for (const entry of await readdir(rejectedRoot, { withFileTypes: true }).catch(() => [])) {

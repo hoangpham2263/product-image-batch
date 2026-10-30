@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent
 . (Join-Path $srcDir 'application/workspace.ps1')
-. (Join-Path $srcDir 'application/ai-settings.ps1')
+. (Join-Path $srcDir '../../../hub/setup/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
@@ -41,14 +41,14 @@ function Invoke-Rpc([string]$Cmd, $A) {
             $version = try { Get-AppVersion $root } catch { '' }
             return [pscustomobject]@{
                 rows = @($urls | ForEach-Object { Get-EntryInfo $mapPath $_ }); group = $map.preferred_source_group
-                drive = [bool](Test-Path -LiteralPath (Join-Path $workspace.Root 'drive.json'))
+                drive = [bool](Test-Path -LiteralPath (Get-SharedConfigPath $workspace.Root 'drive.json'))
                 version = $version; output = $workspace.Output; codex = [bool](Get-Command codex -ErrorAction SilentlyContinue)
             }
         }
         'rows' { return @(@($A.urls) | ForEach-Object { Get-EntryInfo $mapPath ([string]$_) }) }
         'groups' { return @(if ($A.local) { Get-SourcePhotoGroups $libraryRoot } else { Get-SourceGroupChoices $root }) }
         'sourceFiles' { return (Get-SourcePickerFiles (Get-DriveConfig $workspace.Root) $libraryRoot ([string]$A.group)) }
-        'quotaSummary' { . (Join-Path $srcDir 'infrastructure/quota.ps1'); return (Get-QuotaSummary) }
+        'quotaSummary' { . (Join-Path $srcDir '../../../hub/setup/quota.ps1'); return (Get-QuotaSummary) }
         'aiModels' { return [pscustomobject]@{ settings = (Get-AiSettings $root); models = @(Get-AiModels) } }
         'aiSettingsSet' { Set-AiSettings $root ([string]$A.model) ([string]$A.effort); return $true }
         'sourceDefault' { return (Get-DefaultSourceGroup $root) }

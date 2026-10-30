@@ -1,38 +1,6 @@
-﻿# Google Drive storage through the tools-hub-api Worker (worker/ at the Tools Hub root).
-# workspace/drive.json (local, not in Git): { "apiUrl": "https://tools-hub-api....workers.dev", "adminKey": "..." }
-function Get-DriveConfig([string]$WorkspaceRoot) {
-    $path = Join-Path $WorkspaceRoot 'drive.json'
-    if (-not (Test-Path -LiteralPath $path)) { return $null }
-    $config = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
-    if (-not $config.apiUrl -or -not $config.adminKey) { throw "drive.json cần apiUrl và adminKey: $path" }
-    # The Worker was product-images-api, then product-review-batch-api; a login saved before moves to the new address.
-    if ([string]$config.apiUrl -match '//(product-images-api|product-review-batch-api)\.') {
-        $config.apiUrl = ([string]$config.apiUrl) -replace '//(product-images-api|product-review-batch-api)\.', '//tools-hub-api.'
-        try { [IO.File]::WriteAllText($path, ($config | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false)) } catch { Write-Verbose $_ }
-    }
-    return @{ ApiUrl = ([string]$config.apiUrl).TrimEnd('/'); AdminKey = [string]$config.adminKey }
-}
-
-$script:DriveApiUrl = 'https://tools-hub-api.hoangpham2263.workers.dev'
-
-# Log in once per machine: the admin password is checked with the Worker, then saved only in workspace/drive.json.
-function Connect-DriveAccount([string]$WorkspaceRoot, [string]$Password, [scriptblock]$Probe = {
-        param($url, $key)
-        try { (Invoke-WebRequest -Uri $url -Headers @{ 'x-admin-key' = $key } -UseBasicParsing -TimeoutSec 30).StatusCode }
-        catch { if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 0 } }
-    }) {
-    if (-not $Password) { throw 'Nhập mật khẩu.' }
-    $status = & $Probe "$script:DriveApiUrl/api/app-check" $Password
-    if ($status -eq 401) { throw 'Sai mật khẩu.' }
-    if ($status -ne 200) { throw "Không kết nối được máy chủ Drive ($status)." }
-    New-Item -ItemType Directory -Force -Path $WorkspaceRoot | Out-Null
-    $json = @{ apiUrl = $script:DriveApiUrl; adminKey = $Password } | ConvertTo-Json -Compress
-    [IO.File]::WriteAllText((Join-Path $WorkspaceRoot 'drive.json'), $json, [Text.UTF8Encoding]::new($false))
-}
-
-function Disconnect-DriveAccount([string]$WorkspaceRoot) {
-    Remove-Item -LiteralPath (Join-Path $WorkspaceRoot 'drive.json') -Force -ErrorAction SilentlyContinue
-}
+﻿# Google Drive storage through the tools-hub-api Worker (worker/ at the Tools Hub root). The app password
+# (Get-DriveConfig, Connect-DriveAccount) is shared by every tool: hub/setup/drive.ps1.
+. (Join-Path $PSScriptRoot '../../../../hub/setup/drive.ps1')
 
 # Upload one PNG and return its public link for the CSV.
 function Assert-DriveReady {

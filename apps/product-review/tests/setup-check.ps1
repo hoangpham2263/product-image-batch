@@ -1,5 +1,5 @@
 ﻿$ErrorActionPreference = 'Stop'
-$entry = Join-Path (Split-Path $PSScriptRoot -Parent) 'src/setup-check.ps1'
+$entry = Join-Path (Split-Path $PSScriptRoot -Parent) '../../hub/setup/setup-check.ps1'
 $global:SetupTestAuthScenario = 'chatgpt'
 function codex {
     switch ($global:SetupTestAuthScenario) {

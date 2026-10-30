@@ -104,7 +104,7 @@ function Get-SourcePickerFiles($Drive, [string]$SourceDir, [string]$Group) {
 
 function Get-SourceOfflinePickerFiles([bool]$SignedIn, [string]$SourceDir, [string]$Group) {
     $local = @(Get-LocalSourceFiles $SourceDir $Group | ForEach-Object { [pscustomobject]@{ name = [IO.Path]::GetFileName($_); md5 = ''; url = ''; local = $_ } })
-    $reason = if ($SignedIn) { 'Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy.' } else { 'Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.' }
+    $reason = if ($SignedIn) { 'Không kết nối được Drive (mạng hoặc mật khẩu app). Đang hiện ảnh có trên máy.' } else { 'Chưa đăng nhập mật khẩu app. Mở Cấu hình để đăng nhập.' }
     return @{ Files = $local; Error = $reason }
 }
 

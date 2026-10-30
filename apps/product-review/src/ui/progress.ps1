@@ -95,7 +95,7 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         } elseif ($line -match '\[CAUSE:STORE_LOCKED\]') {
             $event.Text = "Sản phẩm $($event.Index): cửa hàng có mật khẩu, hãy gắn ảnh sản phẩm."
         } elseif ($line -match '\[CAUSE:AUTH\]') {
-            $event.Text = 'Chưa đăng nhập ChatGPT, bấm Kiểm tra cấu hình.'
+            $event.Text = 'Chưa đăng nhập ChatGPT, bấm Cấu hình.'
         } elseif ($line -match '\[CAUSE:QUOTA\]') {
             $event.Text = 'Hết hạn mức, chờ được cấp lại.'
             if($line -match 'HTTP\s+(\d{3})'){$event.Text+=" HTTP $($Matches[1])."}

@@ -20,7 +20,7 @@ App tạo ảnh review sản phẩm: ghép sản phẩm thật vào ảnh bối 
 
 1. [Tải bản mới nhất](https://github.com/hoangpham2263/tools-hub/releases/latest/download/tools-hub.zip) và giải nén.
 2. Mở app: `start-app.cmd` (Windows) hoặc `start-app.command` (Mac).
-3. Bấm **Kiểm tra cấu hình**, rồi bấm **Cài** / **Đăng nhập** ở bước nào chưa đạt: mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
+3. Bấm **Cấu hình**, rồi bấm **Cài** / **Đăng nhập** ở bước nào chưa đạt: mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
 
 Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật khi bạn bấm. `workspace/` và bài học riêng trong `AGENTS.md` được giữ. Máy mới xem [setup.txt](setup.txt).
 
@@ -31,7 +31,7 @@ Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật
 - **Tạo ảnh:** mỗi cặp ảnh gốc + ảnh review cho một ảnh kết quả, giữ đúng sản phẩm; logo thật được thay bằng brand giả, watermark bị xoá.
 - **Viết review:** nội dung dựa trên ảnh, học cách viết từ kho review mẫu cùng danh mục; tên, sao, email và ngày được tạo ngẫu nhiên.
 - **Duyệt & xuất file:** Giữ/Bỏ từng ảnh, xong thì tạo `loox_import.csv` (chọn **Custom File** khi import vào Loox).
-- **Theo dõi:** số token đã dùng và hạn mức ChatGPT hiện trực tiếp khi chạy; chọn model AI và mức suy nghĩ trong Kiểm tra cấu hình.
+- **Theo dõi:** số token đã dùng và hạn mức ChatGPT hiện trực tiếp khi chạy; chọn model AI và mức suy nghĩ trong Cấu hình.
 - **Kho ảnh Drive:** ảnh mẫu chia theo danh mục (Áo, Nội thất…), chọn ảnh trong app hoặc **Tải về máy** chạy nền.
 - **Gửi lỗi:** gửi một file lỗi duy nhất (AI tóm tắt nguyên nhân và cách sửa, kèm lý do các đánh giá đã Bỏ – [chuẩn](apps/product-review/docs/error-report.md)); không kèm ảnh hay mật khẩu.
 

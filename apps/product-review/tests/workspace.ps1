@@ -52,7 +52,7 @@ try {
     Assert $refused 'An invalid model name must be refused.'
     $env:CODEX_HOME = Join-Path $fixture 'codex'; New-Item -ItemType Directory -Force $env:CODEX_HOME | Out-Null
     "model = `"gpt-5.6-sol`"`nmodel_reasoning_effort = `"high`"`nmodel_provider = `"9router`"`n[profiles.x]`nmodel = `"other`"" | Set-Content (Join-Path $env:CODEX_HOME 'config.toml')
-    Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.5 · suy nghĩ thấp (chọn trong Kiểm tra cấu hình) · qua 9router') "A run must name the chosen model: $(Get-AiModelSummary $fixture)"
+    Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.5 · suy nghĩ thấp (chọn trong Cấu hình) · qua 9router') "A run must name the chosen model: $(Get-AiModelSummary $fixture)"
     Set-AiSettings $fixture '' ''
     Assert ((Get-AiModelSummary $fixture) -eq 'gpt-5.6-sol · suy nghĩ cao (mặc định của Codex) · qua 9router') "Without a choice a run must name Codex's own model: $(Get-AiModelSummary $fixture)"
     Assert ((ConvertTo-UiEvent 'Model AI: gpt-5.5 · suy nghĩ thấp').Text -eq 'Model AI: gpt-5.5 · suy nghĩ thấp') 'The model line must show in the app log.'

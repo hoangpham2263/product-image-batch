@@ -1,12 +1,15 @@
-// Cập nhật for every page the Tools Hub menu serves on macOS (the menu and web tools): a button at the top right,
-// where Product Review has its own, green with the version once a newer one is out. It checks and installs through
-// the menu server (hub/picker.mjs). Pages opened as files (Windows) have no server to ask, so no button.
+// Cấu hình and Cập nhật for every page the Tools Hub menu serves on macOS (the menu and web tools): buttons at the top
+// right, where Product Review has its own; Cập nhật turns green with the version once a newer one is out. Both work
+// through the menu server (hub/picker.mjs, hub/setup/config-api.mjs). Pages opened as files (Windows) have no server
+// to ask, so no buttons.
 (() => {
   if (!location.protocol.startsWith("http")) return;
   const header = document.querySelector("header");
   if (!header) return;
   const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn update", textContent: "Cập nhật" });
-  header.append(btn);
+  const config = Object.assign(document.createElement("button"), { type: "button", className: "btn config", textContent: "Cấu hình" });
+  header.append(config, btn);
+  config.onclick = showSetup;
   let next = "", current = "";
   const show = () => { btn.textContent = next ? `Cập nhật ${next}` : "Cập nhật"; btn.classList.toggle("primary", !!next); };
   const check = () => fetch("/api/update-check").then((r) => (r.ok ? r.json() : Promise.reject())).then((r) => { next = r.next || ""; current = r.current || ""; show(); return true; }).catch(() => false);
@@ -41,4 +44,95 @@
       setTimeout(wait, 1200);
     };
   };
+
+  // Same window as Windows (hub/setup/setup-dialog.ps1): each step the tools need, a fix button on the ones not
+  // done, then Model AI. Settings are saved once for every tool.
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const post = (path, data, method = "POST") => fetch(path, { method, body: data ? JSON.stringify(data) : undefined }).then((r) => r.json()).catch(() => ({ error: "Không kết nối được." }));
+  function dialog(cls, html) {
+    const shade = Object.assign(document.createElement("div"), { className: "shade" });
+    shade.innerHTML = `<div class="dialog ${cls}" role="dialog">${html}</div>`;
+    document.body.append(shade);
+    return shade;
+  }
+  function showSetup() {
+    const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
+    const shade = dialog("setup", `${titles.map((t) => `<div class="step"><span class="mark">○</span><span>${t}</span><span class="detail"></span><button class="btn primary" type="button" hidden></button></div>`).join("")}
+      <div class="ai"><span>Model AI · model nhẹ, mức thấp tốn ít token hơn</span><select class="model"></select><select class="effort"></select></div>
+      <div class="actions"><button class="btn again" type="button">Kiểm tra lại</button><button class="btn close" type="button">Đóng</button></div>`);
+    const rows = [...shade.querySelectorAll(".step")].map((row) => ({ mark: row.querySelector(".mark"), detail: row.querySelector(".detail"), fix: row.querySelector("button") }));
+    const [again, close, model, effort] = [".again", ".close", ".model", ".effort"].map((x) => shade.querySelector(x));
+    close.onclick = () => shade.remove();
+    const marks = { ok: ["✔", "darkgreen"], fail: ["✖", "firebrick"], warn: ["!", "#b06000"] };
+    const check = async () => {
+      again.disabled = true;
+      for (const r of rows) { r.mark.textContent = "○"; r.mark.style.color = ""; r.detail.textContent = "Đang kiểm tra…"; r.fix.hidden = true; }
+      const report = await post("/api/setup");
+      const steps = [].concat(report.Steps || []);
+      if (!steps.length) rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại.";
+      steps.forEach((step, i) => {
+        const r = rows[i];
+        if (!r) return;
+        const [mark, color] = marks[step.State] || ["○", ""];
+        r.mark.textContent = mark; r.mark.style.color = color; r.detail.textContent = step.Detail || "";
+        if (step.Action) {
+          r.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập";
+          r.fix.classList.toggle("primary", step.State !== "ok"); r.fix.hidden = false;
+          r.fix.onclick = () => fix(step.Action, r);
+        }
+      });
+      again.disabled = false;
+    };
+    // Installing or signing in runs on this Mac; the steps are checked again when it finishes.
+    const fix = async (action, row) => {
+      if (action === "drive") { await showDrive(); return check(); }
+      for (const r of rows) r.fix.disabled = true;
+      row.detail.textContent = action === "install" ? "Đang cài…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
+      const r = await post("/api/setup-step", { step: action });
+      for (const x of rows) x.fix.disabled = false;
+      await check();
+      if (r.error) row.detail.textContent = r.error;
+    };
+    again.onclick = check;
+    // Model AI: the model and reasoning level Codex uses; empty keeps Codex's own default.
+    const effortNames = { low: "Thấp · ít token nhất", medium: "Vừa", high: "Cao", xhigh: "Rất cao", max: "Tối đa", ultra: "Siêu cao" };
+    let models = [];
+    const fill = (select, values, labels, value) => { select.innerHTML = values.map((v, i) => `<option value="${esc(v)}">${esc(labels[i])}</option>`).join(""); select.value = values.includes(value) ? value : ""; };
+    const fillEfforts = (value) => {
+      const m = models.find((x) => x.slug === model.value);
+      const efforts = ["", ...(m ? [].concat(m.efforts || []) : ["low", "medium", "high"])];
+      fill(effort, efforts, efforts.map((e) => (e ? effortNames[e] + (m && e === m.default_effort ? " (mặc định)" : "") : "Mức suy nghĩ mặc định")), value);
+    };
+    model.onchange = effort.onchange = async () => {
+      fillEfforts(effort.value);
+      const r = await post("/api/config/ai", { model: model.value, effort: effort.value });
+      if (r.error) alert(r.error);
+    };
+    fetch("/api/config/ai").then((r) => r.json()).then((r) => {
+      models = [].concat(r.models || []);
+      const saved = r.settings || {};
+      if (saved.model && !models.some((m) => m.slug === saved.model)) models.unshift({ slug: saved.model, name: saved.model, efforts: ["low", "medium", "high"], default_effort: "" });
+      fill(model, ["", ...models.map((m) => m.slug)], ["Model mặc định của Codex", ...models.map((m) => m.name)], saved.model || "");
+      fillEfforts(saved.effort || "");
+    }).catch(() => { fill(model, [""], ["Model mặc định của Codex"], ""); fillEfforts(""); });
+    check();
+  }
+  // Mật khẩu app (Show-DriveLogin): log in once on this Mac for every tool, or log out.
+  async function showDrive() {
+    const { drive } = await fetch("/api/config/drive").then((r) => r.json()).catch(() => ({}));
+    const shade = dialog("", `<div class="status">${drive ? "Đã đăng nhập trên máy này. Ảnh tạo xong tự tải lên Drive." : "Nhập mật khẩu app một lần trên máy này để tải ảnh lên Drive và dùng kho Drive."}</div>
+      ${drive ? "" : `<input class="pass" type="password" style="width:100%;margin-bottom:6px">`}<div class="err"></div>
+      <div class="actions"><button class="btn primary go" type="button">${drive ? "Đăng xuất" : "Đăng nhập"}</button><button class="btn close" type="button">Đóng</button></div>`);
+    return new Promise((done) => {
+      const end = () => { shade.remove(); done(); };
+      const pass = shade.querySelector(".pass"), err = shade.querySelector(".err");
+      shade.querySelector(".close").onclick = end;
+      const go = async () => {
+        const r = drive ? await post("/api/config/drive", null, "DELETE") : await post("/api/config/drive", { password: pass.value });
+        if (r.error) err.textContent = r.error; else end();
+      };
+      shade.querySelector(".go").onclick = go;
+      if (pass) { pass.focus(); pass.onkeydown = (e) => { if (e.key === "Enter") go(); }; }
+    });
+  }
 })();

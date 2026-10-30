@@ -1,10 +1,11 @@
-﻿function Show-DriveLogin([Windows.Forms.Form]$Owner, [string]$WorkspaceRoot) {
+﻿# Mật khẩu app, from Cấu hình: saved once for every tool (Connect-DriveAccount, the shared drive.json).
+function Show-DriveLogin([Windows.Forms.Form]$Owner, [string]$WorkspaceRoot) {
     $dialog = New-Object Windows.Forms.Form -Property @{
         Text = 'Mật khẩu app'; ClientSize = '400,170'; StartPosition = 'CenterParent'
         FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false
         Font = (New-Object Drawing.Font('Segoe UI', 10))
     }
-    $connected = Test-Path -LiteralPath (Join-Path $WorkspaceRoot 'drive.json')
+    $connected = Test-Path -LiteralPath (Get-SharedConfigPath $WorkspaceRoot 'drive.json')
     $info = New-Object Windows.Forms.Label -Property @{ Location = '20,18'; Size = '360,40' }
     $pass = New-Object Windows.Forms.TextBox -Property @{ Location = '20,62'; Size = '360,28'; UseSystemPasswordChar = $true }
     $err = New-Object Windows.Forms.Label -Property @{ Location = '20,94'; Size = '360,22'; ForeColor = $script:Ui.Warn }
@@ -24,5 +25,5 @@
     }
     $dialog.Controls.AddRange(@($info, $pass, $err, $ok))
     [void]$dialog.ShowDialog($Owner)
-    return Test-Path -LiteralPath (Join-Path $WorkspaceRoot 'drive.json')
+    return Test-Path -LiteralPath (Get-SharedConfigPath $WorkspaceRoot 'drive.json')
 }

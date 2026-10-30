@@ -1,33 +1,6 @@
 ﻿# Inline product cards keep the URL and its chosen reference together.
-# Colours and Set-FlatButton are the hub's, shared by every Windows window (hub/winforms.ps1).
+# Colours, Set-FlatButton and the dropdown chevrons are the hub's, shared by every Windows window (hub/winforms.ps1).
 . (Join-Path $PSScriptRoot '../../../../hub/winforms.ps1')
-# Chevron: one thin rounded mark for every dropdown (lists and menu buttons), drawn the same as on macOS.
-function New-ChevronImage([Drawing.Color]$Color) {
-    $bitmap=New-Object Drawing.Bitmap(12,8);$g=[Drawing.Graphics]::FromImage($bitmap)
-    try{
-        $g.SmoothingMode='AntiAlias';$pen=New-Object Drawing.Pen($Color,1.5)
-        $pen.StartCap='Round';$pen.EndCap='Round';$pen.LineJoin='Round'
-        try{$g.DrawLines($pen,[Drawing.PointF[]]@((New-Object Drawing.PointF(2,2)),(New-Object Drawing.PointF(6,6)),(New-Object Drawing.PointF(10,2))))}finally{$pen.Dispose()}
-    }finally{$g.Dispose()}
-    return $bitmap
-}
-# A list ComboBox draws the system arrow; a small cover in the combo's own colours shows the chevron instead
-# and opens the list like the arrow did. Call it once the combo is on its form (its height follows the font).
-function Set-ComboChevron($Combo) {
-    $ink=New-ChevronImage ([Drawing.Color]::FromArgb(68,68,68));$dim=New-ChevronImage ([Drawing.Color]::FromArgb(160,160,160))
-    $normal=[Drawing.Color]::FromArgb(225,225,225);$hot=[Drawing.Color]::FromArgb(229,241,251);$off=[Drawing.Color]::FromArgb(204,204,204)
-    $cover=New-Object Windows.Forms.Label -Property @{Name='Chevron';ImageAlign='MiddleCenter';Image=$ink;BackColor=$normal}
-    $place={$cover.Bounds=New-Object Drawing.Rectangle(($Combo.Width-21),1,20,($Combo.Height-2))}.GetNewClosure()
-    $look={param([bool]$Hot)$cover.Image=$(if($Combo.Enabled){$ink}else{$dim});$cover.BackColor=$(if(-not $Combo.Enabled){$off}elseif($Hot){$hot}else{$normal})}.GetNewClosure()
-    $Combo.Controls.Add($cover);& $place;& $look $false
-    $Combo.Add_SizeChanged($place);$Combo.Add_EnabledChanged({& $look $false}.GetNewClosure())
-    $Combo.Add_MouseEnter({& $look $true}.GetNewClosure());$Combo.Add_MouseLeave({& $look $false}.GetNewClosure())
-    $cover.Add_MouseDown({if($Combo.Enabled){[void]$Combo.Focus();$Combo.DroppedDown=-not $Combo.DroppedDown}}.GetNewClosure())
-}
-# Menu buttons (Tải về máy) carry the same chevron at the right; a disabled button greys it itself.
-function Set-MenuButtonChevron($Button) {
-    $Button.Image=New-ChevronImage ([Drawing.Color]::FromArgb(68,68,68));$Button.ImageAlign='MiddleRight';$Button.Padding='0,0,8,0'
-}
 function Get-ProductQueueUrls($Editor) {
     @($Editor.Rows|ForEach-Object{$_.Url.Text.Trim()}|Where-Object{$_}|Select-Object -Unique)
 }
@@ -338,7 +311,7 @@ function Show-DriveSourcePicker($Owner,$Editor) {
     $ui=$script:Ui
     $libraryRoot=Join-Path $Editor.ProjectRoot 'data/source-photos'
     $drive=Get-DriveConfig (Join-Path $Editor.ProjectRoot 'workspace')
-    $noLogin='Chưa đăng nhập mật khẩu app. Mở Kiểm tra cấu hình để đăng nhập.'
+    $noLogin='Chưa đăng nhập mật khẩu app. Mở Cấu hình để đăng nhập.'
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Chọn ảnh review từ kho Drive';ClientSize='760,540';FormBorderStyle='FixedDialog';MinimizeBox=$false;MaximizeBox=$false;StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     # One toolbar row, 28px tall: danh mục, Mặc định and Tải về máy share its height and centre line.
     $groups=New-Object Windows.Forms.ComboBox -Property @{Name='DriveGroup';Location='20,14';Size='220,28';DropDownStyle='DropDownList'}

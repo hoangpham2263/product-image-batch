@@ -9,6 +9,7 @@ import { join, dirname, extname, resolve, sep, basename } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { randomUUID, createHash } from "node:crypto";
+import { createConfigApi } from "../../../../hub/setup/config-api.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
@@ -29,6 +30,7 @@ const PWSH = process.env.PR_PWSH || [
 const extraPath = ["/opt/homebrew/bin", "/usr/local/bin", join(homedir(), ".npm-global", "bin"), join(homedir(), ".dotnet", "tools")];
 const toolEnv = { ...process.env, PATH: [...new Set([...(process.env.PATH || "").split(":"), ...extraPath, dirname(process.execPath)])].filter(Boolean).join(":") };
 const findTool = (name) => toolEnv.PATH.split(":").map((d) => join(d, name)).find((p) => existsSync(p));
+const configApi = createConfigApi({ hubRoot, pwsh: PWSH, env: toolEnv });
 // Errors from the window, this server and PowerShell go to workspace/logs (app-errors.log as Write-AppError
 // writes it, mac-rpc.err.log), past 1 MB rolled over to *.old.log; Gửi lỗi sends them.
 mkdirSync(logs, { recursive: true });
@@ -239,12 +241,8 @@ async function handle(req, res) {
     return send(res, 200, { running: !!run.proc, done: run.done, exitCode: run.exitCode, stopped: run.stopped, resultFolder: run.resultFolder, events: run.events.slice(since), next: run.events.length });
   }
   if (path === "/api/stop" && req.method === "POST") { stopRun(); return send(res, 200, { ok: true }); }
-  if (path === "/api/setup" && req.method === "POST") {
-    execFile(PWSH, ["-NoProfile", "-File", join(root, "src", "setup-check.ps1"), "-AsJson"], { cwd: root, env: toolEnv, timeout: 120000 }, (err, stdout) => {
-      try { send(res, 200, JSON.parse(stdout)); } catch { send(res, 500, { error: "setup" }); }
-    });
-    return;
-  }
+  // Cấu hình is the hub's, shared by every tool (hub/setup/config-api.mjs).
+  if (await configApi(req, res, path)) return;
   if (path === "/api/choose-images" && req.method === "POST") {
     // macOS file dialog: opens the app's own folder and returns real paths (no copy through the browser).
     // table: a CSV or ZIP / RAR / 7Z archive for Nhập hàng loạt instead of images.
@@ -258,21 +256,6 @@ set out to out & POSIX path of f & linefeed
 end repeat
 return out`;
     execFile("osascript", ["-e", script], (err, stdout) => send(res, 200, { paths: err ? [] : stdout.split("\n").map((p) => p.trim()).filter(Boolean) }));
-    return;
-  }
-  if (path === "/api/setup-step" && req.method === "POST") {
-    // Cài (Codex via npm) or Đăng nhập (opens the browser, waits for the sign-in to finish).
-    const { step } = JSON.parse((await body(req)).toString("utf8") || "{}");
-    const npm = findTool("npm"), codex = findTool("codex");
-    if (step === "install" && !npm) return send(res, 400, { error: "Chưa có Node.js. Mở lại start-app.command để cài." });
-    const [cmd, args] = step === "install" ? [npm, ["install", "-g", "@openai/codex"]] : [codex || "codex", ["login"]];
-    execFile(cmd, args, { cwd: root, timeout: 15 * 60000, env: toolEnv }, (err, stdout, stderr) => {
-      if (err) return send(res, 500, { error: (String(stderr || stdout).trim().split("\n").pop() || err.message).slice(0, 300) });
-      // Cài also installs the browser bridge, as setup-install.ps1 does on Windows.
-      const bridge = join(root, "bridge");
-      if (step !== "install" || !npm || !existsSync(join(bridge, "package.json"))) return send(res, 200, { ok: true });
-      execFile(npm, ["install", "--silent"], { cwd: bridge, timeout: 10 * 60000, env: toolEnv }, () => send(res, 200, { ok: true }));
-    });
     return;
   }
   if (path === "/api/update" && req.method === "POST") {

@@ -3,15 +3,13 @@ param([switch]$BuildOnly)
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 [Windows.Forms.Application]::EnableVisualStyles()
 . (Join-Path $PSScriptRoot 'progress.ps1')
-. (Join-Path $PSScriptRoot 'drive-login.ps1')
-. (Join-Path $PSScriptRoot 'setup-dialog.ps1')
+. (Join-Path $PSScriptRoot '../../../../hub/setup/setup-dialog.ps1')
 . (Join-Path $PSScriptRoot '../../../../hub/update-dialog.ps1')
 . (Join-Path $PSScriptRoot 'app-icon.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent   # project root (base data and local workspace)
 . (Join-Path $srcDir 'application/workspace.ps1')
-. (Join-Path $srcDir 'application/ai-settings.ps1')
 . (Join-Path $srcDir 'infrastructure/platform.ps1')
 . (Join-Path $srcDir 'infrastructure/drive-storage.ps1')
 $workspace = Initialize-ProjectWorkspace $root
@@ -159,13 +157,15 @@ $btnMenu.Add_Click({
 })
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review';Location=$(if($fromHub){'122,19'}else{'20,19'});AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
-Set-FlatButton $btnUpdate
+# Cấu hình: shared by every tool (hub/setup), left of Cập nhật as on the Tools Hub menu.
+$btnConfig=New-Object Windows.Forms.Button -Property @{Text='Cấu hình';Location='872,16';Size='100,32';Anchor='Top,Right'}
+Set-FlatButton $btnUpdate; Set-FlatButton $btnConfig
 # Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
 $syncLabel=New-Object Windows.Forms.Label -Property @{Name='HeaderSync';Location='260,14';Size='700,22';Anchor='Top,Left,Right';ForeColor=$ui.Muted;AutoEllipsis=$true;TextAlign='MiddleRight';Visible=$false}
 $syncBar=New-Object Windows.Forms.ProgressBar -Property @{Name='HeaderSyncBar';Location='760,40';Size='200,4';Anchor='Top,Right';Style='Continuous';Visible=$false}
-$header.Controls.AddRange(@($btnMenu,$btnUpdate,$title,$syncLabel,$syncBar))
-# The sync line always ends 12px before the update button, however wide the button is.
-function Set-HeaderLayout { $syncLabel.Width = $btnUpdate.Left - 12 - $syncLabel.Left; $syncBar.Left = $btnUpdate.Left - 12 - $syncBar.Width }
+$header.Controls.AddRange(@($btnMenu,$btnConfig,$btnUpdate,$title,$syncLabel,$syncBar))
+# Cấu hình sits 8px left of the update button and the sync line ends 12px before it, however wide the button is.
+function Set-HeaderLayout { $btnConfig.Left = $btnUpdate.Left - 8 - $btnConfig.Width; $syncLabel.Width = $btnConfig.Left - 12 - $syncLabel.Left; $syncBar.Left = $btnConfig.Left - 12 - $syncBar.Width }
 Set-HeaderLayout
 
 $cardList=New-Card 'CardProducts' 'Link sản phẩm & ảnh' 20 78 820 344 'Top,Left,Right'
@@ -177,14 +177,13 @@ $queueEditor.Flow.BackColor=$ui.Surface;$queueEditor.Flow.BorderStyle='FixedSing
 $cardList.Controls.Add($queueEditor.Panel)
 
 $cardActions=New-Card 'CardActions' 'Thao tác' 856 78 224 344 'Top,Right'
-# In the order they are used: review the results, open them, then setup and support.
+# In the order they are used: review the results, open them, then support. Cấu hình is in the header.
 $btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất file';Location='14,36';Size='196,32'}
 $btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,73';Size='196,32'}
-$btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra cấu hình';Location='14,110';Size='196,32'}
-$btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi lỗi';Location='14,147';Size='196,32'}
-$btnClearLog=New-Object Windows.Forms.Button -Property @{Name='ClearNotifications';Text='Xóa thông báo';Location='14,184';Size='196,32'}
-foreach ($b in @($btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog))
+$btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi lỗi';Location='14,110';Size='196,32'}
+$btnClearLog=New-Object Windows.Forms.Button -Property @{Name='ClearNotifications';Text='Xóa thông báo';Location='14,147';Size='196,32'}
+foreach ($b in @($btnReview,$btnOut,$btnLogs,$btnClearLog)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnLogs,$btnClearLog))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
 function Update-ReviewButton {
     $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
@@ -223,12 +222,12 @@ $btnClearLog.Add_Click({$txtLog.Clear()})
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 # All foreground work shares the same main-window lock; background version/quota checks do not.
 function Update-ActionAvailability {
-    $busy=[bool]($script:proc -or $script:logsProc -or $script:setupProc -or $script:syncProc)
-    foreach($button in @($btnRun,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate,$btnMenu)){$button.Enabled=-not $busy}
+    $busy=[bool]($script:proc -or $script:logsProc -or $script:syncProc)
+    foreach($button in @($btnRun,$btnReview,$btnOut,$btnConfig,$btnLogs,$btnClearLog,$btnUpdate,$btnMenu)){$button.Enabled=-not $busy}
     $queueEditor.Panel.Enabled=-not $busy;$numThr.Enabled=-not $busy
     $btnStop.Enabled=[bool]$script:proc
 }
-foreach($button in @($btnRun,$btnStop,$btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog,$btnUpdate)){$button.AutoEllipsis=$true}
+foreach($button in @($btnRun,$btnStop,$btnReview,$btnOut,$btnConfig,$btnLogs,$btnClearLog,$btnUpdate)){$button.AutoEllipsis=$true}
 $actionStateTimer=New-Object Windows.Forms.Timer -Property @{Interval=150}
 $actionStateTimer.Add_Tick({Update-ActionAvailability})
 $form.Add_FormClosed({$actionStateTimer.Dispose()})
@@ -327,31 +326,8 @@ $btnOut.Add_Click({
     $target = if ($script:resultFolder -and (Test-Path -LiteralPath $script:resultFolder)) { $script:resultFolder } else { $workspace.Output }
     Open-Path $target
 })
-function Update-CodexPath {
-    # npm installs into a folder Windows adds to PATH only for new processes.
-    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
-}
-# A fix step runs in its own window (install progress, the sign-in link); the check window reopens after it.
-$script:setupProc = $null
-$setupTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 1000 }
-$setupTimer.Add_Tick({
-    if (-not $script:setupProc -or -not $script:setupProc.HasExited) { return }
-    $setupTimer.Stop(); $script:setupProc.Dispose(); $script:setupProc = $null
-    Update-CodexPath; $btnSetup.Enabled = $true; $btnSetup.PerformClick()
-})
-function Start-SetupStep([string]$Program, [string[]]$Arguments) {
-    $btnSetup.Enabled = $false
-    $script:setupProc = Start-Process $Program -ArgumentList $Arguments -PassThru
-    $setupTimer.Start();Update-ActionAvailability
-}
-$btnSetup.Add_Click({
-    switch (Show-SetupDialog $form $srcDir $workspace.Logs) {
-        # Installs whatever is missing (Node.js, Codex, sign-in, browser bridge).
-        'install' { Start-SetupStep 'powershell.exe' @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $srcDir 'setup-install.ps1') + '"')) }
-        'login' { Start-SetupStep 'cmd.exe' @('/c', 'codex login') }
-        'drive' { [void](Show-DriveLogin $form $workspace.Root); $btnSetup.PerformClick() }
-    }
-})
+# Cấu hình (hub/setup): install, sign-in and the app password run from there; Codex found afterwards is used here too.
+$btnConfig.Add_Click({ Show-HubSetup $form (Get-HubRoot $root) })
 # The list saves itself on every change; Bắt đầu checks that every link is ready.
 # Gửi lỗi: AI reads the guide and local logs; Node validates and uploads the report.
 $script:logsProc = $null
@@ -381,7 +357,7 @@ $btnLogs.Add_Click({
     if ([Windows.Forms.MessageBox]::Show($form, $question, 'Gửi lỗi', 'YesNo') -ne 'Yes') { return }
     $btnLogs.Enabled = $false; $btnLogs.Text = 'Đang gửi lỗi…'; $script:logsStep = ''
     $node=Get-Command node.exe -ErrorAction SilentlyContinue
-    if (-not $node) { Append-Log 'Chưa có Node.js. Mở Kiểm tra cấu hình.';$btnLogs.Enabled=$true;return }
+    if (-not $node) { Append-Log 'Chưa có Node.js. Mở Cấu hình.';$btnLogs.Enabled=$true;return }
     $script:logsProc = Start-Process $node.Source -WindowStyle Hidden -PassThru -RedirectStandardOutput $logsOut -RedirectStandardError $logsErr -ArgumentList @(('"' + (Join-Path $srcDir 'support-report.mjs') + '"'))
     [void]$script:logsProc.Handle
     $logsTimer.Start();Update-ActionAvailability
@@ -427,7 +403,7 @@ $timer.Add_Tick({
         }
         $timer.Stop(); $animTimer.Stop(); $script:proc.Dispose(); $script:proc = $null
         $btnRun.Enabled = $true; $btnRun.Text = 'Bắt đầu'; $btnStop.Enabled = $false
-        $btnSetup.Enabled = $true; $btnLogs.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numThr.Enabled = $true
+        $btnConfig.Enabled = $true; $btnLogs.Enabled = $true; $queueEditor.Panel.Enabled = $true; $numThr.Enabled = $true
         $btnReview.Enabled = $true
         $bar.Style = 'Continuous'; $bar.MarqueeAnimationSpeed = 0
         $bar.Value = [Math]::Min($bar.Maximum, $script:runDone)
@@ -464,10 +440,10 @@ $animTimer.Add_Tick({
 })
 function Start-GuiBatch {
     if ($script:proc) { return }
-    if(-not (Get-DriveConfig $workspace.Root)){Append-Log 'Nhập mật khẩu app trước khi chạy (Kiểm tra cấu hình).';return}
+    if(-not (Get-DriveConfig $workspace.Root)){Append-Log 'Nhập mật khẩu app trước khi chạy (Cấu hình).';return}
     try{Save-Urls -RequireReady}catch{Append-Log $_.Exception.Message;return}
     if (-not (Count-Urls)) { [Windows.Forms.MessageBox]::Show('Vui lòng thêm ít nhất một link sản phẩm.') | Out-Null; return }
-    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Kiểm tra cấu hình" để xem hướng dẫn.') | Out-Null; return }
+    if (-not (Get-Command codex -ErrorAction SilentlyContinue)) { [Windows.Forms.MessageBox]::Show('Chưa có công cụ xử lý. Bấm "Cấu hình" để xem hướng dẫn.') | Out-Null; return }
     $txtLog.Clear()
     Remove-Item $logFile, $errFile -Force -ErrorAction SilentlyContinue
     $script:pos = @{ out = 0L; err = 0L }
@@ -489,7 +465,7 @@ function Start-GuiBatch {
         return
     }
     $btnRun.Enabled = $false; $btnStop.Enabled = $true
-    $btnSetup.Enabled = $false; $btnLogs.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numThr.Enabled = $false
+    $btnConfig.Enabled = $false; $btnLogs.Enabled = $false; $queueEditor.Panel.Enabled = $false; $numThr.Enabled = $false
     $btnReview.Enabled = $false
     $lblStatus.Text = 'Đang chạy'; $lblStatus.ForeColor = $ui.Accent; $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30
     Update-RunDisplay

@@ -1,5 +1,5 @@
 ﻿# Read quota through the signed-in CLI; never inspect or print credential files.
-# -Short: "5 giờ còn 72%" for the main window; -Reset: "5 giờ lúc 18:00 29/10" for Kiểm tra cấu hình.
+# -Short: "5 giờ còn 72%" for the main window; -Reset: "5 giờ lúc 18:00 29/10" for Cấu hình.
 function Get-QuotaMessages($Data, [switch]$Short, [switch]$Reset) {
     $buckets = @()
     if ($Data.rateLimitsByLimitId) { $buckets = @($Data.rateLimitsByLimitId.PSObject.Properties | ForEach-Object Value | Where-Object { $_ }) }
@@ -49,7 +49,7 @@ function Get-ChatGptQuota([string]$CliPath) {
 }
 
 # One short line for the main window (shown beside the run, refreshed in the background): how much quota is left,
-# or why it cannot be shown. Reads the signed-in CLI only, like Kiểm tra cấu hình.
+# or why it cannot be shown. Reads the signed-in CLI only, like Cấu hình.
 function Get-QuotaSummary {
     $codex = @(Get-Command codex -CommandType Application -ErrorAction SilentlyContinue)[0]
     if (-not $codex) { return 'Hạn mức: chưa cài Codex' }

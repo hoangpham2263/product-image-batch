@@ -20,9 +20,7 @@
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
   /* Header to content is 80px (40px on phones), set only by this row gap (no margins on either side). */
-  .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; row-gap: 80px; }
-  @media (max-width: 639px) { .wrap { row-gap: 40px; } }
-  @media (min-width: 640px) and (max-width: 1023px) { .wrap { row-gap: 60px; } }
+  .wrap { width: 100%; padding: 20px 16px 24px; display: grid; row-gap: 24px; }
   @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; } }
   @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; } }
   .top { display: flex; align-items: center; gap: 12px; }
@@ -179,34 +177,48 @@
   .danger { color: var(--warn); }
   .toast { position: fixed; left: 50%; bottom: 24px; z-index: 9999; transform: translate(-50%, 12px); padding: 10px 16px; border-radius: 10px; background: #0f172a; color: #fff; font-size: 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); opacity: 0; pointer-events: none; transition: opacity .18s, transform .18s; }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  /* The footer stays at the bottom of the screen; content keeps its natural height. */
+  /* Full width: the menu on the left, the page beside it; the footer stays at the bottom of the screen. */
   .wrap { min-height: 100dvh; grid-template-rows: auto 1fr auto; }
-  .wrap > section { align-self: start; }
+  .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
+  .content { display: grid; gap: 24px; min-width: 0; }
+  .content > section { align-self: start; }
+  .side { position: sticky; top: 16px; display: grid; gap: 2px; }
+  .side-label { margin: 14px 10px 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .side-label:first-child { margin-top: 0; }
+  .side button { justify-content: flex-start; gap: 10px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+  .side button:hover { background: var(--soft); color: var(--fg); }
+  .side button.on { background: var(--soft); color: var(--fg); font-weight: 500; }
+  body:not(.admin) .admin-only { display: none; }
+  /* Pages reached from the menu need no "← Quản lý" back button. */
+  .crumbs .back[data-go=""] { display: none; }
   footer { text-align: center; align-self: end; }
-  /* Before the script runs, a signed-in visitor already sees the management menu. */
-  .signed-in #download, .signed-in #lockBtn { display: none !important; }
-  .signed-in:not(.ready) #home[hidden] { display: grid !important; }
+  .signed-in #lockBtn { display: none !important; }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; gap: 16px; }
+    .side { position: static; display: flex; gap: 4px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; }
+    .side-label { display: none; }
+    .side button { flex: none; }
+  }
   /* Download (signed out) */
   /* Download on the left, guide on the right; stacked on phones. */
-  .hero { grid-template-columns: 1fr 1.6fr; gap: 0; padding: 0; width: 100%; max-width: 880px; justify-self: center; align-self: start; }
+  .home { display: grid; gap: 20px; }
+  .intro { display: grid; gap: 4px; }
+  .intro p { margin: 0; max-width: 720px; }
+  .page-title { font-size: 22px; }
+  .hero { grid-template-columns: 300px minmax(0, 1fr); gap: 0; padding: 0; }
   .get { display: grid; justify-items: center; align-content: center; gap: 12px; padding: 32px 24px; text-align: center; }
   .guide { display: grid; align-content: start; gap: 14px; padding: 28px; border-left: 1px solid var(--border); min-width: 0; }
   @media (max-width: 640px) { .hero { grid-template-columns: 1fr; } .guide { border-left: 0; border-top: 1px solid var(--border); } }
-  /* Signed out: the download card sits in the middle of the screen. */
-  /* Equal rows above and below keep the card at the exact middle of the screen. */
-  body.out .wrap { min-height: 100dvh; grid-template-rows: auto auto 1fr; }
-  body.out .top { align-self: start; }
-  body.out footer { align-self: end; }
-  body.out .wrap > .hero { align-self: start; }
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
-  .hero .tools { grid-column: 1 / -1; display: grid; gap: 12px; padding: 24px 28px 28px; border-top: 1px solid var(--border); }
-  .hero .tools h2 { margin: 0; font-size: 16px; }
-  .tool-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .tool-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1px solid var(--border); border-radius: 12px; }
+  .home .tools { display: grid; gap: 12px; }
+  .home .tools h2 { margin: 0; font-size: 16px; }
+  .tool-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .tool-list > li { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--border); border-radius: 14px; }
   .tool-list img { flex: none; }
-  .tool-list li > span { display: grid; gap: 2px; }
+  .tool-list p { margin: 2px 0 8px; }
+  .tool-list ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
   .blocks-title { grid-column: 1 / -1; margin: 0; font-size: 16px; }
   .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
   .os-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--soft); }
@@ -252,7 +264,25 @@
     </button>
   </header>
 
-  <section id="download" class="card hero">
+  <div class="shell">
+  <!-- Left menu, by what each part is for; Quản lý only after signing in. Phones: a row that scrolls sideways. -->
+  <nav class="side" id="side" aria-label="Menu">
+    <span class="side-label">Bắt đầu</span>
+    <button type="button" data-go=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Trang chủ</button>
+    <button type="button" data-go="nhap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>Nhập hàng loạt</button>
+    <span class="side-label admin-only">Quản lý</span>
+    <button class="admin-only" type="button" data-go="anh"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>Ảnh đã tạo</button>
+    <button class="admin-only" type="button" data-go="nguon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>Nguồn ảnh</button>
+    <button class="admin-only" type="button" data-go="log"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>Log người dùng</button>
+    <button class="admin-only" type="button" data-go="api"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></svg>API</button>
+  </nav>
+  <div class="content">
+  <section id="download" class="home">
+    <div class="intro">
+      <h2 class="page-title">Tools Hub</h2>
+      <p class="muted">Bộ công cụ cho shop: tạo ảnh review, viết prompt video và soạn bài đăng. Cài một lần, mở từ một menu, cập nhật chung một nút.</p>
+    </div>
+    <div class="card hero">
     <div class="get">
       <a class="btn primary" href="https://github.com/hoangpham2263/tools-hub/releases/latest/download/tools-hub.zip">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
@@ -274,7 +304,7 @@
         <li>Bấm đúp <b>start-app.cmd</b>.</li>
         <li>Nếu Windows báo <i>Windows protected your PC</i>: bấm <b>More info</b> → <b>Run anyway</b>.</li>
         <li>Menu <b>Tools Hub</b> hiện ra: bấm công cụ cần dùng, bấm <b>← Menu</b> để quay lại.</li>
-        <li>Lần đầu mở <b>Product Review</b>: bấm <b>Kiểm tra cấu hình</b>, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>.</li>
+        <li>Lần đầu: bấm <b>Cấu hình</b> ở góc trên bên phải, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>. Cấu hình dùng chung cho mọi công cụ.</li>
         <li>Có bản mới thì bấm <b>Cập nhật</b> ở góc trên bên phải; một lần cập nhật cho mọi công cụ.</li>
       </ol>
       <ol class="steps" data-guide="mac" hidden>
@@ -283,16 +313,23 @@
         <li>Nếu macOS báo <i>Not Opened</i>: bấm <b>Done</b>, vào <b>System Settings → Privacy &amp; Security</b>, kéo xuống bấm <b>Open Anyway</b>, rồi bấm đúp lại.</li>
         <li>Lần đầu, nếu được hỏi cài Homebrew hay PowerShell: gõ <b>y</b> và mật khẩu máy.</li>
         <li>Menu <b>Tools Hub</b> hiện ra: bấm công cụ cần dùng, bấm <b>← Menu</b> để quay lại.</li>
-        <li>Lần đầu mở <b>Product Review</b>: bấm <b>Kiểm tra cấu hình</b>, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>.</li>
+        <li>Lần đầu: bấm <b>Cấu hình</b> ở góc trên bên phải, bước nào thiếu thì bấm <b>Cài</b> hoặc <b>Đăng nhập</b>. Cấu hình dùng chung cho mọi công cụ.</li>
         <li>Có bản mới thì bấm <b>Cập nhật</b> ở góc trên bên phải; một lần cập nhật cho mọi công cụ.</li>
       </ol>
+    </div>
     </div>
     <div class="tools">
       <h2>Công cụ trong app</h2>
       <ul class="tool-list">
-        <li><img src="tools/product-review.svg" alt="" width="40" height="40" /><span><b>Product Review</b><span class="muted small">Tạo ảnh review sản phẩm, viết review mẫu và xuất CSV cho Loox. Ảnh lưu trên Google Drive.</span></span></li>
-        <li><img src="tools/grok-video-prompt.svg" alt="" width="40" height="40" /><span><b>Grok Video Prompt</b><span class="muted small">Chọn thời lượng 6s / 10s / 15s và style, điền tên sản phẩm rồi copy prompt video cho Grok.</span></span></li>
-        <li><img src="tools/fb-content.svg" alt="" width="40" height="40" /><span><b>Content FB</b><span class="muted small">Soạn bài đăng Facebook từ thông tin sản phẩm (bản thử).</span></span></li>
+        <li><img src="tools/product-review.svg" alt="" width="40" height="40" /><div><b>Product Review</b>
+          <p class="muted small">Tạo ảnh review sản phẩm, viết review mẫu và xuất CSV cho Loox.</p>
+          <ul class="small"><li>Nhiều sản phẩm một lần, mỗi sản phẩm nhiều ảnh gốc và ảnh review.</li><li>Nhập hàng loạt từ bảng CSV hoặc thư mục nén.</li><li>Duyệt từng ảnh trước khi xuất file; ảnh lưu trên Google Drive.</li></ul></div></li>
+        <li><img src="tools/grok-video-prompt.svg" alt="" width="40" height="40" /><div><b>Grok Video Prompt</b>
+          <p class="muted small">Prompt video dựng sẵn cho Grok, điền tên sản phẩm là dùng được.</p>
+          <ul class="small"><li>Chọn thời lượng 6s / 10s / 15s và style.</li><li>Mỗi style có video mẫu để xem trước.</li><li>Copy prompt bằng một nút.</li></ul></div></li>
+        <li><img src="tools/fb-content.svg" alt="" width="40" height="40" /><div><b>Content FB</b>
+          <p class="muted small">Từ tên sản phẩm và ảnh gốc: tạo ảnh và soạn bài đăng Facebook (đang làm).</p>
+          <ul class="small"><li>Một ảnh gốc ra nhiều bối cảnh.</li><li>Chọn giọng văn, thêm lời nhắn cho AI.</li><li>Copy bài viết và hashtag ngay trên app.</li></ul></div></li>
       </ul>
     </div>
   </section>
@@ -400,6 +437,8 @@
     <button id="deleteGroupBtn" class="more danger" type="button" hidden>Xoá nhóm này</button>
   </section>
 
+  </div>
+  </div>
   <footer class="muted small">© <span id="year">2026</span> Tools Hub</footer>
 </main>
 
@@ -959,11 +998,12 @@ function route() {
   const nextGroup = state.view === "nguon" && group ? decodeURIComponent(group) : "";
   const groupChanged = nextGroup !== state.group;
   state.group = nextGroup;
-  $("download").hidden = signedIn || state.view === "nhap";
+  $("download").hidden = state.view !== "";
+  for (const b of document.querySelectorAll("#side [data-go]")) b.classList.toggle("on", b.dataset.go === state.view);
   $("nhap").hidden = state.view !== "nhap";
   $("nhapBack").textContent = signedIn ? "← Quản lý" : "← Trang chính";
   if (state.view === "nhap") loadImportDoc();
-  $("home").hidden = !signedIn || state.view !== "";
+  $("home").hidden = true;
   $("manage").hidden = !signedIn || state.view !== "anh";
   $("sources").hidden = !signedIn || state.view !== "nguon";
   $("logs").hidden = !signedIn || state.view !== "log";
@@ -985,6 +1025,7 @@ function showAdmin() {
   const signedIn = !!store.get();
   document.documentElement.classList.add("ready");
   document.body.classList.toggle("out", !signedIn);
+  document.body.classList.toggle("admin", signedIn);
   $("lockBtn").hidden = signedIn;
   $("settingsBtn").hidden = !signedIn;
   $("dlIcon").hidden = !signedIn;

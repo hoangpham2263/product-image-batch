@@ -1,6 +1,6 @@
 #!/bin/bash
 # One-time install on macOS, run by start-app.command when Node.js or PowerShell is missing: Homebrew, Node.js, PowerShell 7, Codex CLI, ChatGPT sign-in and the
-# browser bridge, each only when missing, then the same readiness check as the app's Kiểm tra cấu hình.
+# browser bridge, each only when missing, then the same readiness check as the app's Cấu hình.
 cd "$(dirname "$0")/../.." || exit 1
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.dotnet/tools:$PATH"
 step() { printf '\n== %s\n' "$1"; }
@@ -33,5 +33,5 @@ step "Cầu nối trình duyệt"
 [ -f bridge/package.json ] && (cd bridge && npm install --silent) && echo "Đã cài."
 
 step "Kiểm tra"
-pwsh -NoProfile -File src/setup-check.ps1
+pwsh -NoProfile -File ../../hub/setup/setup-check.ps1
 echo

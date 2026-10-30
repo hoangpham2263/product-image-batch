@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('node:assert/strict');
-const { readQuota, resolveCommand } = require('../src/infrastructure/read-quota.cjs');
+const { readQuota, resolveCommand } = require('../../../hub/setup/read-quota.cjs');
 const command = code => ({ file: process.execPath, args: ['-e', code] });
 (async () => {
   const success = await readQuota(command([

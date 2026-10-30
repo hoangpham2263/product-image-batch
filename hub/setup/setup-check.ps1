@@ -1,4 +1,4 @@
-﻿# Read-only readiness, sign-in and live quota checks; no AI turns are created.
+﻿# Cấu hình, shared by every tool: read-only readiness, sign-in and live quota checks; no AI turns are created.
 param([switch]$AsJson)
 $ErrorActionPreference = 'Stop'
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
@@ -12,7 +12,7 @@ $engine = Get-Command codex -ErrorAction SilentlyContinue
 $checks.Add([pscustomobject]@{
     Ok = [bool]$engine
     Message = $(if ($engine) { 'Công cụ xử lý: đã cài đặt.' } else { 'Chưa cài công cụ xử lý.' })
-    Action = 'Bấm Kiểm tra cấu hình rồi bấm Cài.'
+    Action = 'Bấm Cấu hình rồi bấm Cài.'
 })
 $loggedIn = $false
 $apiKey = $false
@@ -34,7 +34,7 @@ $checks.Add([pscustomobject]@{
     Message = $(if ($apiKey) { 'Tài khoản: đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'ChatGPT: đã đăng nhập.' } else { 'ChatGPT: chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.' })
     Action = 'Bấm Đăng nhập Codex rồi đăng nhập ChatGPT trong trình duyệt.'
 })
-. (Join-Path $PSScriptRoot 'infrastructure/quota.ps1')
+. (Join-Path $PSScriptRoot 'quota.ps1')
 $quotaAvailable = $false
 $quotaMessages = @()
 if ($loggedIn) {
@@ -50,11 +50,12 @@ if ($loggedIn) {
     }
 }
 $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
-# The app's Kiểm tra cấu hình window shows these in order (app password first); each step only matters once the one before it is done.
+# The Cấu hình window shows these in order (app password first); each step only matters once the one before it is done.
 # State: ok, fail, warn (works but unconfirmed) or wait (blocked by an earlier step). Action names the fix button.
 $node = Get-Command node -ErrorAction SilentlyContinue
 # The saved app password is tried against the server, so a changed password shows up here.
-$driveFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'workspace/drive.json'
+. (Join-Path $PSScriptRoot 'config.ps1')
+$driveFile = Get-SharedConfigPath (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'workspace') 'drive.json'
 $driveState = 'fail'; $driveDetail = 'Chưa nhập; cần để tải ảnh lên Drive và dùng kho Drive.'
 if (Test-Path -LiteralPath $driveFile) {
     try {

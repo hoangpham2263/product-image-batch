@@ -2,6 +2,6 @@
 # never waits). Redirected console output would use the Windows code page and break the Vietnamese text.
 param([Parameter(Mandatory)][string]$OutFile)
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'infrastructure/quota.ps1')
+. (Join-Path $PSScriptRoot '../../../hub/setup/quota.ps1')
 $text = try { Get-QuotaSummary } catch { 'Hạn mức: chưa lấy được' }
 [IO.File]::WriteAllText($OutFile, $text, [Text.UTF8Encoding]::new($false))

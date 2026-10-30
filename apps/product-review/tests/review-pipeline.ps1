@@ -2,8 +2,11 @@
 # Offline integration test: real runspaces with mocked external AI/image IO.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$tempRoot = Join-Path $TestWorkspaceRoot ('review-pipeline-test-' + [Guid]::NewGuid().ToString('N'))
-New-Item -ItemType Directory -Path $tempRoot | Out-Null
+# A copy laid out like an install (apps/<tool> beside hub/), so src finds the hub's shared setup scripts.
+$tempHub = Join-Path $TestWorkspaceRoot ('review-pipeline-test-' + [Guid]::NewGuid().ToString('N'))
+$tempRoot = Join-Path $tempHub 'apps/product-review'
+New-Item -ItemType Directory -Path $tempRoot, (Join-Path $tempHub 'hub') | Out-Null
+Copy-Item -LiteralPath (Join-Path $root '../../hub/setup') -Destination (Join-Path $tempHub 'hub') -Recurse
 function Assert($Condition, [string]$Message) { if (-not $Condition) { throw $Message } }
 try {
     Copy-Item -LiteralPath (Join-Path $root 'src') -Destination $tempRoot -Recurse
@@ -150,8 +153,9 @@ function Invoke-AI($PromptText, $Images, $ResultFile, $Sandbox) {
     Assert ((Get-Content (Join-Path $tempRoot 'empty.csv')) -ceq $expected) 'Empty CSV header incorrect.'
     Write-Host 'PASS: parallel image/review pipeline, local final metadata, CSV, failed queue, name pools.' -ForegroundColor Green
 } finally {
-    $resolvedTemp = [IO.Path]::GetFullPath($tempRoot)
-    $allowedParent = [IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\') + '\'
+    $resolvedTemp = [IO.Path]::GetFullPath($tempHub)
+    $sep = [IO.Path]::DirectorySeparatorChar
+    $allowedParent = [IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd($sep) + $sep
     if ($resolvedTemp.StartsWith($allowedParent, [StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolvedTemp -Leaf) -like 'review-pipeline-test-*') {
         Remove-Item -LiteralPath $resolvedTemp -Recurse -Force
     }
