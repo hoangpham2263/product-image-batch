@@ -30,21 +30,20 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 // tool.json: "platforms" [{ name, color }] it works with, "features" a few short lines.
 const card = (t) => `<span class="top"><img src="/icon/${esc(t.id)}" alt=""><span><span class="name">${esc(t.name)}</span>`
   + `<span class="plat">${(t.platforms || []).map((p) => `<span style="--c:${esc(p.color || "#888")}"><i></i>${esc(p.name)}</span>`).join("")}</span></span></span>`
-  + `<ul>${(t.features || []).map((f) => `<li>${esc(f)}</li>`).join("")}</ul><span class="go">Mở công cụ →</span>`;
+  + `<ul>${(t.features || []).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(`Tools Hub ${version}`.trim())}</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
 <style>
-/* Tools in a 3-column grid: icon, name and the platforms it works with, then what it does, then "Mở công cụ". */
+/* Tools in a 3-column grid: icon, name and the platforms it works with, then what it does. No bold text. */
 .tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.tools form{margin:0;display:flex}
-.tools button{position:relative;display:flex;flex-direction:column;align-items:stretch;width:100%;min-height:220px;padding:16px;text-align:left;cursor:pointer;font:inherit;color:inherit}
-.tools button:hover{border-color:var(--accent);background:#fff}.tools button:hover .go{text-decoration:underline}
+.tools button{position:relative;display:flex;flex-direction:column;align-items:stretch;width:100%;min-height:190px;padding:16px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.tools button:hover{border-color:var(--accent);background:#fff}
 .tools .top{display:flex;gap:12px;align-items:center}.tools img{width:48px;height:48px;flex:none}
-.tools .name{display:block;font-size:15px;font-weight:600;line-height:1.3}
+.tools .name{display:block;font-size:15px;line-height:1.3}
 .tools .plat{display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:3px;font-size:11.5px;color:var(--muted)}.tools .plat span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
 .tools .plat i{width:7px;height:7px;border-radius:50%;background:var(--c)}
 .tools ul{list-style:none;margin:14px 0 0;padding:12px 0 0;border-top:1px solid #e3e3e3;font-size:13px;line-height:1.75}
-.tools li{position:relative;padding-left:20px}.tools li::before{content:"✓";position:absolute;left:2px;color:var(--accent);font-weight:700}
-.tools .go{margin-top:auto;padding-top:12px;color:var(--accent);font-weight:600}
+.tools li{position:relative;padding-left:20px}.tools li::before{content:"✓";position:absolute;left:2px;color:var(--accent)}
 @media (max-width:900px){.tools{grid-template-columns:repeat(2,minmax(0,1fr))}}body{min-height:100vh;display:flex;flex-direction:column}main{flex:1}footer{padding:0 20px 16px;text-align:center;font-size:12px}</style><script src="/hub/hub.js" defer></script></head>
 <body><main><header><h1>Tools Hub</h1></header><div class="setup-status" id="setupStatus" role="status"></div><section class="group"><h2>Công cụ</h2><div class="tools list">
 ${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit" title="${esc(t.description)}">${card(t)}</button></form>`).join("")}

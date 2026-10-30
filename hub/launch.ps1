@@ -93,11 +93,11 @@ if ($tools.Count -gt 1) {
         } catch { }
     })
     # Tools in a 3-column grid, as on macOS (hub/picker.mjs): icon, name and the platforms it works with ("platforms" in
-    # tool.json), a line, what it does ("features"), then "Mở công cụ". The whole card opens the tool.
+    # tool.json), a line, then what it does ("features"). No bold text; the whole card opens the tool.
     $cols = 3; $rows = [Math]::Ceiling($tools.Count / $cols)
-    $grid = New-Object Windows.Forms.TableLayoutPanel -Property @{ Location = '20,134'; Size = (New-Object Drawing.Size(1076, ($rows * 232))); Anchor = 'Top,Left,Right'; ColumnCount = $cols; RowCount = $rows }
+    $grid = New-Object Windows.Forms.TableLayoutPanel -Property @{ Location = '20,134'; Size = (New-Object Drawing.Size(1076, ($rows * 202))); Anchor = 'Top,Left,Right'; ColumnCount = $cols; RowCount = $rows }
     for ($i = 0; $i -lt $cols; $i++) { [void]$grid.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent', (100 / $cols)))) }
-    for ($i = 0; $i -lt $rows; $i++) { [void]$grid.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute', 232))) }
+    for ($i = 0; $i -lt $rows; $i++) { [void]$grid.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute', 202))) }
     $script:cardPen = New-Object Drawing.Pen([Drawing.Color]::FromArgb(172, 172, 172))
     $script:cardHoverPen = New-Object Drawing.Pen($script:Ui.Accent)
     $script:rulePen = New-Object Drawing.Pen([Drawing.Color]::FromArgb(227, 227, 227))
@@ -125,11 +125,10 @@ if ($tools.Count -gt 1) {
         $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
         $icon = New-Object Windows.Forms.PictureBox -Property @{ Location = '16,16'; Size = '48,48'; SizeMode = 'Zoom'; BackColor = [Drawing.Color]::Transparent }
         if (Test-Path -LiteralPath $png) { $icon.Image = New-Object Drawing.Bitmap($png) }
-        $name = New-Object Windows.Forms.Label -Property @{ Text = $item.name; Location = '74,18'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI Semibold', 11); BackColor = [Drawing.Color]::Transparent }
+        $name = New-Object Windows.Forms.Label -Property @{ Text = $item.name; Location = '74,18'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI', 11); BackColor = [Drawing.Color]::Transparent }
         $features = New-Object Windows.Forms.Label -Property @{ Text = ((@($item.features) | Where-Object { $_ } | ForEach-Object { "✓  $_" }) -join "`r`n"); Location = '16,92'; AutoSize = $true; MaximumSize = '320,0'; Font = New-Object Drawing.Font('Segoe UI', 9.5); BackColor = [Drawing.Color]::Transparent }
-        $go = New-Object Windows.Forms.Label -Property @{ Text = 'Mở công cụ →'; AutoSize = $true; Anchor = 'Bottom,Left'; Font = New-Object Drawing.Font('Segoe UI Semibold', 9.5); ForeColor = $script:Ui.Accent; BackColor = [Drawing.Color]::Transparent }
-        $card.Controls.AddRange(@($icon, $name, $features, $go))
-        $card.Add_Resize({ param($s) foreach ($c in $s.Controls) { if ($c.Text -like 'Mở công cụ*') { $c.Location = New-Object Drawing.Point(16, ($s.Height - 16 - $c.Height)) } elseif ($c.Top -ge 90) { $c.MaximumSize = New-Object Drawing.Size(($s.Width - 32), 0) } } })
+        $card.Controls.AddRange(@($icon, $name, $features))
+        $card.Add_Resize({ param($s) foreach ($c in $s.Controls) { if ($c.Top -ge 90) { $c.MaximumSize = New-Object Drawing.Size(($s.Width - 32), 0) } } })
         foreach ($c in @($card) + @($card.Controls)) { $c.Add_Click($openCard); $c.Add_MouseEnter($hoverCard); $c.Add_MouseLeave($hoverCard); $c.Cursor = 'Hand' }
         [void]$grid.Controls.Add($card)
     }
