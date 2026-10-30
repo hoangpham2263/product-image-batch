@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
 <script src="../../../hub/assets/hub.js" defer></script>
 <script src="../data/prompts.js"></script>
+<script src="../data/demo-prompts.js"></script>
 <style>
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* Fit the window: groups keep their size and long content scrolls inside them. */
@@ -15,7 +16,7 @@ body { height: 100vh; overflow: hidden; }
 main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
 .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
 .layout:has(#addGroup:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
-#styles { max-height: 236px; overflow: auto; }
+#styles { height: 288px; overflow-y: auto; align-content: start; padding-right: 2px; }
 #product { min-height: 90px; max-height: 160px; }
 #newPrompt { max-height: 160px; }
 #promptGroup { display: flex; flex-direction: column; min-height: 0; }

@@ -55,6 +55,15 @@ try{
     Assert (-not @($map.entries|Where-Object product_url -eq 'https://shop.test/c').Count) 'Reviews of a failed product image must not be attached elsewhere.'
     Assert (@($result.failed).Count -eq 2 -and $result.failed[0].line -eq 2 -and $result.failed[0].reason -match 'ảnh sản phẩm' -and $result.reviews -eq 1) 'Each failure must name its line and reason.'
 
+    # The install folder moved (renamed, Tools Hub layout): saved absolute paths go stale, images are found beside the map.
+    $mapFile="$temp/project/workspace/reference-inputs/references.json"
+    $text=Get-Content -LiteralPath $mapFile -Raw -Encoding UTF8
+    $stale=$text.Replace(((Resolve-Path "$temp/project").Path -replace '\\','\\\\'),'/old-install/product-review-batch')
+    Assert ($stale -ne $text) 'The test must make the saved paths stale.'
+    [IO.File]::WriteAllText($mapFile,$stale,[Text.UTF8Encoding]::new($false))
+    $map=Read-ManualReferenceMap $mapFile
+    Assert (-not @($map.entries|ForEach-Object{Get-ManualProducts $_}|ForEach-Object{@($_.file)+@($_.scenes.file)}|Where-Object{$_ -and -not (Test-Path -LiteralPath $_)}).Count) 'Images of a moved install must be found beside the map.'
+
     # The background script writes its result to the status file.
     $file="$temp/batch.csv";$status="$temp/status.json"
     [IO.File]::WriteAllText($file,"product_url,product_image,review_images`nhttps://shop.test/e,p2.jpg,r3.jpg")

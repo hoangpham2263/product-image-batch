@@ -61,6 +61,8 @@ if ($tools.Count -gt 1) {
         $button.Add_Click({ param($s) if ($s.Tag.web) { Start-Process (Join-Path $s.Tag.Root $s.Tag.web) } else { $form.Tag = $s.Tag; $form.Close() } })
         $form.Controls.Add($button); $y += 72
     }
+    $footer = New-Object Windows.Forms.Label -Property @{ Text = "© $((Get-Date).Year) Tools Hub"; Dock = 'Bottom'; Height = 36; TextAlign = 'MiddleCenter'; ForeColor = [Drawing.Color]::FromArgb(96, 96, 96); Font = New-Object Drawing.Font('Segoe UI', 9) }
+    $form.Controls.Add($footer)
     [void]$form.ShowDialog()
     if (-not $form.Tag) { return }
     $tool = $form.Tag

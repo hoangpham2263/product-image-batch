@@ -12,6 +12,11 @@
         # product + review pair becomes one generated image. Older maps (one product_file plus
         # scenes) load as a single product.
         $products=@(Get-ManualProducts $entry)
+        $folder=Split-Path $Path -Parent
+        foreach($product in $products){
+            $product.file=Repair-ManualImagePath $product.file $folder
+            foreach($scene in @($product.scenes)){$scene.file=Repair-ManualImagePath $scene.file $folder}
+        }
         Set-ManualProducts $entry $products
         $scenes=@(Get-ManualScenes $entry)
         $uri=$null
@@ -19,6 +24,15 @@
         $seen[$entry.product_url]=$true
     }
     return $map
+}
+
+# Images are saved next to the map with absolute paths; after the install folder moves (rename, the
+# Tools Hub layout) those paths are stale, so an image missing at its path is looked up beside the map.
+function Repair-ManualImagePath([string]$File,[string]$Folder) {
+    if(-not $File -or (Test-Path -LiteralPath $File)){return $File}
+    $local=Join-Path $Folder (Split-Path $File -Leaf)
+    if(Test-Path -LiteralPath $local){return $local}
+    return $File
 }
 
 # Product images of a link: { file (may be empty: product read from the page), sha256, scenes[] }.
