@@ -122,9 +122,9 @@ Bài học được đúc kết thành nguyên tắc ngắn để áp dụng l�
 <!-- app-lesson: {"id":"table-seating-dining-tables","scope":"category","product_url":"","category":"dining-tables","created_at":"2026-10-27T06:48:09.3468036Z"} -->
 Áp dụng: danh mục `dining-tables`.
 
-- Ghế quanh bàn ăn phải hợp phong cách và chiều cao sử dụng; bán cả bộ thì dùng đúng ghế của bộ.
-- Chỉ bán bàn thì phối ghế hiện có theo yêu cầu, không coi ghế là hàng bán kèm.
-- Không áp kiểu ghế của sản phẩm khác, tự thêm chỗ ngồi hoặc đổi kiến trúc phòng.
+- Ghế quanh bàn ăn phải hợp phong cách và chiều cao sử dụng; bán cả bộ thì dùng đúng ghế của bộ. Mặt bàn là mặt phẳng cứng ngang theo sàn: không chúi về người xem hoặc lệch ngang về một hàng ghế; cạnh vẫn thu theo phối cảnh, không ép ngang khung ảnh. Giữ tỉ lệ, độ dày và chân theo nguồn, không kế thừa chân bàn cũ.
+- Chỉ bán bàn thì phối ghế hiện có theo yêu cầu, không coi ghế là hàng bán kèm. Khoảng từ MẶT ĐỆM GHẾ đến MẶT DƯỚI BÀN phải thoáng rõ, đủ để đùi, đầu gối và chân; không tính khoảng hở tới mặt trên hoặc che chỗ chật bằng mép bàn.
+- Cho phép chỉnh cục bộ vị trí và tỉ lệ toàn ghế khi cần, giữ kiểu ghế, số chỗ ngồi và chân chạm sàn. Không bóp thấp/kéo giãn bàn, tăng độ dày mặt hoặc đổi chân để khớp ghế; không bịa kích thước, thêm ghế hay đổi kiến trúc phòng.
 
 ### Chỗ ngồi cho bàn trà
 <!-- app-lesson: {"id":"table-seating-coffee-table","scope":"category","product_url":"","category":"coffee-table","created_at":"2026-10-27T06:48:09.3592337Z"} -->

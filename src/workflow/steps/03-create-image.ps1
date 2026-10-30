@@ -62,6 +62,21 @@ Do not modify any input file. Reply briefly in English.
     if ($isObject) {
         if (-not $picked.Count) { throw 'A real-life reference is required for this product.' }
         $sceneBase = $picked[0]
+        $diningSeating = ''
+        if ('dining-tables' -in @($context.source_categories)) {
+            $diningSeating = @"
+DINING TABLE AND SEATING FIT: treat the table and surrounding chairs as one physically usable arrangement.
+Preserve the target table's proportions, top thickness, material and support construction from the product reference. Do not lower, flatten, stretch or thicken the table or change its legs to fit the old chairs.
+The tabletop must be a LEVEL HORIZONTAL PLANE parallel to the room floor, with correct camera foreshortening. Do not pitch or roll it toward the viewer or either chair row; irregular live edges are not a sloping tabletop. Remove the old table's support geometry rather than inheriting its waterfall end or pedestal.
+Resolve both crosswise roll and longitudinal pitch using the fixed room's vanishing directions. The near-side long edge must not droop toward its chair row. A level table does not mean screen-horizontal edges: preserve natural perspective, not a front-facing flattened slab. Do not rotate the camera, room or whole photograph to hide tilt. Keep slab supports meeting the underside and floor coherently, with no floating gaps.
+Keep the existing chair count and, for a table-only product, the existing chair design. If the source explicitly includes a matching set, use that set's chair design instead; do not claim scene chairs are sold with a table-only product.
+Preserving the room does not lock incompatible chair placement or scale: adjust only the surrounding chairs' local positions and coherent overall scale as needed for the new table, without distorting seats, backs or legs independently.
+Maintain believable seat height relative to the UNDERSIDE of the tabletop, with usable thigh clearance, knee space and foot space around the base. Do not press cushions against the underside, trap chairs against slab supports, or hide impossible clearance behind the table edge.
+Judge that relative fit from the TOP OF THE SEAT CUSHION to the ACTUAL UNDERSIDE, never to the top surface of the slab. Keep a clearly visible usable open gap for the near-side chairs. Resolve the whole arrangement coherently; do not merely raise the top while stretching the supports.
+Use one consistent floor plane, camera perspective, human scale and contact shadows for the table and every chair; all visible chair feet must meet the floor naturally.
+Use verified dimensions when supplied. Otherwise infer only plausible relative fit from the references; do not invent or label exact measurements. Do not add seats, people, a seated mannequin or measurement overlays. Apply these constraints during the single generation; no separate AI quality-scoring or regeneration pass.
+"@
+        }
         $promptText = @"
 EDIT THE EXISTING ROOM PHOTOGRAPH. Do not generate or redesign a room from scratch.
 Target product: $($context.product). Presentation: $($context.presentation).
@@ -78,9 +93,10 @@ $brandInstruction
 Appropriate context: $($context.setting)
 Reject: $($context.reject)
 Replace only the old furniture occupying the placement area with the actual linked product.
-Preserve the product's design, chair count, grain, proportions and finish. Adapt only its
+Preserve the product's design, grain, proportions and finish. Adapt only its
 placement, perspective and local lighting to fit the existing camera and room.
 Do not copy the reference room's table/chairs as the product, or change the room to fit a different product.
+$diningSeating
 Keep existing people and unrelated props where they are; do not introduce new people or decorations.
 Match the room's EXISTING exposure, shadows, reflections and camera noise locally on the inserted product.
 Preserve the original material hue and recognizable grain under that illumination. The product need not match the color palette of other furniture. Do not bleach, desaturate or restain the wood just to blend with the room.

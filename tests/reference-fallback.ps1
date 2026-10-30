@@ -29,12 +29,17 @@ function Test-ObjectSceneSelection {
     Assert ($tableRequest.Prompt -match 'without further image processing' -and $tableRequest.Prompt -match 'originally bare table bare') 'Generation must directly deliver the tool image and preserve originally empty surfaces.'
     Assert ($tableRequest.Prompt -match 'NO INVENTED PROPS' -and $tableRequest.Prompt -match 'Empty areas and bare surfaces must stay empty' -and $tableRequest.Prompt -match 'must not be transplanted into an empty room') 'Empty-room constraints must prevent newly staged props, including objects copied from the product photo.'
     Assert ($tableRequest.Prompt -match 'Ghế quanh bàn ăn.*chiều cao sử dụng' -and $tableRequest.Prompt -match 'bán cả bộ.*đúng ghế' -and $tableRequest.Prompt -match 'không coi ghế là hàng bán kèm') 'Table seating preference is missing or falsely claims sold components.'
+    Assert ($tableRequest.Prompt -match 'DINING TABLE AND SEATING FIT' -and $tableRequest.Prompt -match 'UNDERSIDE' -and $tableRequest.Prompt -match 'thigh clearance, knee space and foot space' -and $tableRequest.Prompt -match 'does not lock incompatible chair placement or scale' -and $tableRequest.Prompt -match 'Do not lower, flatten, stretch or thicken' -and $tableRequest.Prompt -match 'do not invent or label exact measurements') 'Dining edits must reconcile seating clearance without deforming the product or inventing dimensions.'
+    Assert ($tableRequest.Prompt -match 'LEVEL HORIZONTAL PLANE parallel to the room floor' -and $tableRequest.Prompt -match 'TOP OF THE SEAT CUSHION to the ACTUAL UNDERSIDE' -and $tableRequest.Prompt -match 'Remove the old table.s support geometry' -and $tableRequest.Prompt -match 'do not merely raise the top while stretching the supports') 'Dining fit must explicitly prevent tilted tops, cushion clearance mistakes and inherited old-table supports.'
+    Assert ($tableRequest.Prompt -match 'crosswise roll and longitudinal pitch' -and $tableRequest.Prompt -match 'does not mean screen-horizontal edges' -and $tableRequest.Prompt -match 'Do not rotate the camera, room or whole photograph') 'Level-table correction must preserve room perspective rather than rotate or flatten the photograph.'
     $object.source_categories=@('coffee-table');$object.product='low oval coffee table'
     $coffeeRequest=New-ProductImageRequest 'product.jpg' 'coffee-room' $object $selected ([Collections.ArrayList]::new())
     Assert ($coffeeRequest.Prompt -match 'Bàn trà thấp.*không giữ ghế ăn cao' -and $coffeeRequest.Prompt -match 'không tự thêm ghế hoặc đổi toàn bộ căn phòng') 'Coffee-table seating must fit the current product without adding seats or redesigning the room.'
+    Assert ($coffeeRequest.Prompt -notmatch 'DINING TABLE AND SEATING FIT') 'Dining chair clearance must not override low coffee-table seating.'
     $object.source_categories=@('lamps');$object.product='floor lamp'
     $lampRequest=New-ProductImageRequest 'product.jpg' 'lamp-room' $object $selected ([Collections.ArrayList]::new())
     Assert ($lampRequest.Prompt -notmatch 'Ghế quanh bàn ăn|Bàn trà thấp') 'Table preference leaked into an unrelated product category.'
+    Assert ($lampRequest.Prompt -notmatch 'DINING TABLE AND SEATING FIT') 'Dining seating instructions leaked into an unrelated object edit.'
 }
 Test-ObjectSceneSelection
 $picked = @(Select-ProductReferences 'actual.png' 'apron' 'one-source' $context)
