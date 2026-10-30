@@ -10,6 +10,27 @@
   const config = Object.assign(document.createElement("button"), { type: "button", className: "btn config", textContent: "Cấu hình" });
   header.append(config, btn);
   config.onclick = showSetup;
+  // The menu says whether Cấu hình is done: every step but the quota (which only reads what is left) must be OK.
+  // Cấu hình turns green while something is missing; closing the window checks again.
+  const status = document.getElementById("setupStatus");
+  const STEP_NAMES = { drive: "mật khẩu app", node: "Node.js", codex: "Codex", login: "đăng nhập ChatGPT" };
+  async function refreshStatus() {
+    if (!status) return;
+    status.className = "setup-status";
+    status.innerHTML = `<span class="mark">○</span><span class="text muted">Đang kiểm tra cấu hình…</span>`;
+    const report = await fetch("/api/setup", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    const steps = [].concat(report?.Steps || []);
+    if (!steps.length) { status.innerHTML = `<span class="mark">!</span><span class="text">Chưa kiểm tra được cấu hình. Bấm Cấu hình để xem.</span>`; return; }
+    const missing = steps.filter((s) => s.Id in STEP_NAMES && s.State !== "ok" && s.State !== "warn").map((s) => STEP_NAMES[s.Id]);
+    const done = !missing.length;
+    status.className = `setup-status ${done ? "ok" : "todo"}`;
+    status.innerHTML = done
+      ? `<span class="mark">✔</span><span class="text">Đã cấu hình đủ. Các công cụ sẵn sàng dùng.</span>`
+      : `<span class="mark">✖</span><span class="text">Chưa cấu hình xong: còn thiếu ${missing.join(", ")}. Cấu hình đủ rồi mới dùng được các công cụ.</span><button class="btn primary" type="button">Cấu hình ngay</button>`;
+    status.querySelector("button")?.addEventListener("click", showSetup);
+    config.classList.toggle("primary", !done);
+  }
+  refreshStatus();
   let next = "", current = "";
   const show = () => { btn.textContent = next ? `Cập nhật ${next}` : "Cập nhật"; btn.classList.toggle("primary", !!next); };
   const check = () => fetch("/api/update-check").then((r) => (r.ok ? r.json() : Promise.reject())).then((r) => { next = r.next || ""; current = r.current || ""; show(); return true; }).catch(() => false);
@@ -62,7 +83,7 @@
       <div class="actions"><button class="btn again" type="button">Kiểm tra lại</button><button class="btn close" type="button">Đóng</button></div>`);
     const rows = [...shade.querySelectorAll(".step")].map((row) => ({ mark: row.querySelector(".mark"), detail: row.querySelector(".detail"), fix: row.querySelector("button") }));
     const [again, close, model, effort] = [".again", ".close", ".model", ".effort"].map((x) => shade.querySelector(x));
-    close.onclick = () => shade.remove();
+    close.onclick = () => { shade.remove(); refreshStatus(); };
     const marks = { ok: ["✔", "darkgreen"], fail: ["✖", "firebrick"], warn: ["!", "#b06000"] };
     const check = async () => {
       again.disabled = true;

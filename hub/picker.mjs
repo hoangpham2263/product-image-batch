@@ -24,7 +24,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tools Hub</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
 <style>.tools{display:grid;gap:8px}.tools form{margin:0}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:64px;padding:0 14px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:40px;height:40px;flex:none}body{min-height:100vh;display:flex;flex-direction:column}main{flex:1}footer{padding:0 20px 16px;text-align:center;font-size:12px}</style><script src="/hub/hub.js" defer></script></head>
-<body><main><header><h1>Tools Hub</h1></header><section class="group"><h2>Công cụ</h2><div class="tools list">
+<body><main><header><h1>Tools Hub</h1></header><div class="setup-status" id="setupStatus" role="status"></div><section class="group"><h2>Công cụ</h2><div class="tools list">
 ${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span class="name">${esc(t.name)}</span></button></form>`).join("")}
 </div></section></main><footer class="muted">© ${new Date().getFullYear()} Tools Hub</footer></body></html>`;
 

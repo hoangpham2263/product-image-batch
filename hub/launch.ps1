@@ -50,15 +50,49 @@ if ($tools.Count -gt 1) {
     Set-FlatButton $btnConfig
     $placeConfig = { $btnConfig.Location = New-Object Drawing.Point(($btnUpdate.Left - 8 - 100), 16) }
     & $placeConfig
-    $btnConfig.Add_Click({ Show-HubSetup $form $root })
     $form.Controls.Add($btnConfig)
+    # Whether Cấu hình is done, above the tools: every step but the quota must be OK before the tools work. Checked in
+    # the background (setup-check.ps1) when the menu opens and after Cấu hình closes; Cấu hình turns green until done.
+    $setupBox = New-Object Windows.Forms.Panel -Property @{ Location = '20,78'; Size = '1064,44'; Anchor = 'Top,Left,Right'; BackColor = [Drawing.Color]::White; BorderStyle = 'FixedSingle' }
+    $setupText = New-Object Windows.Forms.Label -Property @{ Location = '12,0'; Size = '900,42'; Anchor = 'Top,Left,Right'; TextAlign = 'MiddleLeft'; AutoEllipsis = $true; Text = '○  Đang kiểm tra cấu hình…'; ForeColor = $script:Ui.Muted }
+    $setupFix = New-Object Windows.Forms.Button -Property @{ Text = 'Cấu hình ngay'; Size = '130,30'; Location = '922,6'; Anchor = 'Top,Right'; Visible = $false }
+    Set-FlatButton $setupFix -Primary
+    $setupBox.Controls.AddRange(@($setupText, $setupFix)); $form.Controls.Add($setupBox)
+    $setupOut = Join-Path $logDir "menu-setup-$PID.json"
+    $script:setupCheck = $null
+    $setupTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
+    $startSetupCheck = {
+        if ($script:setupCheck) { return }
+        $setupText.Text = '○  Đang kiểm tra cấu hình…'; $setupText.ForeColor = $script:Ui.Muted; $setupFix.Visible = $false
+        $script:setupCheck = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $setupOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'setup/setup-check.ps1') + '"'), '-AsJson')
+        $setupTimer.Start()
+    }
+    $setupTimer.Add_Tick({
+        if (-not $script:setupCheck.HasExited) { return }
+        $setupTimer.Stop(); $script:setupCheck.Dispose(); $script:setupCheck = $null
+        $names = @{ drive = 'mật khẩu app'; node = 'Node.js'; codex = 'Codex'; login = 'đăng nhập ChatGPT' }
+        try {
+            $steps = @((Get-Content -LiteralPath $setupOut -Raw -Encoding UTF8 | ConvertFrom-Json).Steps)
+            $missing = @($steps | Where-Object { $names.ContainsKey([string]$_.Id) -and $_.State -notin @('ok', 'warn') } | ForEach-Object { $names[[string]$_.Id] })
+            if ($missing.Count) {
+                $setupText.Text = "✖  Chưa cấu hình xong: còn thiếu $($missing -join ', '). Cấu hình đủ rồi mới dùng được các công cụ."
+                $setupText.ForeColor = $script:Ui.Warn; $setupFix.Visible = $true; Set-FlatButton $btnConfig -Primary
+            } else {
+                $setupText.Text = '✔  Đã cấu hình đủ. Các công cụ sẵn sàng dùng.'
+                $setupText.ForeColor = $script:Ui.Ok; Set-FlatButton $btnConfig
+            }
+        } catch { $setupText.Text = '!  Chưa kiểm tra được cấu hình. Bấm Cấu hình để xem.'; $setupText.ForeColor = $script:Ui.Warn }
+    })
+    $btnConfig.Add_Click({ Show-HubSetup $form $root; & $startSetupCheck })
+    $setupFix.Add_Click({ $btnConfig.PerformClick() })
     $form.Add_Shown({
+        & $startSetupCheck
         try {
             $next = Get-AppUpdate $root
             if ($next) { $btnUpdate.Text = "Cập nhật $next"; $btnUpdate.Width = 150; $btnUpdate.Left = $form.ClientSize.Width - 24 - 150; Set-FlatButton $btnUpdate -Primary; & $placeConfig }
         } catch { }
     })
-    $y = 64
+    $y = 134
     foreach ($item in $tools) {
         $button = New-Object Windows.Forms.Button -Property @{ Left = 20; Top = $y; Width = 1064; Height = 64; Anchor = 'Top,Left,Right'; Tag = $item; FlatStyle = 'Flat'; BackColor = [Drawing.Color]::White; TextAlign = 'MiddleLeft'; ImageAlign = 'MiddleLeft'; TextImageRelation = 'ImageBeforeText'; Padding = '10,0,0,0'; Cursor = 'Hand' }
         $button.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(172, 172, 172); $button.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(230, 238, 248)

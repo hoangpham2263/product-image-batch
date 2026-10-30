@@ -60,6 +60,15 @@ details summary { cursor: default; color: var(--muted); }
 header .config { margin-left: auto; }
 header .update { margin-left: auto; }
 header .config + .update { margin-left: 0; }
+/* Menu: whether Cấu hình is done (hub.js), above the tools; the tools need every step done. */
+.setup-status { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 8px 14px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); }
+.setup-status .mark { font-size: 15px; width: 18px; text-align: center; }
+.setup-status .text { flex: 1; min-width: 0; }
+.setup-status.ok { border-color: var(--accent); }
+.setup-status.ok .mark { color: darkgreen; }
+.setup-status.todo { border-color: #b06000; background: #fff8ef; }
+.setup-status.todo .mark { color: #b06000; }
+.setup-status .btn { height: 28px; }
 /* Cấu hình (hub.js): each step with its state and fix button, then Model AI. */
 .dialog.setup { width: 520px; }
 .setup .step { display: grid; grid-template-columns: 26px 1fr 110px; gap: 2px 8px; align-items: center; margin-bottom: 12px; }
