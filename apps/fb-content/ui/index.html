@@ -7,30 +7,55 @@
 <link rel="icon" href="../icon.svg">
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
 <style>
-/* Fits the window, like Grok Video Prompt. Left: the product (name, original images), the images made from them and
-   the post. Right: actions, then the extra details the post uses. */
+/* Laid out like Product Review's window: the product list with Thao tác beside it, the run row, then the results of the
+   chosen product (its images and a post to copy) where Product Review shows its progress. Fits the window. */
 body { height: 100vh; overflow: hidden; }
 main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
-.layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 400px; }
-.col { display: flex; flex-direction: column; gap: 20px; min-height: 0; min-width: 0; }
-.col > .group { flex: none; }
-.col > .grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.col > .grow.scroll { overflow-y: auto; }
-#points { min-height: 72px; max-height: 120px; }
-.pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
-.pair + label { margin-top: 10px; }
-#note { min-height: 72px; max-height: 140px; }
-#postGroup pre.out { flex: 1; min-height: 0; max-height: none; }
-/* Image strips: square tiles that scroll sideways when there are many. */
-.tiles { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 400px; grid-template-rows: auto auto minmax(0, 1fr); }
+.tools-row { display: flex; gap: 12px; margin-bottom: 10px; }
+#rows { height: 224px; padding: 10px 10px 6px; }
+/* One row per product, as in Product Review: #, name, status, thumbnail, Xem / sửa, ×. */
+.qrow { display: grid; grid-template-columns: 34px minmax(0, 1fr) 150px 44px 96px 34px; gap: 8px; align-items: center; height: 60px; padding: 0 8px 0 10px; margin-bottom: 4px; background: #fff; border: 1px solid var(--line); cursor: pointer; }
+.qrow:hover { background: var(--hover); }
+.qrow[aria-current="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.qrow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qrow .thumb { width: 44px; height: 44px; background: var(--control); object-fit: cover; display: block; }
+.qrow .btn { height: 34px; padding: 0; }
+.ok { color: #006400; } .warn { color: rgb(176, 96, 0); }
+.empty-list { height: 100%; display: grid; place-content: center; color: var(--muted); }
+#tones { margin-bottom: 4px; }
+#tones .card { min-height: 40px; }
+#note { min-height: 72px; max-height: 120px; }
+.run { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 11px 14px; }
+.run .btn { height: 40px; }
+#btnRun { width: 160px; } #btnStop { width: 100px; }
+/* Results of the chosen product: its images on the left, the post on the right. */
+#resultGroup { grid-column: 1 / -1; display: flex; flex-direction: column; min-height: 0; }
+#result { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 20px; min-height: 0; }
+#result .side { display: flex; flex-direction: column; min-height: 0; }
+#result .side > label { margin: 0 0 6px; display: flex; align-items: center; justify-content: space-between; height: 32px; }
+#out { flex: 1; min-height: 0; max-height: none; margin: 0; }
+.tiles { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 10px; overflow-y: auto; min-height: 0; flex: 1; }
 .tile { position: relative; flex: none; width: 112px; height: 112px; background: #fff; border: 1px solid var(--line); }
 .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.tile .remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; line-height: 20px; font-size: 13px; }
-.tile.add { display: grid; place-content: center; text-align: center; gap: 4px; border-style: dashed; color: var(--muted); cursor: pointer; font: inherit; }
+.tile .remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; font-size: 13px; }
+.tile.add { display: grid; place-content: center; text-align: center; gap: 4px; border-style: dashed; color: var(--muted); font: inherit; cursor: pointer; }
 .tile.add:hover, .tiles.dropping .tile.add { background: var(--hover); border-color: var(--accent); }
 .tile.add b { font-size: 26px; font-weight: 300; line-height: 1; }
 .tile.waiting { display: grid; place-content: center; text-align: center; border-style: dashed; color: var(--muted); padding: 8px; font-size: 12px; }
-.empty-note { height: 112px; display: grid; place-content: center; text-align: center; background: #fff; border: 1px dashed var(--line); color: var(--muted); }
+.empty-note { flex: 1; display: grid; place-content: center; text-align: center; background: #fff; border: 1px dashed var(--line); color: var(--muted); padding: 12px; }
+/* Xem / sửa: the product's details and original images, like Product Review's product dialog. */
+dialog { width: 640px; max-width: calc(100vw - 40px); padding: 0; border: 1px solid #7a7a7a; background: var(--control); box-shadow: 0 8px 30px rgba(0, 0, 0, .25); }
+dialog::backdrop { background: rgba(0, 0, 0, .25); }
+dialog .bar { display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 4px 0 12px; background: #fff; border-bottom: 1px solid var(--line); }
+dialog .bar button { width: 32px; height: 28px; border: 0; background: none; font-size: 16px; }
+dialog .body { padding: 14px 16px 16px; }
+dialog .pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+dialog .pair label { margin-top: 0; }
+dialog textarea { min-height: 72px; max-height: 120px; }
+dialog .tiles { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; padding-bottom: 2px; }
+dialog .foot { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+dialog .foot .btn { width: 104px; }
 </style>
 <script src="../../../hub/assets/hub.js" defer></script>
 </head>
@@ -39,116 +64,195 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
   <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Content FB</h1></header>
 
   <div class="layout">
-    <div class="col">
-      <section class="group">
-        <h2>Sản phẩm</h2>
-        <div class="pair">
-          <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
-          <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
-        </div>
-        <label>Ảnh gốc</label>
-        <div class="tiles" id="sources"></div>
-        <input id="pick" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
-      </section>
-      <section class="group">
-        <h2>Ảnh tạo thành</h2>
-        <div class="tiles" id="results"></div>
-      </section>
-      <section class="group grow" id="postGroup">
-        <h2>Bài đăng</h2>
-        <pre class="out" id="out" style="margin:0"></pre>
-      </section>
-    </div>
-    <div class="col">
-      <section class="group actions-col">
-        <h2>Thao tác</h2>
-        <label>Giọng văn</label>
-        <div class="list listbox" id="tones" role="group" aria-label="Giọng văn"></div>
-        <label for="note">Lời nhắn cho AI</label>
-        <textarea id="note" placeholder="Gửi kèm khuôn sẵn: ý muốn thêm hoặc góp ý. Ví dụ: nhấn mạnh gỗ tự nhiên, giọng gần gũi, dưới 120 chữ."></textarea>
-        <button class="btn primary" id="make" type="button">Tạo ảnh</button>
-        <button class="btn" id="copy" type="button">Copy bài đăng</button>
-      </section>
-      <section class="group grow scroll">
-        <h2>Thông tin thêm</h2>
-        <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
-        <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
-        <label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra">
-      </section>
-    </div>
+    <section class="group">
+      <h2>Sản phẩm &amp; ảnh</h2>
+      <div class="tools-row">
+        <button class="btn primary" id="btnAdd" type="button" style="width:160px">+ Thêm sản phẩm</button>
+        <button class="btn" id="btnClear" type="button" style="width:120px">Xóa tất cả</button>
+      </div>
+      <div class="listbox" id="rows"></div>
+    </section>
+    <section class="group actions-col">
+      <h2>Thao tác</h2>
+      <label>Giọng văn</label>
+      <div class="list listbox" id="tones" role="group" aria-label="Giọng văn"></div>
+      <label for="note">Lời nhắn cho AI</label>
+      <textarea id="note" placeholder="Gửi kèm khuôn sẵn: ý muốn thêm hoặc góp ý. Ví dụ: nhấn mạnh gỗ tự nhiên, giọng gần gũi, dưới 120 chữ."></textarea>
+    </section>
+    <section class="group run">
+      <button class="btn primary" id="btnRun" type="button">Bắt đầu</button>
+      <button class="btn" id="btnStop" type="button" disabled>Dừng</button>
+      <span class="muted" id="status"></span>
+    </section>
+    <section class="group" id="resultGroup">
+      <h2 id="resultTitle">Kết quả</h2>
+      <div id="result">
+        <div class="side"><label>Ảnh tạo thành</label><div class="tiles" id="results"></div></div>
+        <div class="side"><label>Bài đăng <button class="btn" id="copy" type="button">Copy bài đăng</button></label><pre class="out" id="out"></pre></div>
+      </div>
+    </section>
   </div>
 </main>
+
+<dialog id="dlg">
+  <div class="bar"><span id="dlgTitle">Sản phẩm</span><button type="button" id="dlgX" aria-label="Đóng">✕</button></div>
+  <div class="body">
+    <div class="pair">
+      <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
+      <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
+    </div>
+    <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
+    <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
+    <label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra">
+    <label>Ảnh gốc</label>
+    <div class="tiles" id="sources"></div>
+    <input id="pick" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
+    <div class="foot"><button class="btn primary" id="dlgSave" type="button">Lưu</button><button class="btn" id="dlgCancel" type="button">Hủy</button></div>
+  </div>
+</dialog>
 <div class="toast" id="toast"></div>
 <script>
 // Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
-// Temporary logic: fills a fixed template per tone. The real generator (brand voice, AI) replaces compose() and gets
-// Lời nhắn cho AI (note) with the template, to steer it or give feedback; it is kept with the draft until then.
+// Many products at once, as in Product Review. Each has its details and original images; Bắt đầu will make images
+// from them (Product Review's image logic, adapted) and write a post per product. Not built yet: the post is a fixed
+// template per tone (compose), and the AI will get Lời nhắn cho AI with the template.
+// The product details are kept in this browser; original images only while the page is open.
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["name", "note", "brand", "link", "points", "tags"], KEY = "fb-content:draft";
+const KEY = "fb-content:v2";
+const FIELDS = ["name", "brand", "link", "points", "tags"];
 const TONES = { story: "Kể chuyện", short: "Ngắn gọn", sale: "Giới thiệu bán hàng" };
-let tone = "story";
 const OPENING = {
   story: (n) => `Có những món đồ mình chọn vì đẹp, và có những món ở lại lâu vì hợp với nhịp sống trong nhà. ${n} là một món như vậy.`,
   short: (n) => `${n}.`,
   sale: (n) => `Giới thiệu ${n}.`,
 };
-function compose(v) {
-  const name = v.name.trim() || "[Tên sản phẩm]";
-  const points = v.points.split("\n").map((s) => s.trim()).filter(Boolean);
-  const parts = [OPENING[v.tone](name)];
+const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
+const state = { tone: TONES[saved.tone] ? saved.tone : "story", note: saved.note || "", rows: (saved.rows || []).map((r) => ({ ...r, sources: [] })), current: saved.current || "" };
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ tone: state.tone, note: state.note, current: state.current, rows: state.rows.map(({ sources, ...r }) => r) })); } catch {} };
+const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+
+function compose(row) {
+  const name = row.name.trim() || "[Tên sản phẩm]";
+  const points = row.points.split("\n").map((s) => s.trim()).filter(Boolean);
+  const parts = [OPENING[state.tone](name)];
   if (points.length) parts.push(points.map((p) => `- ${p}`).join("\n"));
-  if (v.brand.trim()) parts.push(`${v.brand.trim()} — ${v.tone === "story" ? "vẻ đẹp tự nhiên, qua đôi tay người thợ." : "xem thêm tại link bên dưới."}`);
-  if (v.link.trim()) parts.push(v.link.trim());
-  const tags = v.tags.split(/\s+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`));
+  if (row.brand.trim()) parts.push(`${row.brand.trim()} — ${state.tone === "story" ? "vẻ đẹp tự nhiên, qua đôi tay người thợ." : "xem thêm tại link bên dưới."}`);
+  if (row.link.trim()) parts.push(row.link.trim());
+  const tags = row.tags.split(/\s+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`));
   if (tags.length) parts.push(tags.join(" "));
   return parts.join("\n\n");
 }
-function render() {
-  const v = { ...Object.fromEntries(FIELDS.map((f) => [f, $(f).value])), tone };
-  try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
+function rowStatus(row) {
+  if (!row.sources.length) return { text: "● Chưa có ảnh", cls: "warn" };
+  return { text: `● ${row.sources.length} ảnh gốc`, cls: "ok" };
+}
+
+function renderRows() {
+  if (!state.rows.some((r) => r.id === state.current)) state.current = state.rows[0]?.id || "";
+  $("rows").replaceChildren(...(state.rows.length ? state.rows.map((row, i) => {
+    const st = rowStatus(row);
+    const card = el("div", { className: "qrow" });
+    card.setAttribute("aria-current", row.id === state.current);
+    const thumb = row.sources[0] ? el("img", { className: "thumb", src: row.sources[0].url, alt: "" }) : el("div", { className: "thumb" });
+    const open = el("button", { type: "button", className: "btn", textContent: "Xem / sửa" });
+    const remove = el("button", { type: "button", className: "btn", textContent: "×", title: "Xóa sản phẩm" });
+    card.append(el("span", { className: "muted", textContent: `#${i + 1}` }), el("span", { className: "name", textContent: row.name, title: row.link }), el("span", { className: st.cls, textContent: st.text }), thumb, open, remove);
+    card.onclick = () => { state.current = row.id; render(); };
+    open.onclick = (e) => { e.stopPropagation(); state.current = row.id; render(); edit(row); };
+    remove.onclick = (e) => { e.stopPropagation(); row.sources.forEach((s) => URL.revokeObjectURL(s.url)); state.rows.splice(state.rows.indexOf(row), 1); render(); };
+    return card;
+  }) : [el("div", { className: "empty-list", textContent: "Bấm + Thêm sản phẩm để bắt đầu." })]));
+}
+function renderTones() {
   $("tones").replaceChildren(...Object.entries(TONES).map(([id, name]) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "card"; b.textContent = name; b.setAttribute("aria-pressed", id === tone);
-    b.onclick = () => { tone = id; render(); };
+    const b = el("button", { type: "button", className: "card", textContent: name });
+    b.setAttribute("aria-pressed", id === state.tone);
+    b.onclick = () => { state.tone = id; render(); };
     return b;
   }));
-  $("out").textContent = compose(v);
 }
-try { const saved = JSON.parse(localStorage.getItem(KEY)) || {}; FIELDS.forEach((f) => { if (saved[f] != null) $(f).value = saved[f]; }); if (TONES[saved.tone]) tone = saved.tone; } catch {}
-FIELDS.forEach((f) => $(f).addEventListener("input", render));
-// Original images: picked or dropped, shown here only (not saved yet). Making images from them comes later, from
-// Product Review's image logic; for now each original gets a waiting tile in Ảnh tạo thành.
-let sources = [];
-function renderImages() {
-  const add = Object.assign(document.createElement("button"), { type: "button", className: "tile add", innerHTML: "<b>+</b>Thêm ảnh<br><span class=small>hoặc kéo thả</span>" });
+function renderResult() {
+  const i = state.rows.findIndex((r) => r.id === state.current), row = state.rows[i];
+  $("resultTitle").textContent = row ? `Kết quả · #${i + 1} ${row.name}` : "Kết quả";
+  $("out").textContent = row ? compose(row) : "";
+  $("copy").disabled = !row;
+  $("results").replaceChildren(...(row?.sources.length
+    ? row.sources.map((s) => el("div", { className: "tile waiting", textContent: `Ảnh từ ${s.name}` }))
+    : [el("div", { className: "empty-note", textContent: row ? "Thêm ảnh gốc ở Xem / sửa, rồi bấm Bắt đầu." : "Thêm sản phẩm để xem ảnh và bài đăng ở đây." })]));
+}
+function render() {
+  renderRows(); renderTones(); renderResult();
+  $("status").textContent = `Sẵn sàng • ${state.rows.length} sản phẩm`;
+  persist();
+}
+
+// ----- Xem / sửa -----
+let editing = null, draft = [];
+function renderSources() {
+  const add = el("button", { type: "button", className: "tile add", innerHTML: "<b>+</b>Thêm ảnh<br><span class=small>hoặc kéo thả</span>" });
   add.onclick = () => $("pick").click();
-  $("sources").replaceChildren(...sources.map((src, i) => {
-    const tile = Object.assign(document.createElement("div"), { className: "tile" });
-    const remove = Object.assign(document.createElement("button"), { type: "button", className: "btn remove", textContent: "×", title: "Bỏ ảnh này" });
-    remove.onclick = () => { URL.revokeObjectURL(src.url); sources.splice(i, 1); renderImages(); };
-    tile.append(Object.assign(document.createElement("img"), { src: src.url, alt: src.name, title: src.name }), remove);
+  $("sources").replaceChildren(...draft.map((s, i) => {
+    const tile = el("div", { className: "tile" });
+    const remove = el("button", { type: "button", className: "btn remove", textContent: "×", title: "Bỏ ảnh này" });
+    remove.onclick = () => { draft.splice(i, 1); renderSources(); };
+    tile.append(el("img", { src: s.url, alt: s.name, title: s.name }), remove);
     return tile;
   }), add);
-  $("results").replaceChildren(...(sources.length
-    ? sources.map((src) => Object.assign(document.createElement("div"), { className: "tile waiting", textContent: `Ảnh từ ${src.name}` }))
-    : [Object.assign(document.createElement("div"), { className: "empty-note", style: "flex:1", textContent: "Thêm ảnh gốc và tên sản phẩm, rồi bấm Tạo ảnh." })]));
 }
 function addFiles(files) {
-  for (const f of files) if (/^image\/(jpeg|png|webp)$/.test(f.type)) sources.push({ name: f.name, url: URL.createObjectURL(f) });
-  renderImages();
+  for (const f of files) if (/^image\/(jpeg|png|webp)$/.test(f.type)) draft.push({ name: f.name, url: URL.createObjectURL(f) });
+  renderSources();
 }
+function edit(row) {
+  editing = row;
+  $("dlgTitle").textContent = row ? `Sản phẩm #${state.rows.indexOf(row) + 1}` : "Thêm sản phẩm";
+  FIELDS.forEach((f) => { $(f).value = row ? row[f] : ""; });
+  draft = row ? [...row.sources] : [];
+  renderSources();
+  $("dlg").showModal();
+  $("name").focus();
+}
+function closeDialog() {
+  // Images added and then cancelled are released; kept ones stay with their product.
+  const kept = new Set(state.rows.flatMap((r) => r.sources.map((s) => s.url)));
+  draft.filter((s) => !kept.has(s.url)).forEach((s) => URL.revokeObjectURL(s.url));
+  $("dlg").close();
+}
+$("dlgSave").onclick = () => {
+  if (!$("name").value.trim()) { $("name").focus(); return toast("Điền tên sản phẩm"); }
+  const row = editing || { id: Date.now().toString(36) };
+  FIELDS.forEach((f) => { row[f] = $(f).value; });
+  const keep = new Set(draft.map((s) => s.url));
+  (row.sources || []).filter((s) => !keep.has(s.url)).forEach((s) => URL.revokeObjectURL(s.url));
+  row.sources = draft;
+  if (!editing) state.rows.push(row);
+  state.current = row.id;
+  $("dlg").close();
+  render();
+};
+$("dlgCancel").onclick = $("dlgX").onclick = closeDialog;
+$("dlg").addEventListener("cancel", (e) => { e.preventDefault(); closeDialog(); });
 $("pick").onchange = (e) => { addFiles(e.target.files); e.target.value = ""; };
 const strip = $("sources");
 strip.addEventListener("dragover", (e) => { e.preventDefault(); strip.classList.add("dropping"); });
 strip.addEventListener("dragleave", () => strip.classList.remove("dropping"));
 strip.addEventListener("drop", (e) => { e.preventDefault(); strip.classList.remove("dropping"); addFiles(e.dataTransfer.files); });
-$("make").onclick = () => {
-  if (!$("name").value.trim()) { $("name").focus(); return toast("Điền tên sản phẩm"); }
-  if (!sources.length) return toast("Thêm ảnh gốc trước");
-  toast("Tạo ảnh đang được làm, chưa dùng được");
+
+$("btnAdd").onclick = () => edit(null);
+$("btnClear").onclick = () => {
+  if (!state.rows.length || !confirm("Xóa tất cả sản phẩm?")) return;
+  state.rows.forEach((r) => r.sources.forEach((s) => URL.revokeObjectURL(s.url)));
+  state.rows = []; render();
 };
-renderImages();
+$("note").value = state.note;
+$("note").oninput = (e) => { state.note = e.target.value; persist(); };
+$("btnRun").onclick = () => {
+  if (!state.rows.length) return toast("Thêm sản phẩm trước");
+  const missing = state.rows.findIndex((r) => !r.sources.length);
+  if (missing >= 0) return toast(`Sản phẩm #${missing + 1} chưa có ảnh gốc`);
+  toast("Tạo ảnh và bài đăng đang được làm, chưa dùng được");
+};
 $("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy bài đăng"); };
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 render();
