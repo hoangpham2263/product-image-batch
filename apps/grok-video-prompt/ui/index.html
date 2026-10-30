@@ -8,13 +8,25 @@
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
 <script src="../../../hub/assets/hub.js" defer></script>
 <script src="../data/prompts.js"></script>
-<style>.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }</style>
+<style>
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Fit the window: groups keep their size and long content scrolls inside them. */
+body { height: 100vh; overflow: hidden; }
+main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
+.layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+.layout:has(#addGroup:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
+#styles { max-height: 236px; overflow: auto; }
+#product { min-height: 90px; max-height: 160px; }
+#newPrompt { max-height: 160px; }
+#promptGroup { display: flex; flex-direction: column; min-height: 0; }
+#promptGroup pre.out { flex: 1; min-height: 0; max-height: none; }
+</style>
 </head>
 <body>
 <main>
   <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Grok Video Prompt</h1></header>
 
-  <div class="layout" style="grid-template-columns:minmax(0,1fr) 360px">
+  <div class="layout">
     <section class="group">
       <h2>Style</h2>
       <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
@@ -23,7 +35,7 @@
     <section class="group actions-col">
       <h2>Thao tác</h2>
       <label for="product">Tên sản phẩm</label>
-      <textarea id="product" placeholder="Bàn trà gỗ óc chó chân vòm" style="min-height:90px" required></textarea>
+      <textarea id="product" placeholder="Bàn trà gỗ óc chó chân vòm" required></textarea>
       <div class="pair"><button class="btn primary" id="copy" type="button">Copy prompt</button><button class="btn" id="toggleAdd" type="button">Thêm prompt</button></div>
     </section>
     <section class="group wide" id="addGroup" hidden>
@@ -32,7 +44,7 @@
       <label for="newPrompt">Prompt (dùng [SẢN PHẨM] chỗ cần điền tên)</label><textarea id="newPrompt"></textarea>
       <div class="row" style="margin-top:10px"><div class="muted small">Prompt thêm ở đây chỉ lưu trên máy này.</div><button class="btn primary" id="add" type="button">Lưu prompt</button></div>
     </section>
-    <section class="group wide">
+    <section class="group wide" id="promptGroup">
       <h2>Prompt</h2>
       <pre class="out" id="out" style="margin:0"></pre>
     </section>
