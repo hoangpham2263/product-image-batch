@@ -187,7 +187,8 @@
   .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; align-items: start; }
   .content { display: grid; gap: 24px; min-width: 0; }
   .content > section { align-self: start; }
-  .side { position: sticky; top: 16px; display: grid; gap: 2px; }
+  /* The menu stays in view while the page scrolls, and scrolls itself when the screen is too short for it. */
+  .side { position: sticky; top: 24px; display: grid; gap: 2px; align-content: start; max-height: calc(100dvh - 48px); overflow-y: auto; }
   .side-label { margin: 14px 10px 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .side-label:first-child { margin-top: 0; }
   .side button { justify-content: flex-start; gap: 10px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--fg); }
