@@ -1,6 +1,7 @@
-﻿# Cập nhật: looks for a newer release and installs it with a running progress bar. Returns $true when the
-# new files are in place, so the window can reopen itself on them.
-function Show-UpdateDialog([Windows.Forms.Form]$Owner, [string]$Root, [string]$LogDir, [string]$Current) {
+﻿# Cập nhật (Windows): looks for a newer Tools Hub release and installs it with a running progress bar. Shared by the
+# menu (hub/launch.ps1) and every tool's window. Returns $true when the new files are in place, so the window can
+# reopen itself on them. Needs hub/winforms.ps1.
+function Show-UpdateDialog([Windows.Forms.Form]$Owner, [string]$HubRoot, [string]$LogDir, [string]$Current) {
     $ui = $script:Ui
     $dialog = New-Object Windows.Forms.Form -Property @{ Text = 'Cập nhật'; ClientSize = '440,168'; StartPosition = 'CenterParent'; FormBorderStyle = 'FixedDialog'; MinimizeBox = $false; MaximizeBox = $false; ShowInTaskbar = $false; Font = (New-Object Drawing.Font('Segoe UI', 10)) }
     $status = New-Object Windows.Forms.Label -Property @{ Location = '20,20'; Size = '400,44' }
@@ -16,7 +17,7 @@ function Show-UpdateDialog([Windows.Forms.Form]$Owner, [string]$Root, [string]$L
     $start = {
         param($Step, [string[]]$Extra)
         $state.Step = $Step; $bar.Visible = $true; $go.Visible = $false; $close.Enabled = $Step -ne 'apply'
-        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path (Get-HubRoot $Root) 'hub\update.ps1') + '"'), '-Root', ('"' + (Get-HubRoot $Root) + '"')) + $Extra
+        $arguments = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $HubRoot 'hub\update.ps1') + '"'), '-Root', ('"' + $HubRoot + '"')) + $Extra
         $state.Proc = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $out -RedirectStandardError $err -ArgumentList $arguments
         [void]$state.Proc.Handle
         $timer.Start()

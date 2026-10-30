@@ -6,11 +6,12 @@
 <title>Grok Video Prompt</title>
 <link rel="icon" href="../icon.svg">
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
+<script src="../../../hub/assets/hub.js" defer></script>
 <script src="../data/prompts.js"></script>
 </head>
 <body>
 <main>
-  <header><a class="btn" id="menu" href="/" hidden>← Menu</a><img src="../icon.svg" alt=""><div><h1>Grok Video Prompt</h1><div class="muted small">Chọn thời lượng và style, điền tên sản phẩm rồi copy prompt.</div></div></header>
+  <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Grok Video Prompt</h1></header>
 
   <div class="row">
     <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
@@ -58,8 +59,7 @@ function render() {
   $("styles").replaceChildren(...(styles.length ? styles.map((x) => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "card"; b.setAttribute("aria-pressed", x.code === state.code);
-    b.innerHTML = `<div></div><div class="muted small"></div>`;
-    b.children[0].textContent = x.name; b.children[1].textContent = x.code;
+    b.textContent = x.name;
     b.onclick = () => { state.code = x.code; render(); };
     return b;
   }) : [Object.assign(document.createElement("div"), { className: "note", textContent: `Chưa có prompt ${state.seconds}s. Thêm ở mục bên dưới.` })]));

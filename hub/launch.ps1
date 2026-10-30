@@ -30,11 +30,31 @@ if ($tools.Count -gt 1) {
     # Same size and 20px sides as Product Review's window; the title row is 64px high like its header.
     $title = New-Object Windows.Forms.Label -Property @{ Text = 'Tools Hub'; Location = '20,19'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI', 13) }
     $form.Controls.Add($title)
+    # Cập nhật: top right in every window, as in Product Review; green with the version once a newer one is out.
+    . (Join-Path $PSScriptRoot 'winforms.ps1'); . (Join-Path $PSScriptRoot 'update-dialog.ps1')
+    $logDir = Join-Path $root 'workspace/logs'; New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+    $current = Get-InstalledVersion $root
+    $btnUpdate = New-Object Windows.Forms.Button -Property @{ Text = 'Cập nhật'; Size = '100,32'; Anchor = 'Top,Right' }
+    $btnUpdate.Location = New-Object Drawing.Point(($form.ClientSize.Width - 24 - 100), 16)
+    Set-FlatButton $btnUpdate
+    $btnUpdate.Add_Click({
+        if (Show-UpdateDialog $form $root $logDir $current) {
+            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'launch.ps1') + '"'))
+            $form.Close()
+        }
+    })
+    $form.Controls.Add($btnUpdate)
+    $form.Add_Shown({
+        try {
+            $next = Get-AppUpdate $root
+            if ($next) { $btnUpdate.Text = "Cập nhật $next"; $btnUpdate.Width = 150; $btnUpdate.Left = $form.ClientSize.Width - 24 - 150; Set-FlatButton $btnUpdate -Primary }
+        } catch { }
+    })
     $y = 64
     foreach ($item in $tools) {
         $button = New-Object Windows.Forms.Button -Property @{ Left = 20; Top = $y; Width = 1064; Height = 64; Anchor = 'Top,Left,Right'; Tag = $item; FlatStyle = 'Flat'; BackColor = [Drawing.Color]::White; TextAlign = 'MiddleLeft'; ImageAlign = 'MiddleLeft'; TextImageRelation = 'ImageBeforeText'; Padding = '10,0,0,0'; Cursor = 'Hand' }
         $button.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(172, 172, 172); $button.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(230, 238, 248)
-        $button.Text = "  $($item.name)`r`n  $($item.description)"
+        $button.Text = "  $($item.name)"
         $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
         if (Test-Path -LiteralPath $png) { $button.Image = New-Object Drawing.Bitmap((New-Object Drawing.Bitmap($png)), 40, 40) }
         # A web tool opens in the browser and the menu stays; a tool with its own window replaces the menu.

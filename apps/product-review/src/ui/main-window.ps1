@@ -5,7 +5,7 @@ Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 . (Join-Path $PSScriptRoot 'progress.ps1')
 . (Join-Path $PSScriptRoot 'drive-login.ps1')
 . (Join-Path $PSScriptRoot 'setup-dialog.ps1')
-. (Join-Path $PSScriptRoot 'update-dialog.ps1')
+. (Join-Path $PSScriptRoot '../../../../hub/update-dialog.ps1')
 . (Join-Path $PSScriptRoot 'app-icon.ps1')
 
 $srcDir = Split-Path $PSScriptRoot -Parent
@@ -238,7 +238,7 @@ $lblStatus.Anchor='Top,Left'
 $lblThr.Height=$numThr.Height
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
-    if (Show-UpdateDialog $form $root $workspace.Logs $appVersion) {
+    if (Show-UpdateDialog $form (Get-HubRoot $root) $workspace.Logs $appVersion) {
         Start-Process powershell -WorkingDirectory $root -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',('"' + (Join-Path $srcDir 'gui.ps1') + '"'))
         $form.Close()
     }

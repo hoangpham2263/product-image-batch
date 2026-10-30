@@ -284,7 +284,12 @@ return out`;
         const out = openSync(logFile("mac-server.log"), "a");
         spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: ["ignore", out, out], env: { ...process.env, PRB_WAIT_PORT: "1" } }).unref();
         rpcProc?.kill();
-        process.exit(0);
+        // The Tools Hub menu runs on the old files too: restart it, without a window of its own.
+        const picker = join(hubRoot, "hub", "picker.mjs");
+        if (existsSync(picker)) {
+          execFile("pkill", ["-f", picker], () => spawn(process.execPath, [picker], { cwd: hubRoot, detached: true, stdio: "ignore", env: { ...process.env, HUB_NO_WINDOW: "1", HUB_WAIT_PORT: "1" } }).unref());
+        }
+        setTimeout(() => process.exit(0), 300);
       }, 300);
     });
     return;
