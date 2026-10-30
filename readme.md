@@ -6,7 +6,7 @@ Bộ công cụ bán hàng chạy trên Windows và macOS, mở bằng một lau
 |---|---|
 | [Product Review](apps/product-review/) | Ghép sản phẩm vào ảnh review, viết review mẫu, xuất CSV Loox |
 | [Grok Video Prompt](apps/grok-video-prompt/) | Chọn thời lượng 6s/10s/15s và style, copy prompt video cho Grok (prompt tạm lấy từ tài liệu GRENHEIM) |
-| [Content FB](apps/fb-content/) | Soạn bài đăng Facebook từ thông tin sản phẩm (giao diện và logic tạm) |
+| [Content MXH](apps/fb-content/) | Soạn bài đăng cho Facebook, Instagram, Threads, TikTok từ thông tin sản phẩm (giao diện và logic tạm) |
 
 Mở app hiện màn hình chọn tool, mỗi tool một icon. Tool dạng web (`"web"` trong `tool.json`) mở trong trình duyệt, không cần cài thêm.
 

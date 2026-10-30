@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Tools Hub</title>
-<meta name="description" content="Tools Hub: một app gom các công cụ Product Review, Grok Video Prompt và Content FB. Tải app, hướng dẫn và trang quản lý." />
+<meta name="description" content="Tools Hub: một app gom các công cụ Product Review, Grok Video Prompt và Content MXH. Tải app, hướng dẫn và trang quản lý." />
 <link rel="icon" href="brand/favicon.ico" sizes="any" />
 <link rel="icon" href="brand/hp-favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://tools-hub-api.hoangpham2263.workers.dev" crossorigin />
@@ -225,6 +225,10 @@
   .tool-head { display: flex; gap: 16px; align-items: center; }
   .tool-head img { flex: none; }
   .tool-head p { margin: 2px 0 0; max-width: 720px; }
+  /* The platforms a tool works with, as on the app menu. */
+  .pchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .pchip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 12.5px; }
+  .pchip i { width: 8px; height: 8px; border-radius: 50%; }
   .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; align-items: start; }
   .tool-grid .card { gap: 8px; padding: 16px 18px; font-size: 14px; }
   .tool-grid h3 { margin: 0; font-size: 15px; font-weight: 500; }
@@ -324,7 +328,7 @@
       </div>
     </div>
     <button type="button" data-go="grok-video-prompt"><img src="tools/grok-video-prompt.svg" alt="" width="18" height="18" />Grok Video Prompt</button>
-    <button type="button" data-go="fb-content"><img src="tools/fb-content.svg" alt="" width="18" height="18" />Content FB</button>
+    <button type="button" data-go="fb-content"><img src="tools/fb-content.svg" alt="" width="18" height="18" />Content MXH</button>
     <span class="side-label admin-only">Quản lý</span>
     <button class="admin-only" type="button" data-go="anh"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg>Ảnh đã tạo</button>
     <button class="admin-only" type="button" data-go="nguon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>Nguồn ảnh</button>
@@ -378,7 +382,7 @@
 
   <!-- One page per tool, from the left menu: what it is for, how to use it, what it needs. -->
   <section id="tool-product-review" class="tool-page" data-tool="product-review" hidden>
-    <div class="tool-head"><img src="tools/product-review.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Product Review</h2><p class="muted">Tạo ảnh review sản phẩm bằng AI, viết review mẫu và xuất CSV để nhập vào Loox.</p></div></div>
+    <div class="tool-head"><img src="tools/product-review.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Product Review</h2><p class="muted">Tạo ảnh review sản phẩm bằng AI, viết review mẫu và xuất CSV để nhập vào Loox.</p><div class="pchips"><span class="pchip"><i style="background:#5E8E3E"></i>Shopify</span><span class="pchip"><i style="background:#E8505B"></i>Loox</span></div></div></div>
     <button class="sub-link" type="button" data-go="nhap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18"/></svg><span><b>Nhập hàng loạt</b><span class="muted small">Thêm nhiều sản phẩm và ảnh một lần bằng thư mục <code>products.csv</code> + <code>images/</code>: cách làm, chuẩn file, ví dụ.</span></span><span class="chev">›</span></button>
     <div class="tool-grid">
       <div class="card"><h3>Làm được gì</h3><ul>
@@ -398,7 +402,7 @@
     </div>
   </section>
   <section id="tool-grok-video-prompt" class="tool-page" data-tool="grok-video-prompt" hidden>
-    <div class="tool-head"><img src="tools/grok-video-prompt.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Grok Video Prompt</h2><p class="muted">Prompt video dựng sẵn cho Grok: chọn style, điền tên sản phẩm, copy là dùng được.</p></div></div>
+    <div class="tool-head"><img src="tools/grok-video-prompt.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Grok Video Prompt</h2><p class="muted">Prompt video dựng sẵn cho Grok: chọn style, điền tên sản phẩm, copy là dùng được.</p><div class="pchips"><span class="pchip"><i style="background:#111"></i>Grok</span></div></div></div>
     <div class="tool-grid">
       <div class="card"><h3>Làm được gì</h3><ul>
         <li>Prompt theo thời lượng <b>6s</b>, <b>10s</b>, <b>15s</b>, mỗi thời lượng nhiều style.</li>
@@ -414,17 +418,18 @@
     </div>
   </section>
   <section id="tool-fb-content" class="tool-page" data-tool="fb-content" hidden>
-    <div class="tool-head"><img src="tools/fb-content.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Content FB <span class="badge">Đang làm</span></h2><p class="muted">Từ tên sản phẩm và ảnh gốc: tạo ảnh bối cảnh và soạn bài đăng Facebook.</p></div></div>
+    <div class="tool-head"><img src="tools/fb-content.svg" alt="" width="48" height="48" /><div><h2 class="page-title">Content MXH <span class="badge">Đang làm</span></h2><p class="muted">Từ thông tin và ảnh gốc của sản phẩm: tạo ảnh bối cảnh và soạn bài đăng riêng cho từng mạng xã hội.</p><div class="pchips"><span class="pchip"><i style="background:#1877F2"></i>Facebook</span><span class="pchip"><i style="background:#E1306C"></i>Instagram</span><span class="pchip"><i style="background:#111"></i>Threads</span><span class="pchip"><i style="background:#111"></i>TikTok</span></div></div></div>
     <div class="tool-grid">
       <div class="card"><h3>Làm được gì</h3><ul>
         <li>Nhiều sản phẩm một lần, mỗi sản phẩm nhiều ảnh gốc.</li>
         <li>Mỗi ảnh gốc tạo ra nhiều ảnh <b>bối cảnh</b> (chọn số lượng).</li>
-        <li>Bài đăng theo <b>giọng văn</b> chọn sẵn, kèm hashtag; thêm <b>lời nhắn cho AI</b> để viết theo ý.</li>
+        <li>Chọn nền tảng ở <b>Đăng lên</b>: mỗi nền tảng một bài riêng, đúng giới hạn ký tự, cách để link và số hashtag của nó.</li>
+        <li>Bài đăng theo <b>giọng văn</b> chọn sẵn; thêm <b>lời nhắn cho AI</b> để viết theo ý.</li>
         <li>Copy bài viết ngay trên app.</li></ul></div>
       <div class="card"><h3>Cách dùng</h3><ol>
         <li>Bấm <b>+ Thêm sản phẩm</b>: điền tên, điểm nổi bật, hashtag, thêm ảnh gốc.</li>
-        <li>Chọn giọng văn, ghi lời nhắn nếu cần.</li>
-        <li>Bấm <b>Bắt đầu</b>, xem ảnh tạo thành và copy bài đăng.</li></ol></div>
+        <li>Chọn nền tảng ở <b>Đăng lên</b>, giọng văn, ghi lời nhắn nếu cần.</li>
+        <li>Bấm <b>Bắt đầu</b>, xem ảnh tạo thành; mở tab từng nền tảng và copy bài đăng.</li></ol></div>
       <div class="card"><h3>Trạng thái</h3><ul>
         <li>Giao diện đã có; phần tạo ảnh và viết bài đang làm.</li>
         <li>Sẽ dùng chung <b>Cấu hình</b> với Product Review.</li></ul></div>

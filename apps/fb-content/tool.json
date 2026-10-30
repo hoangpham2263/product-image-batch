@@ -1,8 +1,32 @@
 {
   "id": "fb-content",
-  "name": "Content FB",
+  "name": "Content MXH",
   "order": 3,
-  "description": "Từ tên sản phẩm và ảnh gốc: tạo ảnh và soạn bài đăng Facebook (bản tạm).",
+  "description": "Từ thông tin và ảnh gốc của sản phẩm: tạo ảnh bối cảnh và soạn bài đăng cho Facebook, Instagram, Threads, TikTok (bản tạm).",
   "icon": "icon.svg",
-  "web": "ui/index.html"
+  "web": "ui/index.html",
+  "platforms": [
+    {
+      "name": "Facebook",
+      "color": "#1877F2"
+    },
+    {
+      "name": "Instagram",
+      "color": "#E1306C"
+    },
+    {
+      "name": "Threads",
+      "color": "#111111"
+    },
+    {
+      "name": "TikTok",
+      "color": "#111111"
+    }
+  ],
+  "features": [
+    "Nhiều sản phẩm một lần",
+    "Ảnh bối cảnh từ ảnh gốc",
+    "Bài đăng riêng cho từng nền tảng"
+  ],
+  "status": "Đang làm"
 }

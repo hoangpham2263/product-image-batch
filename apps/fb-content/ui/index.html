@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Content FB</title>
+<title>Content MXH</title>
 <link rel="icon" href="../icon.svg">
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
 <style>
@@ -23,8 +23,21 @@ main { height: 100%; display: flex; flex-direction: column; }
 .qrow .btn { height: 34px; padding: 0; }
 .ok { color: #006400; } .warn { color: rgb(176, 96, 0); }
 .empty-list { height: 100%; display: grid; place-content: center; color: var(--muted); }
-#tones { margin-bottom: 4px; }
-#tones .card { min-height: 40px; }
+/* Đăng lên: the platforms to write for, each with its logo; at least one stays on. */
+.platforms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.platforms button { display: flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 4px; font: inherit; font-size: 12.5px; color: var(--ink); background: #fff; border: 1px solid var(--line); cursor: pointer; }
+.platforms button:hover { background: var(--hover); }
+.platforms button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+.platforms button[aria-pressed="false"] svg { filter: grayscale(1); opacity: .5; }
+.logo { width: 16px; height: 16px; flex: none; display: block; }
+#tones { display: flex; }
+#tones button { flex: 1; padding: 0 8px; }
+/* One post per chosen platform: a tab each, the post, then its length and what suits that platform. */
+.post-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.post-head .seg button { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; }
+.post-head .btn { margin-left: auto; }
+.post-tip { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.post-tip .over { color: #b00020; }
 #note { min-height: 72px; max-height: 120px; }
 .run { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 11px 14px; }
 .run .btn { height: 40px; }
@@ -72,7 +85,7 @@ dialog .foot .btn { width: 104px; }
 </head>
 <body>
 <main>
-  <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Content FB</h1></header>
+  <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Content MXH</h1></header>
 
   <div class="layout">
     <section class="group">
@@ -85,10 +98,12 @@ dialog .foot .btn { width: 104px; }
     </section>
     <section class="group actions-col">
       <h2>Thao tác</h2>
+      <label>Đăng lên</label>
+      <div class="platforms" id="platforms" role="group" aria-label="Đăng lên"></div>
       <label>Giọng văn</label>
-      <div class="list listbox" id="tones" role="group" aria-label="Giọng văn"></div>
+      <div class="seg" id="tones" role="group" aria-label="Giọng văn"></div>
       <label for="note">Lời nhắn cho AI</label>
-      <textarea id="note" placeholder="Gửi kèm khuôn sẵn: ý muốn thêm hoặc góp ý. Ví dụ: nhấn mạnh gỗ tự nhiên, giọng gần gũi, dưới 120 chữ."></textarea>
+      <textarea id="note" placeholder="Gửi kèm khuôn sẵn: ý muốn thêm hoặc góp ý. Ví dụ: nhấn mạnh gỗ tự nhiên, giọng gần gũi."></textarea>
     </section>
     <section class="group run">
       <button class="btn primary" id="btnRun" type="button">Bắt đầu</button>
@@ -99,7 +114,7 @@ dialog .foot .btn { width: 104px; }
       <h2 id="resultTitle">Kết quả</h2>
       <div id="result">
         <div class="side"><label>Ảnh tạo thành</label><div class="tiles" id="results"></div></div>
-        <div class="side"><label>Bài đăng <button class="btn" id="copy" type="button">Copy bài đăng</button></label><pre class="out" id="out"></pre></div>
+        <div class="side"><div class="post-head"><div class="seg" id="tabs" role="tablist" aria-label="Nền tảng"></div><button class="btn" id="copy" type="button">Copy bài đăng</button></div><pre class="out" id="out"></pre><div class="post-tip"><span id="tip"></span><span id="count"></span></div></div>
       </div>
     </section>
   </div>
@@ -125,34 +140,60 @@ dialog .foot .btn { width: 104px; }
 <script>
 // Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
-// Many products at once, as in Product Review. Each has its details and original images; Bắt đầu will make
+// Many products at once, as in Product Review, with a post for each platform chosen in Đăng lên. Each has its details and original images; Bắt đầu will make
 // several bối cảnh from each original image (Product Review's image logic, adapted) and write a post per product. Not built yet: the post is a fixed
 // template per tone (compose), and the AI will get Lời nhắn cho AI with the template.
 // The product details are kept in this browser; original images only while the page is open.
 const $ = (id) => document.getElementById(id);
 const KEY = "fb-content:v2";
 const FIELDS = ["name", "brand", "link", "points", "tags"];
-const TONES = { story: "Kể chuyện", short: "Ngắn gọn", sale: "Giới thiệu bán hàng" };
+const TONES = { story: "Kể chuyện", short: "Ngắn gọn", sale: "Bán hàng" };
+// Each platform gets its own post from the same product: its length limit, how links and hashtags work there, and
+// the image shape that suits it.
+const PLATFORMS = {
+  facebook: { name: "Facebook", limit: 63206, tags: 5, tip: "Link bấm được ngay trong bài · ảnh 4:5 hoặc 1:1",
+    logo: '<svg class="logo" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12" fill="#1877F2"/><path d="M13.4 24v-8.4h2.8l.4-3.3h-3.2v-2.1c0-.9.3-1.6 1.6-1.6h1.7V5.7a23 23 0 0 0-2.5-.1c-2.5 0-4.2 1.5-4.2 4.3v2.4H7.2v3.3H10V24z" fill="#fff"/></svg>' },
+  instagram: { name: "Instagram", limit: 2200, tags: 30, tip: "Link trong caption không bấm được: để ở bio · ảnh 4:5",
+    logo: '<svg class="logo" viewBox="0 0 24 24"><defs><linearGradient id="igg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FEDA75"/><stop offset=".4" stop-color="#FA7E1E"/><stop offset=".65" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/></linearGradient></defs><rect width="24" height="24" rx="6" fill="url(#igg)"/><rect x="5" y="5" width="14" height="14" rx="4" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="12" cy="12" r="3.2" fill="none" stroke="#fff" stroke-width="1.8"/><circle cx="16.3" cy="7.7" r="1" fill="#fff"/></svg>' },
+  threads: { name: "Threads", limit: 500, tags: 1, tip: "Tối đa 500 ký tự, một chủ đề (#) · ảnh 4:5",
+    logo: '<svg class="logo" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#000"/><text x="12" y="17" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#fff">@</text></svg>' },
+  tiktok: { name: "TikTok", limit: 4000, tags: 5, tip: "Caption ngắn đi kèm video · ảnh/video 9:16",
+    logo: '<svg class="logo" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#000"/><path d="M13.6 5v9.3a2.6 2.6 0 1 1-2.6-2.6" fill="none" stroke="#25F4EE" stroke-width="2.2" transform="translate(-.6 -.4)"/><path d="M13.6 5v9.3a2.6 2.6 0 1 1-2.6-2.6" fill="none" stroke="#FE2C55" stroke-width="2.2" transform="translate(.6 .4)"/><path d="M13.6 5v9.3a2.6 2.6 0 1 1-2.6-2.6M13.6 5c.3 2 1.6 3.3 3.6 3.5" fill="none" stroke="#fff" stroke-width="2.2"/></svg>' },
+};
 const OPENING = {
   story: (n) => `Có những món đồ mình chọn vì đẹp, và có những món ở lại lâu vì hợp với nhịp sống trong nhà. ${n} là một món như vậy.`,
   short: (n) => `${n}.`,
   sale: (n) => `Giới thiệu ${n}.`,
 };
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const state = { tone: TONES[saved.tone] ? saved.tone : "story", note: saved.note || "", rows: (saved.rows || []).map((r) => ({ ...r, sources: [] })), current: saved.current || "" };
-const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ tone: state.tone, note: state.note, current: state.current, rows: state.rows.map(({ sources, ...r }) => r) })); } catch {} };
+const platforms = [].concat(saved.platforms || []).filter((p) => PLATFORMS[p]);
+const state = { tone: TONES[saved.tone] ? saved.tone : "story", note: saved.note || "", rows: (saved.rows || []).map((r) => ({ ...r, sources: [] })), current: saved.current || "",
+  platforms: platforms.length ? platforms : ["facebook", "instagram"], tab: saved.tab || "" };
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify({ tone: state.tone, note: state.note, current: state.current, platforms: state.platforms, tab: state.tab, rows: state.rows.map(({ sources, ...r }) => r) })); } catch {} };
 const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
 
-function compose(row) {
+// The template post for one platform (the AI will write it from this and Lời nhắn cho AI). Facebook: the whole post
+// with its link. Instagram: the link goes to the bio, hashtags at the end. Threads: short, the points in one line, one
+// topic. TikTok: one caption line under the video.
+function compose(row, platform = "facebook") {
+  const P = PLATFORMS[platform];
   const name = row.name.trim() || "[Tên sản phẩm]";
   const points = row.points.split("\n").map((s) => s.trim()).filter(Boolean);
+  const link = row.link.trim(), brand = row.brand.trim();
+  const tags = row.tags.split(/\s+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`)).slice(0, P.tags);
   const parts = [OPENING[state.tone](name)];
-  if (points.length) parts.push(points.map((p) => `- ${p}`).join("\n"));
-  if (row.brand.trim()) parts.push(`${row.brand.trim()} — ${state.tone === "story" ? "vẻ đẹp tự nhiên, qua đôi tay người thợ." : "xem thêm tại link bên dưới."}`);
-  if (row.link.trim()) parts.push(row.link.trim());
-  const tags = row.tags.split(/\s+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`));
+  if (platform === "threads" || platform === "tiktok") {
+    if (points.length) parts.push(points.slice(0, 3).join(" · ") + (platform === "tiktok" ? "." : ""));
+    if (platform === "threads" && link) parts.push(link);
+    if (platform === "tiktok") parts.push(brand ? `Xem ở ${brand}, link trong bio.` : "Link trong bio.");
+  } else {
+    if (points.length) parts.push(points.map((p) => (platform === "instagram" ? `✓ ${p}` : `- ${p}`)).join("\n"));
+    if (brand) parts.push(`${brand} — ${state.tone === "story" ? "vẻ đẹp tự nhiên, qua đôi tay người thợ." : platform === "instagram" ? "link ở bio." : "xem thêm tại link bên dưới."}`);
+    else if (platform === "instagram" && link) parts.push("Link ở bio.");
+    if (platform === "facebook" && link) parts.push(link);
+  }
   if (tags.length) parts.push(tags.join(" "));
-  return parts.join("\n\n");
+  return parts.join(platform === "tiktok" ? " " : "\n\n");
 }
 function rowStatus(row) {
   if (!row.sources.length) return { text: "● Chưa có ảnh", cls: "warn" };
@@ -176,9 +217,23 @@ function renderRows() {
     return card;
   }) : [el("div", { className: "empty-list", textContent: "Bấm + Thêm sản phẩm để bắt đầu." })]));
 }
+function renderPlatforms() {
+  $("platforms").replaceChildren(...Object.entries(PLATFORMS).map(([id, p]) => {
+    const b = el("button", { type: "button", innerHTML: `${p.logo}<span>${p.name}</span>` });
+    const on = state.platforms.includes(id);
+    b.setAttribute("aria-pressed", on);
+    b.onclick = () => {
+      if (on && state.platforms.length === 1) return toast("Chọn ít nhất một nền tảng");
+      state.platforms = on ? state.platforms.filter((x) => x !== id) : Object.keys(PLATFORMS).filter((x) => x === id || state.platforms.includes(x));
+      if (!on) state.tab = id;
+      render();
+    };
+    return b;
+  }));
+}
 function renderTones() {
   $("tones").replaceChildren(...Object.entries(TONES).map(([id, name]) => {
-    const b = el("button", { type: "button", className: "card", textContent: name });
+    const b = el("button", { type: "button", textContent: name });
     b.setAttribute("aria-pressed", id === state.tone);
     b.onclick = () => { state.tone = id; render(); };
     return b;
@@ -187,7 +242,19 @@ function renderTones() {
 function renderResult() {
   const i = state.rows.findIndex((r) => r.id === state.current), row = state.rows[i];
   $("resultTitle").textContent = row ? `Kết quả · #${i + 1} ${row.name}` : "Kết quả";
-  $("out").textContent = row ? compose(row) : "";
+  if (!state.platforms.includes(state.tab)) state.tab = state.platforms[0];
+  const P = PLATFORMS[state.tab];
+  $("tabs").replaceChildren(...state.platforms.map((id) => {
+    const b = el("button", { type: "button", innerHTML: `${PLATFORMS[id].logo}<span>${PLATFORMS[id].name}</span>` });
+    b.setAttribute("role", "tab"); b.setAttribute("aria-pressed", id === state.tab); b.setAttribute("aria-selected", id === state.tab);
+    b.onclick = () => { state.tab = id; render(); };
+    return b;
+  }));
+  const text = row ? compose(row, state.tab) : "";
+  $("out").textContent = text;
+  $("tip").textContent = P.tip;
+  $("count").textContent = `${[...text].length.toLocaleString("vi-VN")} / ${P.limit.toLocaleString("vi-VN")} ký tự`;
+  $("count").classList.toggle("over", [...text].length > P.limit);
   $("copy").disabled = !row;
   $("results").replaceChildren(...(row?.sources.length
     ? row.sources.map((s) => {
@@ -200,7 +267,7 @@ function renderResult() {
     : [el("div", { className: "empty-note", textContent: row ? "Thêm ảnh gốc ở Xem / sửa, rồi bấm Bắt đầu." : "Thêm sản phẩm để xem ảnh và bài đăng ở đây." })]));
 }
 function render() {
-  renderRows(); renderTones(); renderResult();
+  renderRows(); renderPlatforms(); renderTones(); renderResult();
   $("status").textContent = `Sẵn sàng • ${state.rows.length} sản phẩm`;
   persist();
 }
@@ -277,7 +344,7 @@ $("btnRun").onclick = () => {
   if (missing >= 0) return toast(`Sản phẩm #${missing + 1} chưa có ảnh gốc`);
   toast("Tạo ảnh và bài đăng đang được làm, chưa dùng được");
 };
-$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy bài đăng"); };
+$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast(`Đã copy bài đăng ${PLATFORMS[state.tab].name}`); };
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 render();
 </script>

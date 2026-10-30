@@ -27,11 +27,23 @@ const version = (() => {
 })();
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+// tool.json: "platforms" [{ name, color }] it works with, "features" a few short lines, "status" e.g. "Đang làm".
+const card = (t) => `<span class="chips">${(t.platforms || []).map((p) => `<span class="chip" style="--c:${esc(p.color || "#888")}"><i></i>${esc(p.name)}</span>`).join("")}</span>`
+  + `<ul>${(t.features || []).map((f) => `<li>${esc(f)}</li>`).join("")}</ul>`;
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(`Tools Hub ${version}`.trim())}</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
-<style>.tools{display:grid;gap:8px}.tools form{margin:0}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:64px;padding:0 14px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:40px;height:40px;flex:none}body{min-height:100vh;display:flex;flex-direction:column}main{flex:1}footer{padding:0 20px 16px;text-align:center;font-size:12px}</style><script src="/hub/hub.js" defer></script></head>
+<style>
+/* Tools in a 4-column grid: icon and name, the platforms it works with, then what it does in a few short lines. */
+.tools{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.tools form{margin:0;display:flex}
+.tools button{display:flex;flex-direction:column;align-items:stretch;gap:10px;width:100%;min-height:196px;padding:14px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.tools .top{display:flex;gap:12px;align-items:center}.tools img{width:40px;height:40px;flex:none}.tools .name{font-size:14.67px;line-height:1.25}
+.tools .tag{display:inline-block;margin-left:6px;padding:0 6px;font-size:11px;line-height:18px;color:#b06000;border:1px solid #b06000;vertical-align:1px}
+.tools .chips{display:flex;flex-wrap:wrap;gap:4px}.tools .chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 8px;font-size:12px;background:var(--control);border:1px solid var(--line)}
+.tools .chip i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.tools ul{margin:0;padding-left:18px;color:var(--muted);font-size:12.5px;line-height:1.5}
+@media (max-width:900px){.tools{grid-template-columns:repeat(2,minmax(0,1fr))}}body{min-height:100vh;display:flex;flex-direction:column}main{flex:1}footer{padding:0 20px 16px;text-align:center;font-size:12px}</style><script src="/hub/hub.js" defer></script></head>
 <body><main><header><h1>Tools Hub</h1></header><div class="setup-status" id="setupStatus" role="status"></div><section class="group"><h2>Công cụ</h2><div class="tools list">
-${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span class="name">${esc(t.name)}</span></button></form>`).join("")}
+${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit" title="${esc(t.description)}"><span class="top"><img src="/icon/${esc(t.id)}" alt=""><span class="name">${esc(t.name)}${t.status ? `<span class="tag">${esc(t.status)}</span>` : ""}</span></span>${card(t)}</button></form>`).join("")}
 </div></section></main><footer class="muted">© ${new Date().getFullYear()} Tools Hub</footer></body></html>`;
 
 // Same window as Product Review's (src/mac/server.mjs): a Chrome app window, no tabs or address bar; the default

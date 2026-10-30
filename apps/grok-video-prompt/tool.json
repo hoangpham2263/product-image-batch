@@ -4,5 +4,16 @@
   "order": 2,
   "description": "Chọn thời lượng 6s/10s/15s và style, copy prompt video cho Grok.",
   "icon": "icon.svg",
-  "web": "ui/index.html"
+  "web": "ui/index.html",
+  "platforms": [
+    {
+      "name": "Grok",
+      "color": "#111111"
+    }
+  ],
+  "features": [
+    "Prompt video 6s, 10s, 15s",
+    "Chọn style, điền tên rồi copy",
+    "Xem video mẫu của từng style"
+  ]
 }
