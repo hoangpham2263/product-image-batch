@@ -114,7 +114,10 @@
   .back { height: 32px; padding: 0 8px; border: 0; background: none; color: var(--muted); }
   .back:hover { color: var(--fg); }
   /* Filters */
-  .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
+  .card { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; min-width: 0; grid-template-columns: minmax(0, 1fr); }
+  /* Long code and tables scroll inside the card instead of widening it past the page. */
+  .card > *, .doc > * { min-width: 0; }
+  .doc table { display: block; overflow-x: auto; }
   /* Lists sit straight on the page: no card around the table. */
   .panel { display: grid; gap: 16px; min-width: 0; }
   .sec-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -187,7 +190,7 @@
   .side { position: sticky; top: 16px; display: grid; gap: 2px; }
   .side-label { margin: 14px 10px 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .side-label:first-child { margin-top: 0; }
-  .side button { justify-content: flex-start; gap: 10px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+  .side button { justify-content: flex-start; gap: 10px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--fg); }
   .side button:hover { background: var(--soft); color: var(--fg); }
   .side button.on { background: var(--soft); color: var(--fg); font-weight: 500; }
   body:not(.admin) .admin-only { display: none; }
@@ -218,6 +221,8 @@
   .side img { flex: none; border-radius: 4px; }
   .intro { display: grid; gap: 4px; }
   .intro p { margin: 0; max-width: 720px; }
+  /* Text in the menu and on the pages keeps the normal colour; only small labels stay grey. */
+  .intro .muted, .tool-head .muted, .tool-list .muted { color: var(--fg); }
   .page-title { font-size: 22px; }
   .hero { grid-template-columns: 300px minmax(0, 1fr); gap: 0; padding: 0; }
   .get { display: grid; justify-items: center; align-content: center; gap: 12px; padding: 32px 24px; text-align: center; }
