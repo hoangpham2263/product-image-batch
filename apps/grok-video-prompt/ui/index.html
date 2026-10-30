@@ -10,15 +10,12 @@
 <script src="../data/prompts.js"></script>
 <script src="../data/demo-prompts.js"></script>
 <style>
-.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* Fit the window: groups keep their size and long content scrolls inside them. */
 body { height: 100vh; overflow: hidden; }
 main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
 .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
-.layout:has(#addGroup:not([hidden])) { grid-template-rows: auto auto minmax(0, 1fr); }
 #styles { height: 288px; overflow-y: auto; align-content: start; padding-right: 2px; }
 #product { min-height: 90px; max-height: 160px; }
-#newPrompt { max-height: 160px; }
 #promptGroup { display: flex; flex-direction: column; min-height: 0; }
 #promptGroup pre.out { flex: 1; min-height: 0; max-height: none; }
 </style>
@@ -37,13 +34,7 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
       <h2>Thao tác</h2>
       <label for="product">Tên sản phẩm</label>
       <textarea id="product" placeholder="Bàn trà gỗ óc chó chân vòm" required></textarea>
-      <div class="pair"><button class="btn primary" id="copy" type="button">Copy prompt</button><button class="btn" id="toggleAdd" type="button">Thêm prompt</button></div>
-    </section>
-    <section class="group wide" id="addGroup" hidden>
-      <h2>Thêm prompt cho thời lượng đang chọn</h2>
-      <label for="newName">Tên style</label><input id="newName">
-      <label for="newPrompt">Prompt (dùng [SẢN PHẨM] chỗ cần điền tên)</label><textarea id="newPrompt"></textarea>
-      <div class="row" style="margin-top:10px"><div class="muted small">Prompt thêm ở đây chỉ lưu trên máy này.</div><button class="btn primary" id="add" type="button">Lưu prompt</button></div>
+      <button class="btn primary" id="copy" type="button">Copy prompt</button>
     </section>
     <section class="group wide" id="promptGroup">
       <h2>Prompt</h2>
@@ -55,14 +46,14 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
 <script>
 // Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
-// Prompts come from data/prompts.js (by length: 6, 10, 15 s); ones added here are kept in localStorage.
+// Prompts come from data/prompts.js (by length: 6, 10, 15 s); they are added there, not in the page.
 const $ = (id) => document.getElementById(id);
-const KEY = "grok-video-prompt:custom", LAST = "grok-video-prompt:last";
+const LAST = "grok-video-prompt:last";
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 const state = Object.assign({ seconds: "10", code: "", product: "" }, store.get(LAST, {}));
 
 function stylesFor(seconds) {
-  return [...(PROMPTS.durations[seconds] || []), ...(store.get(KEY, {})[seconds] || [])];
+  return PROMPTS.durations[seconds] || [];
 }
 function render() {
   $("durations").replaceChildren(...Object.keys(PROMPTS.durations).map((s) => {
@@ -79,7 +70,7 @@ function render() {
     b.textContent = x.name;
     b.onclick = () => { state.code = x.code; render(); };
     return b;
-  }) : [Object.assign(document.createElement("div"), { className: "note", textContent: `Chưa có prompt ${state.seconds}s. Thêm ở mục bên dưới.` })]));
+  }) : [Object.assign(document.createElement("div"), { className: "note", textContent: `Chưa có prompt ${state.seconds}s.` })]));
   const style = styles.find((x) => x.code === state.code);
   const name = state.product.trim();
   $("out").textContent = style ? (name ? style.prompt.split(PROMPTS.placeholder).join(name) : style.prompt) : "";
@@ -88,17 +79,8 @@ function render() {
 }
 $("product").value = state.product;
 $("product").oninput = (e) => { state.product = e.target.value; render(); };
-$("toggleAdd").onclick = () => { $("addGroup").hidden = !$("addGroup").hidden; };
 $("copy").onclick = async () => {
   if (!state.product.trim()) { $("product").focus(); return toast("Điền tên sản phẩm"); } await navigator.clipboard.writeText($("out").textContent); toast("Đã copy prompt"); };
-$("add").onclick = () => {
-  const name = $("newName").value.trim(), prompt = $("newPrompt").value.trim();
-  if (!name || !prompt) return toast("Điền tên style và prompt");
-  const custom = store.get(KEY, {});
-  const code = `custom-${state.seconds}s-${Date.now()}`;
-  (custom[state.seconds] ||= []).push({ code, name, prompt });
-  store.set(KEY, custom); state.code = code; $("addGroup").hidden = true; $("newName").value = $("newPrompt").value = ""; render(); toast("Đã lưu prompt");
-};
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
 render();
 </script>
