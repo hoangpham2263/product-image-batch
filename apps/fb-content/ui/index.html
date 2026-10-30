@@ -6,6 +6,16 @@
 <title>Content FB</title>
 <link rel="icon" href="../icon.svg">
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
+<style>
+/* Same frame as Grok Video Prompt: fits the window, lists and the post scroll inside their groups. */
+body { height: 100vh; overflow: hidden; }
+main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
+.layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
+#points { min-height: 90px; max-height: 140px; }
+#tones { margin-bottom: 4px; }
+#postGroup { display: flex; flex-direction: column; min-height: 0; }
+#postGroup pre.out { flex: 1; min-height: 0; max-height: none; }
+</style>
 <script src="../../../hub/assets/hub.js" defer></script>
 </head>
 <body>
@@ -25,12 +35,11 @@
     </section>
     <section class="group actions-col">
       <h2>Thao tác</h2>
-      <label for="tone">Giọng văn</label>
-      <select id="tone"><option value="story">Kể chuyện</option><option value="short">Ngắn gọn</option><option value="sale">Giới thiệu bán hàng</option></select>
+      <label>Giọng văn</label>
+      <div class="list listbox" id="tones" role="group" aria-label="Giọng văn"></div>
       <button class="btn primary" id="copy" type="button">Copy bài đăng</button>
-      <div class="muted small" id="meta"></div>
     </section>
-    <section class="group wide">
+    <section class="group wide" id="postGroup">
       <h2>Bài đăng</h2>
       <pre class="out" id="out" style="margin:0"></pre>
     </section>
@@ -42,7 +51,9 @@
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
 // Temporary logic: fills a fixed template per tone. The real generator (brand voice, AI) replaces compose().
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["name", "brand", "link", "points", "tone", "tags"], KEY = "fb-content:draft";
+const FIELDS = ["name", "brand", "link", "points", "tags"], KEY = "fb-content:draft";
+const TONES = { story: "Kể chuyện", short: "Ngắn gọn", sale: "Giới thiệu bán hàng" };
+let tone = "story";
 const OPENING = {
   story: (n) => `Có những món đồ mình chọn vì đẹp, và có những món ở lại lâu vì hợp với nhịp sống trong nhà. ${n} là một món như vậy.`,
   short: (n) => `${n}.`,
@@ -60,13 +71,17 @@ function compose(v) {
   return parts.join("\n\n");
 }
 function render() {
-  const v = Object.fromEntries(FIELDS.map((f) => [f, $(f).value]));
+  const v = { ...Object.fromEntries(FIELDS.map((f) => [f, $(f).value])), tone };
   try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {}
-  const text = compose(v);
-  $("out").textContent = text;
-  $("meta").textContent = `${text.length} ký tự`;
+  $("tones").replaceChildren(...Object.entries(TONES).map(([id, name]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "card"; b.textContent = name; b.setAttribute("aria-pressed", id === tone);
+    b.onclick = () => { tone = id; render(); };
+    return b;
+  }));
+  $("out").textContent = compose(v);
 }
-try { const saved = JSON.parse(localStorage.getItem(KEY)) || {}; FIELDS.forEach((f) => { if (saved[f] != null) $(f).value = saved[f]; }); } catch {}
+try { const saved = JSON.parse(localStorage.getItem(KEY)) || {}; FIELDS.forEach((f) => { if (saved[f] != null) $(f).value = saved[f]; }); if (TONES[saved.tone]) tone = saved.tone; } catch {}
 FIELDS.forEach((f) => $(f).addEventListener("input", render));
 $("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy bài đăng"); };
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }

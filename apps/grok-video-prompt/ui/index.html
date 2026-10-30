@@ -14,9 +14,14 @@
 body { height: 100vh; overflow: hidden; }
 main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px; }
 .layout { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) 360px; grid-template-rows: auto minmax(0, 1fr); }
-#styles { height: 288px; overflow-y: auto; align-content: start; padding-right: 2px; }
+#styles { height: 300px; margin-top: 10px; }
+#promptGroup, #videoGroup { display: flex; flex-direction: column; min-height: 0; }
+/* Sample video of the chosen prompt, square like Grok's; a dashed box says where it goes until it is uploaded. */
+.sample { flex: 1; min-height: 0; display: grid; place-items: center; background: #000; border: 1px solid #000; }
+.sample video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.sample.empty { background: #fff; border: 1px dashed var(--line); color: var(--muted); text-align: center; padding: 12px; }
+.sample.empty svg { display: block; margin: 0 auto 8px; }
 #product { min-height: 90px; max-height: 160px; }
-#promptGroup { display: flex; flex-direction: column; min-height: 0; }
 #promptGroup pre.out { flex: 1; min-height: 0; max-height: none; }
 </style>
 </head>
@@ -28,7 +33,7 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
     <section class="group">
       <h2>Style</h2>
       <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
-      <div class="list" id="styles" style="margin-top:10px"></div>
+      <div class="list listbox" id="styles"></div>
     </section>
     <section class="group actions-col">
       <h2>Thao tác</h2>
@@ -36,9 +41,13 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
       <textarea id="product" placeholder="Bàn trà gỗ óc chó chân vòm" required></textarea>
       <button class="btn primary" id="copy" type="button">Copy prompt</button>
     </section>
-    <section class="group wide" id="promptGroup">
+    <section class="group" id="promptGroup">
       <h2>Prompt</h2>
       <pre class="out" id="out" style="margin:0"></pre>
+    </section>
+    <section class="group" id="videoGroup">
+      <h2>Video mẫu</h2>
+      <div class="sample empty" id="sample"></div>
     </section>
   </div>
 </main>
@@ -47,6 +56,10 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
 // Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
 // Prompts come from data/prompts.js (by length: 6, 10, 15 s); they are added there, not in the page.
+// Each prompt's sample video is on Drive (Tools Hub/Grok Video Prompt/Video mẫu/<n>s/<code>.mp4), listed by the API.
+const API = "https://tools-hub-api.hoangpham2263.workers.dev";
+let videos = null;
+fetch(`${API}/grok/videos`).then((r) => (r.ok ? r.json() : Promise.reject())).then((d) => { videos = d.videos || {}; renderVideo(); }, () => { videos = false; renderVideo(); });
 const $ = (id) => document.getElementById(id);
 const LAST = "grok-video-prompt:last";
 const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
@@ -76,6 +89,21 @@ function render() {
   $("out").textContent = style ? (name ? style.prompt.split(PROMPTS.placeholder).join(name) : style.prompt) : "";
   $("copy").disabled = !style;
   store.set(LAST, state);
+  renderVideo();
+}
+const ICON = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>';
+function renderVideo() {
+  const box = $("sample"), video = videos && videos[state.code];
+  if (video) {
+    if (box.querySelector("video")?.dataset.src === video.url) return;
+    box.className = "sample";
+    box.innerHTML = "";
+    box.append(Object.assign(document.createElement("video"), { src: video.url, controls: true, loop: true, muted: true, playsInline: true, preload: "metadata" }));
+    box.firstChild.dataset.src = video.url;
+    return;
+  }
+  box.className = "sample empty";
+  box.innerHTML = ICON + (videos === null ? "Đang tải video mẫu…" : videos === false ? "Chưa tải được video mẫu. Kiểm tra mạng rồi mở lại." : "Prompt này có video mẫu nhưng chưa được tải lên.");
 }
 $("product").value = state.product;
 $("product").oninput = (e) => { state.product = e.target.value; render(); };

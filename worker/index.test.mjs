@@ -300,3 +300,29 @@ test("the Product Review Batch folder moves into Tools Hub as Product Review, ke
   await call("/api/images?batch=run1&name=b.png", { method: "POST", headers: { "x-admin-key": "secret" }, body: "png" });
   assert.equal(nodes.get("prb").name, "renamed by hand");
 });
+
+test("Grok sample videos: admin uploads by prompt code into Tools Hub/Grok Video Prompt/Video mẫu/<n>s, anyone lists and plays", async () => {
+  const { call, files, env } = setup();
+  const mp4 = new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]);
+  const put = (path, key, body = mp4, type = "video/mp4") => call(path, { method: "PUT", headers: { "x-admin-key": key, "content-type": type }, body });
+  assert.equal((await put("/api/grok-videos/10/close-to-wide", "app-pass")).status, 403, "the app password cannot upload");
+  assert.equal((await put("/api/grok-videos/12/close-to-wide", "secret")).status, 400, "only 6, 10 and 15 s");
+  assert.equal((await put("/api/grok-videos/10/close-to-wide", "secret", "x", "text/plain")).status, 400, "only videos");
+  const first = await (await put("/api/grok-videos/10/close-to-wide", "secret")).json();
+  const node = env.__nodes.get(first.fileId), byId = (id) => env.__nodes.get(id);
+  assert.equal(node.name, "close-to-wide.mp4");
+  assert.deepEqual([byId(node.parents[0]).name, byId(byId(node.parents[0]).parents[0]).name, byId(byId(byId(node.parents[0]).parents[0]).parents[0]).name], ["10s", "Video mẫu", "Grok Video Prompt"]);
+  const listed = await call("/grok/videos", { headers: { origin: "http://127.0.0.1:46123" } });
+  assert.equal(listed.headers.get("access-control-allow-origin"), "*", "the tool runs on a local port");
+  const { videos } = await listed.json();
+  assert.equal(videos["close-to-wide"].seconds, "10");
+  const played = await call(new URL(videos["close-to-wide"].url).pathname);
+  assert.equal(played.headers.get("content-type"), "video/mp4");
+  assert.deepEqual(new Uint8Array(await played.arrayBuffer()), mp4);
+  // A new upload replaces the old file; delete removes it.
+  const second = await (await put("/api/grok-videos/10/close-to-wide", "secret")).json();
+  assert.ok(!files.has(first.fileId) && files.has(second.fileId));
+  assert.equal((await call(`/grok/video/${first.fileId}`)).status, 404, "only listed videos are served");
+  await call("/api/grok-videos/10/close-to-wide", { method: "DELETE", headers: { "x-admin-key": "secret" } });
+  assert.deepEqual((await (await call("/grok/videos")).json()).videos, {});
+});

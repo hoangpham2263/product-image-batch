@@ -5,7 +5,8 @@ const ORIGINS = ["https://hoangpham.is-a.dev", "http://localhost:8000"];
 const SCOPE = "openid email https://www.googleapis.com/auth/drive.file";
 const OWNER_EMAILS = ["quochoang.idx@gmail.com", "hoangpham2263@gmail.com"];
 // Drive layout: "Tools Hub/" holds one folder per tool. "Tools Hub/Product Review/" holds "Ảnh đã tạo/<run>/",
-// "Nguồn ảnh/<group>/" and "Logs/".
+// "Nguồn ảnh/<group>/" and "Logs/"; "Tools Hub/Grok Video Prompt/Video mẫu/<6s|10s|15s>/<prompt code>.mp4" holds
+// one sample video per prompt.
 const HUB_FOLDER = "Tools Hub";
 const FOLDER_NAME = "Product Review";
 const OLD_FOLDER_NAME = "Product Image Batch";
@@ -20,7 +21,7 @@ function cors(req) {
   const origin = req.headers.get("origin") || "";
   return {
     "access-control-allow-origin": ORIGINS.includes(origin) ? origin : ORIGINS[0],
-    "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
+    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "content-type, x-admin-key",
     vary: "origin",
   };
@@ -367,6 +368,46 @@ async function handleSources(req, env, url, parts, role) {
   return json({ error: "Not found" }, 404);
 }
 
+// ---------- Grok Video Prompt: sample videos ----------
+// One sample video per prompt, by the prompt's code. The index (code -> Drive file) is one KV entry, read by the
+// tool's page without a password; the admin uploads with PUT /api/grok-videos/<seconds>/<code>.
+const GROK_FOLDER = "Grok Video Prompt";
+const GROK_VIDEOS_FOLDER = "Video mẫu";
+const GROK_KEY = "grok:videos";
+const GROK_SECONDS = ["6", "10", "15"];
+const VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
+const readGrokVideos = async (env) => (await env.STORE.get(GROK_KEY, "json")) || {};
+const grokVideoUrl = (origin, v) => `${origin}/grok/video/${v.fileId}`;
+export const grokCode = (value) => (/^[\w-]{1,120}$/.test(String(value || "")) ? String(value) : "");
+
+async function handleGrokVideos(req, env, url, seconds, code) {
+  if (!GROK_SECONDS.includes(seconds) || !grokCode(code)) return json({ error: "Thời lượng hoặc mã prompt không hợp lệ." }, 400);
+  const videos = await readGrokVideos(env);
+  const old = videos[code];
+  if (req.method === "PUT") {
+    const mime = (req.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!VIDEO_TYPES.includes(mime)) return json({ error: "Chỉ nhận video MP4, WebM hoặc MOV." }, 400);
+    const bytes = await req.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 90 * 1024 * 1024) return json({ error: "Video rỗng hoặc quá 90MB." }, 400);
+    const tool = await folder(env, GROK_FOLDER, await folder(env, HUB_FOLDER));
+    const parent = await folder(env, `${seconds}s`, await folder(env, GROK_VIDEOS_FOLDER, tool));
+    const ext = { "video/mp4": ".mp4", "video/webm": ".webm", "video/quicktime": ".mov" }[mime];
+    const fileId = await uploadFile(env, code + ext, mime, bytes, parent);
+    videos[code] = { fileId, seconds, mime, size: bytes.byteLength, updatedAt: new Date().toISOString() };
+    await env.STORE.put(GROK_KEY, JSON.stringify(videos));
+    if (old) await drive(env, `/drive/v3/files/${old.fileId}`, { method: "DELETE" }).catch(() => {});
+    return json({ code, ...videos[code], url: grokVideoUrl(url.origin, videos[code]) }, 201);
+  }
+  if (req.method === "DELETE") {
+    if (!old) return json({ error: "Prompt này chưa có video mẫu." }, 404);
+    delete videos[code];
+    await env.STORE.put(GROK_KEY, JSON.stringify(videos));
+    await drive(env, `/drive/v3/files/${old.fileId}`, { method: "DELETE" }).catch(() => {});
+    return json({ ok: true });
+  }
+  return json({ error: "Not found" }, 404);
+}
+
 // ---------- Routes ----------
 async function handle(req, env, ctx) {
   const url = new URL(req.url);
@@ -428,6 +469,26 @@ async function handle(req, env, ctx) {
     return res;
   }
 
+  // Grok Video Prompt's sample videos, public: the list by prompt code, and each video (cached at the edge, so the
+  // browser's range requests for seeking are answered from the cache after the first play).
+  if (path === "/grok/videos" && req.method === "GET") {
+    const videos = await readGrokVideos(env);
+    const list = Object.fromEntries(Object.entries(videos).map(([code, v]) => [code, { seconds: v.seconds, url: grokVideoUrl(url.origin, v), updatedAt: v.updatedAt }]));
+    return json({ videos: list }, 200, { "cache-control": "no-store" });
+  }
+  const video = path.match(/^\/grok\/video\/([\w-]+)$/);
+  if (video && req.method === "GET") {
+    const cache = caches.default;
+    const hit = await cache.match(req);
+    if (hit) return hit;
+    const known = Object.values(await readGrokVideos(env)).find((v) => v.fileId === video[1]);
+    if (!known) return new Response("Không tìm thấy video.", { status: 404 });
+    const r = await drive(env, `/drive/v3/files/${known.fileId}?alt=media`);
+    const res = new Response(r.body, { headers: { "content-type": known.mime, "content-length": String(known.size), "accept-ranges": "bytes", "cache-control": "public, max-age=604800" } });
+    ctx.waitUntil(cache.put(new Request(url.toString()), res.clone()));
+    return res;
+  }
+
   if (path === "/api/status" && req.method === "GET") {
     return json({ connected: !!(await env.STORE.get("refresh_token")), email: isAdmin(req, env) ? await env.STORE.get("drive_email") : undefined });
   }
@@ -469,6 +530,9 @@ async function handle(req, env, ctx) {
   const logs = path.match(/^\/api\/logs(?:\/([^/]+))?$/);
   if (logs) return handleLogs(req, env, url, logs[1]);
 
+  const grok = path.match(/^\/api\/grok-videos\/(\w+)\/([^/]+)$/);
+  if (grok) return role === "admin" ? handleGrokVideos(req, env, url, grok[1], grok[2]) : json({ error: "Chỉ admin được tải video mẫu." }, 403);
+
   const sources = path.match(/^\/api\/sources(?:\/([^/]+)(?:\/([^/]+))?)?$/);
   if (sources) return handleSources(req, env, url, [sources[1], sources[2]], role);
 
@@ -504,6 +568,7 @@ export default {
     }
     const h = new Headers(res.headers);
     for (const [k, v] of Object.entries(cors(req))) h.set(k, v);
+    if (new URL(req.url).pathname.startsWith("/grok/")) h.set("access-control-allow-origin", "*");
     return new Response(res.body, { status: res.status, headers: h });
   },
 };
