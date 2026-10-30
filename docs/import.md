@@ -1,6 +1,6 @@
-# Nhập hàng loạt – chuẩn thư mục
+# Nhập hàng loạt – chuẩn thư mục · Product Review
 
-Thêm nhiều sản phẩm cùng lúc thay vì gắn ảnh tay từng link. Chuẩn duy nhất: **một thư mục** chứa file `products.csv` và thư mục `images/` đựng toàn bộ ảnh trên máy.
+Dùng cho nút **Nhập hàng loạt** của công cụ Product Review trong Tools Hub. Thêm nhiều sản phẩm cùng lúc thay vì gắn ảnh tay từng link. Chuẩn duy nhất: **một thư mục** chứa file `products.csv` và thư mục `images/` đựng toàn bộ ảnh trên máy.
 
 ```
 product-import/
