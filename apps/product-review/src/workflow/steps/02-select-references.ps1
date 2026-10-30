@@ -127,15 +127,16 @@ function Select-ProductReferences([string]$Reference, [string]$Handle, [string]$
         $scene=if($script:Config.ActiveScene){$script:Config.ActiveScene}elseif($entry.Count){@(Get-ManualScenes $entry[0])[0]}
         if($scene){
             $photo=$scene.file
-            if(-not (Test-Path -LiteralPath $photo) -or (Get-BytesHash ([IO.File]::ReadAllBytes($photo))) -ine $scene.sha256){throw 'No suitable real scene reference: user-selected image is missing or changed. Attach it again.'}
+            if(-not (Test-Path -LiteralPath $photo) -or (Get-BytesHash ([IO.File]::ReadAllBytes($photo))) -ine $scene.sha256){throw '[CAUSE:PRODUCT_INPUT] Ảnh review đã gắn bị thiếu hoặc thay đổi. Hãy gắn lại ảnh.'}
             $role=if($Context.presentation -and $Context.presentation -ne 'worn'){'Scene'}else{'Subject'}
             Write-Host '  [MANUAL-REFERENCE] Using the image attached to this product URL; user performs visual review.' -ForegroundColor Cyan
             $verdict='USER_SELECTED'
             Write-FeedbackJson (Join-Path $script:Batch.Logs "$ItemId-manual-reference.json") ([ordered]@{product_url=$script:Config.ActiveProductUrl;photo=$photo;sha256=$scene.sha256;role=$role;verdict=$verdict;origin='user_reference'})
             return $photo
         }
-        # Review images are always chosen by the user (from the computer or the Drive library).
-        throw 'No suitable real scene reference: attach a review image to this product image.'
+        # Review images are always chosen by the user (from the computer or the Drive library). A missing or changed
+        # one is an input error to fix by attaching it again, not missing library data.
+        throw '[CAUSE:PRODUCT_INPUT] Ảnh gốc chưa gắn ảnh review. Hãy gắn ảnh review.'
     }
     # One review photo supplies both the people and surroundings for each output.
     # The actual product image is a separate input, never counted as a review photo.

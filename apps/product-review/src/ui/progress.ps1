@@ -77,7 +77,7 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         } elseif ($line -match '\[CAUSE:DRIVE_UPLOAD\]') {
             $event.Text='Ảnh đã lưu nhưng chưa tải được lên Drive. Thử bàn giao lại để tiếp tục upload, không tạo ảnh mới.'
         } elseif ($line -match '\[CAUSE:PRODUCT_INPUT\]') {
-            $event.Text = "Sản phẩm $($event.Index): không đọc được ảnh sản phẩm gốc, hãy gắn lại."
+            $event.Text = "Sản phẩm $($event.Index): ảnh đã gắn (ảnh gốc hoặc ảnh review) bị thiếu hoặc thay đổi, hãy gắn lại."
         } elseif ($line -match '\[CAUSE:PRODUCT_TIMEOUT\]') {
             $event.Text = "Sản phẩm $($event.Index): trang quá chậm, thử lại sau."
         } elseif ($line -match '\[CAUSE:PRODUCT_NETWORK\]') {
