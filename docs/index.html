@@ -25,6 +25,9 @@
   .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; row-gap: 20px; }
   @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; row-gap: 40px; } }
   @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; row-gap: 60px; } }
+  /* The footer sits 20px below the content on every screen; only the header gets the larger gap. */
+  @media (min-width: 640px) { .wrap > footer { margin-top: -20px; } }
+  @media (min-width: 1024px) { .wrap > footer { margin-top: -40px; } }
   .top { display: flex; align-items: center; gap: 12px; }
   .top-text { flex: 1; min-width: 0; }
   h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 500; }
@@ -190,7 +193,7 @@
   /* The menu stays in view while the page scrolls, and scrolls itself when the screen is too short for it. */
   .side { position: sticky; top: 24px; display: grid; gap: 2px; align-content: start; max-height: calc(100dvh - 48px); overflow-y: auto; }
   .side-label { margin: 14px 10px 4px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  .side-label:first-child { margin-top: 0; }
+  .side-label:first-child, .side-head + .side-label { margin-top: 0; }
   .side button { justify-content: flex-start; gap: 10px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--fg); }
   .side button:hover { background: var(--soft); color: var(--fg); }
   .side button.on { background: var(--soft); color: var(--fg); font-weight: 500; }
@@ -199,11 +202,21 @@
   .crumbs .back[data-go=""] { display: none; }
   footer { text-align: center; align-self: end; }
   .signed-in #lockBtn { display: none !important; }
+  /* Phones and small tablets: the menu is a drawer from the left, opened by the ☰ button in the header. */
+  .menu-btn, .side-head, .side-shade { display: none; }
   @media (max-width: 860px) {
-    .shell { grid-template-columns: 1fr; gap: 16px; }
-    .side { position: static; display: flex; gap: 4px; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; }
-    .side-label { display: none; }
-    .side button { flex: none; }
+    .shell { grid-template-columns: 1fr; gap: 0; }
+    .menu-btn { display: inline-flex; width: 36px; padding: 0; flex: none; }
+    .side { position: fixed; z-index: 50; top: 0; bottom: 0; left: 0; width: min(300px, 84vw); max-height: none; padding: 12px 12px 24px;
+      background: var(--bg); border-right: 1px solid var(--border); box-shadow: 0 10px 30px rgba(15, 23, 42, .18);
+      transform: translateX(-105%); transition: transform .2s ease; overflow-y: auto; }
+    body.menu-open .side { transform: none; }
+    body.menu-open { overflow: hidden; }
+    .side-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 4px 8px 10px; font-weight: 500; }
+    .side-shade { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(15, 23, 42, .45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+    body.menu-open .side-shade { opacity: 1; pointer-events: auto; }
+    .side button { height: 44px; }
+    .side button.sub { height: 40px; }
   }
   /* Download (signed out) */
   /* Download on the left, guide on the right; stacked on phones. */
@@ -227,7 +240,6 @@
   .side-toggle[aria-expanded="true"] svg { transform: none; }
   .side-sub { display: grid; gap: 2px; }
   .side-group:not(.open) .side-sub { display: none; }
-  @media (max-width: 860px) { .side-group, .side-sub { display: contents; } .side .side-toggle { display: none; } .side-group:not(.open) .side-sub { display: contents; } .side-parent { display: contents; } }
   /* Sub-pages sit under their tool, indented past its icon. */
   .side button.sub { height: 34px; margin-left: 18px; padding-left: 20px; border-left: 1px solid var(--border); border-radius: 0 8px 8px 0; font-size: 14px; }
   .crumbs .path { height: 32px; padding: 0 4px; border: 0; background: none; color: var(--primary); font-size: 16px; }
@@ -277,6 +289,9 @@
 <body>
 <main class="wrap">
   <header class="top">
+    <button id="menuBtn" class="menu-btn" type="button" aria-label="Mở menu" aria-controls="side" aria-expanded="false">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
     <a class="home-link" id="homeLink" href="./" title="Trang chính">
       <span class="brand"><img src="brand/hp-icon.svg" alt="" width="40" height="40" /></span>
       <h1>Tools Hub</h1>
@@ -295,7 +310,9 @@
 
   <div class="shell">
   <!-- Left menu, by what each part is for; Quản lý only after signing in. Phones: a row that scrolls sideways. -->
+  <div class="side-shade" id="sideShade"></div>
   <nav class="side" id="side" aria-label="Menu">
+    <div class="side-head"><span>Menu</span><button class="icon" type="button" id="menuClose" aria-label="Đóng menu">✕</button></div>
     <span class="side-label">Bắt đầu</span>
     <button type="button" data-go=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Trang chủ</button>
     <span class="side-label">Công cụ</span>
@@ -1182,6 +1199,15 @@ $("search").oninput = () => { state.imgShown = PAGE; render(); };
 $("batch").onchange = () => { state.imgShown = PAGE; render(); };
 $("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
 for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
+// Phones: the menu slides in from the left; picking a page, the shade or Esc closes it.
+function setMenu(open) {
+  document.body.classList.toggle("menu-open", open);
+  $("menuBtn").setAttribute("aria-expanded", open);
+}
+$("menuBtn").onclick = () => setMenu(true);
+$("menuClose").onclick = $("sideShade").onclick = () => setMenu(false);
+for (const b of document.querySelectorAll("#side [data-go]")) b.addEventListener("click", () => setMenu(false));
+addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
 // Sub-menus in the left menu: open or closed, remembered in this browser.
 function setGroupOpen(group, open) {
   group.classList.toggle("open", open);
