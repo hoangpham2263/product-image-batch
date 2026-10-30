@@ -4,11 +4,13 @@
 function Get-HubTools([string]$Root) {
     $apps = Join-Path $Root 'apps'
     if (-not (Test-Path -LiteralPath $apps)) { return @() }
-    return @(foreach ($file in @(Get-ChildItem -LiteralPath $apps -Filter tool.json -Recurse -Depth 1 -File | Sort-Object FullName)) {
+    $tools = @(foreach ($file in @(Get-ChildItem -LiteralPath $apps -Filter tool.json -Recurse -Depth 1 -File | Sort-Object FullName)) {
         $tool = Get-Content -LiteralPath $file.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
         $tool | Add-Member -NotePropertyName Root -NotePropertyValue $file.DirectoryName -Force
         $tool
     })
+    # "order" in tool.json sets the picker's order; tools without it follow, by folder name.
+    return @($tools | Sort-Object { if ($null -ne $_.order) { [int]$_.order } else { 99 } }, Root)
 }
 
 # Before Tools Hub the app lived at the root (src/, data/, AGENTS.md, workspace/). An install updated from such a

@@ -11,14 +11,14 @@ const root = resolve(here, "..");
 const tools = readdirSync(join(root, "apps"), { withFileTypes: true })
   .filter((d) => d.isDirectory() && existsSync(join(root, "apps", d.name, "tool.json")))
   .map((d) => ({ ...JSON.parse(readFileSync(join(root, "apps", d.name, "tool.json"), "utf8")), dir: join(root, "apps", d.name) }))
-  .sort((a, b) => a.dir.localeCompare(b.dir));
+  .sort((a, b) => (a.order ?? 99) - (b.order ?? 99) || a.dir.localeCompare(b.dir));
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tools Hub</title><link rel="icon" href="/hub/icon.svg"><link rel="stylesheet" href="/hub/tool.css">
-<style>.tools{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));grid-auto-rows:1fr}.tools form{margin:0;display:flex}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:100%;min-height:88px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:48px;height:48px;flex:none}.tools button:hover{border-color:var(--primary)}</style></head>
-<body><main><header><img src="/hub/icon.svg" alt=""><h1>Tools Hub</h1></header><div class="tools">
-${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span><span>${esc(t.name)}</span><br><span class="muted small">${esc(t.description)}</span></span></button></form>`).join("")}
+<style>.tools{display:grid;gap:8px}.tools form{margin:0}.tools button{display:flex;gap:14px;align-items:center;width:100%;height:64px;padding:0 14px;text-align:left;cursor:pointer;font:inherit;color:inherit}.tools img{width:40px;height:40px;flex:none}.tools .name{display:block}.tools .desc{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tools span.text{min-width:0}</style></head>
+<body><main><header><img src="/hub/icon.svg" alt=""><h1>Tools Hub</h1></header><div class="tools list">
+${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span class="text"><span class="name">${esc(t.name)}</span><span class="desc muted">${esc(t.description)}</span></span></button></form>`).join("")}
 </div></main></body></html>`;
 
 // Same window as Product Review's (src/mac/server.mjs): a Chrome app window, no tabs or address bar; the default
@@ -56,6 +56,6 @@ const server = createServer((req, res) => {
 });
 // HUB_PICKER_PORT (tests): a fixed port and no browser window.
 const fixed = Number(process.env.HUB_PICKER_PORT) || 0;
-server.listen(fixed, "127.0.0.1", () => fixed || appWindow(`http://127.0.0.1:${server.address().port}/`, "820,520"));
+server.listen(fixed, "127.0.0.1", () => fixed || appWindow(`http://127.0.0.1:${server.address().port}/`, "560,360"));
 // Nobody picked: stop after 10 minutes rather than linger.
 setTimeout(() => process.exit(0), 10 * 60000).unref();

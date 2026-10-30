@@ -24,13 +24,13 @@ if ($Mac) {
 $tool = $tools[0]
 if ($tools.Count -gt 1) {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-    $form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; ClientSize = '420,80'; StartPosition = 'CenterScreen'; FormBorderStyle = 'FixedDialog'; MaximizeBox = $false; MinimizeBox = $false; BackColor = [Drawing.Color]::White; Font = New-Object Drawing.Font('Segoe UI', 10) }
+    $form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; ClientSize = '420,80'; StartPosition = 'CenterScreen'; FormBorderStyle = 'FixedDialog'; MaximizeBox = $false; MinimizeBox = $false; BackColor = [Drawing.Color]::FromArgb(240, 240, 240); Font = New-Object Drawing.Font('Segoe UI', 10) }
     $hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
     if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
     $y = 16
     foreach ($item in $tools) {
-        $button = New-Object Windows.Forms.Button -Property @{ Left = 16; Top = $y; Width = 388; Height = 64; Tag = $item; FlatStyle = 'Flat'; TextAlign = 'MiddleLeft'; ImageAlign = 'MiddleLeft'; TextImageRelation = 'ImageBeforeText'; Padding = '10,0,0,0'; Cursor = 'Hand' }
-        $button.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(226, 232, 240)
+        $button = New-Object Windows.Forms.Button -Property @{ Left = 16; Top = $y; Width = 388; Height = 64; Tag = $item; FlatStyle = 'Flat'; BackColor = [Drawing.Color]::White; TextAlign = 'MiddleLeft'; ImageAlign = 'MiddleLeft'; TextImageRelation = 'ImageBeforeText'; Padding = '10,0,0,0'; Cursor = 'Hand' }
+        $button.FlatAppearance.BorderColor = [Drawing.Color]::FromArgb(172, 172, 172); $button.FlatAppearance.MouseOverBackColor = [Drawing.Color]::FromArgb(230, 238, 248)
         $button.Text = "  $($item.name)`r`n  $($item.description)"
         $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
         if (Test-Path -LiteralPath $png) { $button.Image = New-Object Drawing.Bitmap((New-Object Drawing.Bitmap($png)), 40, 40) }

@@ -1,6 +1,7 @@
 {
   "id": "fb-content",
   "name": "Content FB",
+  "order": 3,
   "description": "Soạn bài đăng Facebook từ thông tin sản phẩm (bản tạm).",
   "icon": "icon.svg",
   "web": "ui/index.html"
