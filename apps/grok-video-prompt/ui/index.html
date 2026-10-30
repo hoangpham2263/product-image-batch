@@ -8,12 +8,13 @@
 <link rel="stylesheet" href="../../../hub/assets/tool.css">
 <script src="../../../hub/assets/hub.js" defer></script>
 <script src="../data/prompts.js"></script>
+<style>.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }</style>
 </head>
 <body>
 <main>
   <header><a class="btn" id="menu" href="/" hidden>← Menu</a><h1>Grok Video Prompt</h1></header>
 
-  <div class="layout">
+  <div class="layout" style="grid-template-columns:minmax(0,1fr) 360px">
     <section class="group">
       <h2>Style</h2>
       <div class="seg" id="durations" role="group" aria-label="Thời lượng"></div>
@@ -22,10 +23,8 @@
     <section class="group actions-col">
       <h2>Thao tác</h2>
       <label for="product">Tên sản phẩm</label>
-      <input id="product" placeholder="Bàn trà gỗ óc chó chân vòm">
-      <button class="btn primary" id="copy" type="button">Copy prompt</button>
-      <button class="btn" id="toggleAdd" type="button">Thêm prompt</button>
-      <div class="muted small" id="meta"></div>
+      <textarea id="product" placeholder="Bàn trà gỗ óc chó chân vòm" style="min-height:90px" required></textarea>
+      <div class="pair"><button class="btn primary" id="copy" type="button">Copy prompt</button><button class="btn" id="toggleAdd" type="button">Thêm prompt</button></div>
     </section>
     <section class="group wide" id="addGroup" hidden>
       <h2>Thêm prompt cho thời lượng đang chọn</h2>
@@ -71,14 +70,14 @@ function render() {
   const style = styles.find((x) => x.code === state.code);
   const name = state.product.trim();
   $("out").textContent = style ? (name ? style.prompt.split(PROMPTS.placeholder).join(name) : style.prompt) : "";
-  $("meta").textContent = style ? (name ? `${style.prompt.length} ký tự` : `Chưa điền tên sản phẩm: prompt giữ ${PROMPTS.placeholder}`) : "";
   $("copy").disabled = !style;
   store.set(LAST, state);
 }
 $("product").value = state.product;
 $("product").oninput = (e) => { state.product = e.target.value; render(); };
 $("toggleAdd").onclick = () => { $("addGroup").hidden = !$("addGroup").hidden; };
-$("copy").onclick = async () => { await navigator.clipboard.writeText($("out").textContent); toast("Đã copy prompt"); };
+$("copy").onclick = async () => {
+  if (!state.product.trim()) { $("product").focus(); return toast("Điền tên sản phẩm"); } await navigator.clipboard.writeText($("out").textContent); toast("Đã copy prompt"); };
 $("add").onclick = () => {
   const name = $("newName").value.trim(), prompt = $("newPrompt").value.trim();
   if (!name || !prompt) return toast("Điền tên style và prompt");
