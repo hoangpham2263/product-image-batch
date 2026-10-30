@@ -13,7 +13,11 @@ $tools = @(Get-HubTools $root)
 if (-not $tools.Count) { throw 'Không tìm thấy tool nào trong apps/.' }
 if ($Mac) {
     if ($tools.Count -gt 1) { return (Join-Path $PSScriptRoot 'picker.mjs') }
-    if ($tools[0].web) { & open (Join-Path $tools[0].Root $tools[0].web); return }
+    if ($tools[0].web) {
+        $url = ([Uri](Join-Path $tools[0].Root $tools[0].web)).AbsoluteUri
+        & open -na 'Google Chrome' --args "--app=$url" '--window-size=960,820'; if ($LASTEXITCODE) { & open $url }
+        return
+    }
     return (Join-Path $tools[0].Root $tools[0].mac)
 }
 

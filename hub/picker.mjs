@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { readFileSync, readdirSync, existsSync, openSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve, extname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
@@ -21,8 +21,14 @@ const page = () => `<!doctype html><html lang="vi"><head><meta charset="utf-8"><
 ${tools.map((t) => `<form method="post" action="/open/${esc(t.id)}"><button class="card" type="submit"><img src="/icon/${esc(t.id)}" alt=""><span><span>${esc(t.name)}</span><br><span class="muted small">${esc(t.description)}</span></span></button></form>`).join("")}
 </div></main></body></html>`;
 
+// Same window as Product Review's (src/mac/server.mjs): a Chrome app window, no tabs or address bar; the default
+// browser when Chrome is missing.
+function appWindow(url, size = "1120,840") {
+  execFile("open", ["-na", "Google Chrome", "--args", `--app=${url}`, `--window-size=${size}`], (err) => { if (err) execFile("open", [url]); });
+}
+
 function open(tool) {
-  if (tool.web) return execFile("open", [join(tool.dir, tool.web)]);
+  if (tool.web) return appWindow(pathToFileURL(join(tool.dir, tool.web)).href, "960,820");
   const logs = join(tool.dir, "workspace", "logs");
   mkdirSync(logs, { recursive: true });
   const out = openSync(join(logs, "mac-server.log"), "a");
@@ -43,13 +49,13 @@ const server = createServer((req, res) => {
   }
   if (tool && url.pathname.startsWith("/open/") && req.method === "POST") {
     open(tool);
-    send(200, "text/html; charset=utf-8", `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/hub/tool.css"><main><p>Đang mở ${esc(tool.name)}… Có thể đóng tab này.</p></main>`);
+    send(200, "text/html; charset=utf-8", `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/hub/tool.css"><main><p>Đang mở ${esc(tool.name)}…</p><script>setTimeout(() => window.close(), 800)</script></main>`);
     return setTimeout(() => process.exit(0), 500);
   }
   send(404, "text/plain", "");
 });
 // HUB_PICKER_PORT (tests): a fixed port and no browser window.
 const fixed = Number(process.env.HUB_PICKER_PORT) || 0;
-server.listen(fixed, "127.0.0.1", () => fixed || execFile("open", [`http://127.0.0.1:${server.address().port}/`]));
+server.listen(fixed, "127.0.0.1", () => fixed || appWindow(`http://127.0.0.1:${server.address().port}/`, "820,520"));
 // Nobody picked: stop after 10 minutes rather than linger.
 setTimeout(() => process.exit(0), 10 * 60000).unref();
