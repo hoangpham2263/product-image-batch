@@ -207,8 +207,6 @@
   /* Download (signed out) */
   /* Download on the left, guide on the right; stacked on phones. */
   .home { display: grid; gap: 20px; }
-  .tool-card { cursor: pointer; }
-  .tool-card:hover { background: var(--soft); }
   .tool-page { display: grid; gap: 20px; }
   .tool-head { display: flex; gap: 16px; align-items: center; }
   .tool-head img { flex: none; }
@@ -222,7 +220,7 @@
   .intro { display: grid; gap: 4px; }
   .intro p { margin: 0; max-width: 720px; }
   /* Text in the menu and on the pages keeps the normal colour; only small labels stay grey. */
-  .intro .muted, .tool-head .muted, .tool-list .muted { color: var(--fg); }
+  .intro .muted, .tool-head .muted { color: var(--fg); }
   .page-title { font-size: 22px; }
   .hero { grid-template-columns: 300px minmax(0, 1fr); gap: 0; padding: 0; }
   .get { display: grid; justify-items: center; align-content: center; gap: 12px; padding: 32px 24px; text-align: center; }
@@ -231,13 +229,6 @@
   .hero p { margin: 0; }
   a.btn.primary { padding: 0 16px; gap: 8px; color: #fff; }
   .steps { margin: 0; padding-left: 20px; font-size: 14px; display: grid; gap: 6px; }
-  .home .tools { display: grid; gap: 12px; }
-  .home .tools h2 { margin: 0; font-size: 16px; }
-  .tool-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-  .tool-list > li { display: flex; gap: 14px; align-items: flex-start; padding: 16px; border: 1px solid var(--border); border-radius: 14px; }
-  .tool-list img { flex: none; }
-  .tool-list p { margin: 2px 0 8px; }
-  .tool-list ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
   .blocks-title { grid-column: 1 / -1; margin: 0; font-size: 16px; }
   .steps ul { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 2px; }
   .os-tabs { display: flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--soft); }
@@ -340,20 +331,6 @@
         <li>Có bản mới thì bấm <b>Cập nhật</b> ở góc trên bên phải; một lần cập nhật cho mọi công cụ.</li>
       </ol>
     </div>
-    </div>
-    <div class="tools">
-      <h2>Công cụ trong app</h2>
-      <ul class="tool-list">
-        <li class="tool-card" data-go="product-review" role="link" tabindex="0"><img src="tools/product-review.svg" alt="" width="40" height="40" /><div><b>Product Review</b>
-          <p class="muted small">Tạo ảnh review sản phẩm, viết review mẫu và xuất CSV cho Loox.</p>
-          <ul class="small"><li>Nhiều sản phẩm một lần, mỗi sản phẩm nhiều ảnh gốc và ảnh review.</li><li>Nhập hàng loạt từ bảng CSV hoặc thư mục nén.</li><li>Duyệt từng ảnh trước khi xuất file; ảnh lưu trên Google Drive.</li></ul></div></li>
-        <li class="tool-card" data-go="grok-video-prompt" role="link" tabindex="0"><img src="tools/grok-video-prompt.svg" alt="" width="40" height="40" /><div><b>Grok Video Prompt</b>
-          <p class="muted small">Prompt video dựng sẵn cho Grok, điền tên sản phẩm là dùng được.</p>
-          <ul class="small"><li>Chọn thời lượng 6s / 10s / 15s và style.</li><li>Mỗi style có video mẫu để xem trước.</li><li>Copy prompt bằng một nút.</li></ul></div></li>
-        <li class="tool-card" data-go="fb-content" role="link" tabindex="0"><img src="tools/fb-content.svg" alt="" width="40" height="40" /><div><b>Content FB</b>
-          <p class="muted small">Từ tên sản phẩm và ảnh gốc: tạo ảnh và soạn bài đăng Facebook (đang làm).</p>
-          <ul class="small"><li>Một ảnh gốc ra nhiều bối cảnh.</li><li>Chọn giọng văn, thêm lời nhắn cho AI.</li><li>Copy bài viết và hashtag ngay trên app.</li></ul></div></li>
-      </ul>
     </div>
   </section>
 
@@ -1172,7 +1149,6 @@ $("search").oninput = () => { state.imgShown = PAGE; render(); };
 $("batch").onchange = () => { state.imgShown = PAGE; render(); };
 $("imgMore").onclick = () => { state.imgShown += PAGE; render(); };
 for (const b of document.querySelectorAll("[data-go]")) b.onclick = () => go(b.dataset.go);
-for (const c of document.querySelectorAll(".tool-card")) c.onkeydown = (e) => { if (e.key === "Enter") go(c.dataset.go); };
 // Logo and name go back to the management home (or the download page when signed out).
 $("homeLink").onclick = (e) => { e.preventDefault(); go(""); };
 $("srcBack").onclick = () => go(state.group ? "nguon" : "");
