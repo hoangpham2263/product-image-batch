@@ -17,6 +17,9 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
 .col > .grow { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .col > .grow.scroll { overflow-y: auto; }
 #points { min-height: 72px; max-height: 120px; }
+.pair { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.pair + label { margin-top: 10px; }
+#note { min-height: 72px; max-height: 140px; }
 #postGroup pre.out { flex: 1; min-height: 0; max-height: none; }
 /* Image strips: square tiles that scroll sideways when there are many. */
 .tiles { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
@@ -39,7 +42,10 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
     <div class="col">
       <section class="group">
         <h2>Sản phẩm</h2>
-        <label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm">
+        <div class="pair">
+          <div><label for="name">Tên sản phẩm</label><input id="name" placeholder="Bàn trà gỗ óc chó chân vòm"></div>
+          <div><label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM"></div>
+        </div>
         <label>Ảnh gốc</label>
         <div class="tiles" id="sources"></div>
         <input id="pick" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
@@ -58,12 +64,13 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
         <h2>Thao tác</h2>
         <label>Giọng văn</label>
         <div class="list listbox" id="tones" role="group" aria-label="Giọng văn"></div>
+        <label for="note">Lời nhắn cho AI</label>
+        <textarea id="note" placeholder="Gửi kèm khuôn sẵn: ý muốn thêm hoặc góp ý. Ví dụ: nhấn mạnh gỗ tự nhiên, giọng gần gũi, dưới 120 chữ."></textarea>
         <button class="btn primary" id="make" type="button">Tạo ảnh</button>
         <button class="btn" id="copy" type="button">Copy bài đăng</button>
       </section>
       <section class="group grow scroll">
         <h2>Thông tin thêm</h2>
-        <label for="brand">Thương hiệu</label><input id="brand" placeholder="GRENHEIM">
         <label for="link">Link sản phẩm</label><input id="link" placeholder="https://…">
         <label for="points">Điểm nổi bật (mỗi dòng một ý)</label><textarea id="points" placeholder="Gỗ tự nhiên nguyên tấm&#10;Chân vòm vững chắc"></textarea>
         <label for="tags">Hashtag (cách nhau bởi dấu cách)</label><input id="tags" placeholder="#BanTraGo #GocTra">
@@ -75,9 +82,10 @@ main { height: 100%; display: flex; flex-direction: column; padding-bottom: 20px
 <script>
 // Opened from the Tools Hub menu (served over http): a button back to it. Opened as a file: no menu to go back to.
 document.getElementById("menu").hidden = !location.protocol.startsWith("http");
-// Temporary logic: fills a fixed template per tone. The real generator (brand voice, AI) replaces compose().
+// Temporary logic: fills a fixed template per tone. The real generator (brand voice, AI) replaces compose() and gets
+// Lời nhắn cho AI (note) with the template, to steer it or give feedback; it is kept with the draft until then.
 const $ = (id) => document.getElementById(id);
-const FIELDS = ["name", "brand", "link", "points", "tags"], KEY = "fb-content:draft";
+const FIELDS = ["name", "note", "brand", "link", "points", "tags"], KEY = "fb-content:draft";
 const TONES = { story: "Kể chuyện", short: "Ngắn gọn", sale: "Giới thiệu bán hàng" };
 let tone = "story";
 const OPENING = {
