@@ -175,8 +175,9 @@ $btnReview=New-Object Windows.Forms.Button -Property @{Text='Duyệt & xuất fi
 $btnOut=New-Object Windows.Forms.Button -Property @{Text='Mở kết quả';Location='14,73';Size='196,32'}
 $btnSetup=New-Object Windows.Forms.Button -Property @{Text='Kiểm tra cấu hình';Location='14,110';Size='196,32'}
 $btnLogs=New-Object Windows.Forms.Button -Property @{Text='Gửi lỗi';Location='14,147';Size='196,32'}
-foreach ($b in @($btnReview,$btnOut,$btnSetup,$btnLogs)) { Set-FlatButton $b }
-$cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnSetup,$btnLogs))
+$btnClearLog=New-Object Windows.Forms.Button -Property @{Name='ClearNotifications';Text='Xóa thông báo';Location='14,184';Size='196,32'}
+foreach ($b in @($btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog)) { Set-FlatButton $b }
+$cardActions.Controls.AddRange(@($btnReview,$btnOut,$btnSetup,$btnLogs,$btnClearLog))
 # Finished images waiting for review: the button shows how many and turns green; nothing pops up.
 function Update-ReviewButton {
     $pending = try { Get-PendingReviewCount $script:resultFolder } catch { 0 }
@@ -210,6 +211,7 @@ $bar=New-Object Windows.Forms.ProgressBar -Property @{Location='14,36';Size='103
 $lblProgress=New-Object Windows.Forms.Label -Property @{Text='Thêm sản phẩm và ảnh đi kèm để bắt đầu.';Location='14,50';Size='1032,24';AutoEllipsis=$true;Anchor='Top,Left,Right'}
 $txtLog=New-Object Windows.Forms.TextBox -Property @{Multiline=$true;ReadOnly=$true;ScrollBars='Vertical';Location='14,80';Size='1032,188';Anchor='Top,Bottom,Left,Right';BackColor=$ui.Surface;BorderStyle='FixedSingle';Font=(New-Object Drawing.Font('Segoe UI',10))}
 $cardLog.Controls.AddRange(@($bar,$lblProgress,$txtLog))
+$btnClearLog.Add_Click({$txtLog.Clear()})
 
 $form.Controls.AddRange(@($cardLog,$cardRun,$cardActions,$cardList,$header))
 $lblStatus.Anchor='Top,Left'

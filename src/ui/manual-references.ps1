@@ -522,7 +522,7 @@ function Show-ProductQueueBulkDialog($Editor) {
     $ui=$script:Ui
     $dialog=New-Object Windows.Forms.Form -Property @{Text='Nhập hàng loạt';ClientSize='760,480';MinimumSize='640,420';StartPosition='CenterParent';Font=(New-Object Drawing.Font('Segoe UI',10));ShowInTaskbar=$false}
     $hint=New-Object Windows.Forms.Label -Property @{Text='Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import hay file nén của nó (hoặc bấm Chọn file… và chọn products.csv) để app gắn ảnh.';Location='16,14';Size='728,40';Anchor='Top,Left,Right'}
-    $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,56';Size='200,22'}
+    $guide=New-Object Windows.Forms.LinkLabel -Property @{Text='Xem chuẩn file nhập';Location='16,58';Size='200,30';TextAlign='MiddleLeft'}
     # Keep the button below the full-width hint (bottom=54), which otherwise covers its top edge.
     $pick=New-Object Windows.Forms.Button -Property @{Name='PickImportFile';Text='Chọn file…';Location='634,58';Size='110,30';Anchor='Top,Right'}
     $text=New-Object Windows.Forms.TextBox -Property @{Name='BulkUrls';Multiline=$true;ScrollBars='Both';WordWrap=$false;Location='16,96';Size='728,262';Anchor='Top,Bottom,Left,Right';Font=(New-Object Drawing.Font('Consolas',9.5))}
@@ -631,13 +631,15 @@ function New-ProductQueueEditor([string]$ProjectRoot) {
     $flow=New-Object Windows.Forms.FlowLayoutPanel -Property @{Name='ProductRows';Dock='Fill';FlowDirection='TopDown';WrapContents=$false;AutoScroll=$true;Padding='10,10,10,6'}
     $add=New-Object Windows.Forms.Button -Property @{Name='AddProduct';Text='+ Thêm sản phẩm';Location='0,0';Size='160,34'}
     $bulk=New-Object Windows.Forms.Button -Property @{Text='Nhập hàng loạt';Location='172,0';Size='150,34'}
-    Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk
+    $clear=New-Object Windows.Forms.Button -Property @{Name='ClearProducts';Text='Xóa tất cả';Location='334,0';Size='120,34'}
+    Set-FlatButton $add -Primary;$add.FlatAppearance.BorderSize=0;Set-FlatButton $bulk;Set-FlatButton $clear
     # SourceGroup: the Drive group last opened in "Từ kho Drive", offered first next time.
     $editor=[pscustomobject]@{Panel=$panel;Flow=$flow;Tip=(New-Object Windows.Forms.ToolTip);Rows=[Collections.Generic.List[object]]::new();Root=$ProjectRoot;MapPath=(Join-Path $ProjectRoot 'workspace/reference-inputs/references.json');OnChanged=$null;SourceGroup=(Read-ManualReferenceMap (Join-Path $ProjectRoot 'workspace/reference-inputs/references.json')).preferred_source_group}
-    $toolbar.Controls.AddRange(@($add,$bulk));$panel.Controls.AddRange(@($flow,$toolbar))
+    $toolbar.Controls.AddRange(@($add,$bulk,$clear));$panel.Controls.AddRange(@($flow,$toolbar))
     $flow.Add_ClientSizeChanged({foreach($row in $editor.Rows){$row.Card.Width=[Math]::Max(700,$flow.ClientSize.Width-40)}}.GetNewClosure())
     $add.Add_Click({Show-ProductQueueDialog $editor}.GetNewClosure())
     $bulk.Add_Click({Show-ProductQueueBulkDialog $editor}.GetNewClosure())
+    $clear.Add_Click({Set-ProductQueueUrls $editor @();if($editor.OnChanged){& $editor.OnChanged}}.GetNewClosure())
     $panel.Add_Disposed({foreach($row in $editor.Rows){Set-FeedbackPreview $row.Preview ''}}.GetNewClosure())
     return $editor
 }

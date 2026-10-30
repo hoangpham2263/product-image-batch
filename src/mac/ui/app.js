@@ -240,16 +240,17 @@ function buildMain() {
   const editor = at(el("div", "panel"), 14, 36, null, 296, { right: 14 });
   ui.btnAdd = at(button("+ Thêm sản phẩm", true), 0, 0, 160, 34);
   ui.btnBulk = at(button("Nhập hàng loạt"), 172, 0, 150, 34);
+  ui.btnClear = at(button("Xóa tất cả"), 334, 0, 120, 34);
   ui.flow = at(el("div", "flow"), 0, 44, null, null, { right: 0, bottom: 0 });
   Object.assign(ui.flow.style, { background: "#fff", border: "1px solid #000", padding: "10px 10px 6px 10px" });
-  editor.append(ui.btnAdd, ui.btnBulk, ui.flow);
+  editor.append(ui.btnAdd, ui.btnBulk, ui.btnClear, ui.flow);
   cardList.append(editor);
 
   // Thao tác (856,78 224x344, Top/Right).
   const cardActions = at(el("div", "card"), null, 78, 224, 344, { right: 24, left: false });
   cardActions.append(at(label("Thao tác"), 14, 10, null, 20));
   // In the order they are used: review the results, open them, then setup and support.
-  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi lỗi"]];
+  const names = [["btnReview", "Duyệt & xuất file"], ["btnOut", "Mở kết quả"], ["btnSetup", "Kiểm tra cấu hình"], ["btnLogs", "Gửi lỗi"], ["btnClearLog", "Xóa thông báo"]];
   names.forEach(([key, text], i) => { ui[key] = at(button(text), 14, 36 + i * 37, 196, 32); cardActions.append(ui[key]); });
 
   // Run row (20,434 1060x62).
@@ -700,9 +701,10 @@ function showBulkDialog() {
   const view = openWindow("Nhập hàng loạt", 760, 480);
   const hint = at(label("Dán link (mỗi dòng một link), hoặc kéo thả thư mục product-import hay file nén của nó (hoặc bấm Chọn file… và chọn products.csv) để app gắn ảnh."), 16, 14, 728, 40);
   hint.style.whiteSpace = "normal";
-  const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 56, 200, 22);
-  const pick = at(button("Chọn file…"), 634, 50, 110, 30);
-  const text = at(el("textarea", "text mono"), 16, 88, 728, 270);
+  const guide = at(el("a", "label link", { text: "Xem chuẩn file nhập", href: IMPORT_GUIDE, target: "_blank" }), 16, 58, 200, 30);
+  Object.assign(guide.style, { display: "flex", alignItems: "center" });
+  const pick = at(button("Chọn file…"), 634, 58, 110, 30);
+  const text = at(el("textarea", "text mono"), 16, 96, 728, 262);
   text.wrap = "off";
   const bar = at(el("div", "progress marquee"), 16, 368, 728, 6);
   bar.append(el("span"));
@@ -1052,7 +1054,7 @@ function showDriveDialog() {
 function setRunning(on) {
   run.active = on;
   ui.btnRun.disabled = on; ui.btnStop.disabled = !on;
-  for (const b of [ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnAdd, ui.btnBulk]) b.disabled = on;
+  for (const b of [ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnAdd, ui.btnBulk, ui.btnClear]) b.disabled = on;
   ui.numThr.enabled = !on;
   ui.flow.style.pointerEvents = on ? "none" : "";
 }
@@ -1173,6 +1175,7 @@ setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) 
 function wire() {
   ui.btnAdd.onclick = () => showProductDialog();
   ui.btnBulk.onclick = showBulkDialog;
+  ui.btnClear.onclick = () => { if (run.active) return; state.rows = []; renderRows(); updateStatus(); persist(); };
   // Gửi lỗi: src/send-logs.ps1 runs in the background; each step shows on the button and in the log.
   ui.btnLogs.onclick = async () => {
     const rejected = await api("rejectedCount").catch(() => 0);
@@ -1194,6 +1197,7 @@ function wire() {
       reset();
     }, 700);
   };
+  ui.btnClearLog.onclick = () => { ui.txtLog.value = ""; };
   ui.btnOut.onclick = () => api("openPath", { path: run.resultFolder || state.output });
   ui.btnReview.onclick = async () => { if (!run.active) { await showReviewDialog(); updateReviewButton(); } };
   ui.btnSetup.onclick = showSetupDialog;
