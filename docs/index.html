@@ -20,9 +20,11 @@
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
   /* Header to content is 80px (40px on phones), set only by this row gap (no margins on either side). */
-  .wrap { width: 100%; padding: 20px 16px 24px; display: grid; row-gap: 24px; }
-  @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; } }
-  @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; } }
+  /* Same container as hoangpham.is-a.dev/file-converter (Tailwind's): up to 1280px, centred, 16 / 24 / 32px sides;
+     the header is 40 / 60 / 80px above the content. */
+  .wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 32px 16px 48px; display: grid; row-gap: 40px; }
+  @media (min-width: 640px) { .wrap { padding-left: 24px; padding-right: 24px; row-gap: 60px; } }
+  @media (min-width: 1024px) { .wrap { padding-left: 32px; padding-right: 32px; row-gap: 80px; } }
   .top { display: flex; align-items: center; gap: 12px; }
   .top-text { flex: 1; min-width: 0; }
   h1 { margin: 0; font-size: 26px; line-height: 1.25; font-weight: 500; }
