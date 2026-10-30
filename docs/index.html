@@ -231,13 +231,13 @@
   .tool-grid ul, .tool-grid ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
   .badge { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 12px; font-weight: 400; vertical-align: middle; }
   .side img { flex: none; border-radius: 4px; }
-  /* A tool with sub-pages: the chevron opens or closes them; they open by themselves on the tool's own pages. */
+  /* A tool with several pages is a group: clicking its name opens or closes them (they open by themselves on
+     the tool's own pages). */
   .side-group { display: grid; gap: 2px; }
-  .side-parent { display: flex; align-items: center; gap: 2px; }
-  .side-parent > button[data-go] { flex: 1; min-width: 0; }
-  .side .side-toggle { flex: none; width: 32px; height: 32px; padding: 0; justify-content: center; color: var(--muted); }
-  .side-toggle svg { transition: transform .15s; transform: rotate(-90deg); }
-  .side-toggle[aria-expanded="true"] svg { transform: none; }
+  .side-toggle span { flex: 1; text-align: left; }
+  .side-toggle .chev-ic { flex: none; color: var(--muted); transition: transform .15s; transform: rotate(-90deg); }
+  .side-toggle[aria-expanded="true"] .chev-ic { transform: none; }
+  .side-group.current .side-toggle { font-weight: 500; }
   .side-sub { display: grid; gap: 2px; }
   .side-group:not(.open) .side-sub { display: none; }
   /* Sub-pages sit under their tool, indented past its icon. */
@@ -317,8 +317,9 @@
     <button type="button" data-go=""><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Trang chủ</button>
     <span class="side-label">Công cụ</span>
     <div class="side-group" data-group="product-review">
-      <div class="side-parent"><button type="button" data-go="product-review"><img src="tools/product-review.svg" alt="" width="18" height="18" />Product Review</button><button class="side-toggle" type="button" aria-expanded="false" aria-label="Mở menu con"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button></div>
+      <button class="side-toggle" type="button" aria-expanded="false"><img src="tools/product-review.svg" alt="" width="18" height="18" /><span>Product Review</span><svg class="chev-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
       <div class="side-sub">
+        <button class="sub" type="button" data-go="product-review">Giới thiệu</button>
         <button class="sub" type="button" data-go="nhap">Nhập hàng loạt</button>
       </div>
     </div>
@@ -1103,7 +1104,11 @@ function route() {
   for (const page of document.querySelectorAll(".tool-page")) page.hidden = page.dataset.tool !== state.view;
   for (const b of document.querySelectorAll("#side [data-go]")) b.classList.toggle("on", b.dataset.go === state.view);
   // A tool's sub-menu opens on its own pages; elsewhere it stays as the visitor left it.
-  for (const g of document.querySelectorAll(".side-group")) if (g.querySelector(`[data-go="${state.view}"]`)) setGroupOpen(g, true);
+  for (const g of document.querySelectorAll(".side-group")) {
+    const here = !!g.querySelector(`[data-go="${state.view}"]`);
+    g.classList.toggle("current", here);
+    if (here) setGroupOpen(g, true);
+  }
   $("nhap").hidden = state.view !== "nhap";
   $("nhapBack").textContent = signedIn ? "← Quản lý" : "← Trang chính";
   if (state.view === "nhap") loadImportDoc();
