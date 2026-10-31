@@ -972,25 +972,21 @@ async function showSetupDialog() {
     } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
     finally { again.disabled = false; }
   };
-  // While Codex signs in: the one-time code to type on the page opened in the tools' Chrome.
-  const showLoginCode = (row) => {
-    const timer = setInterval(async () => {
-      const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
-      if (!code) return;
-      row.detail.textContent = `Nhập mã ${code} ở trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.`;
-      // The sign-in waits on the page; the buttons work again meanwhile (Đăng nhập again starts over).
-      for (const r of rows) r.fix.disabled = false;
-    }, 1000);
-    return () => clearInterval(timer);
-  };
+  // While Codex signs in (from this window or another): the one-time code to type on the page opened in the tools'
+  // Chrome. The buttons work meanwhile; Đăng nhập again starts over with a new code.
+  const watchLogin = setInterval(async () => {
+    if (!rows[3].detail.isConnected) return clearInterval(watchLogin);
+    const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
+    if (!code) return;
+    rows[3].detail.textContent = `Mã đăng nhập: ${code}. Gõ mã này ở trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.`;
+    for (const r of rows) r.fix.disabled = false;
+  }, 1000);
   // Installing or signing in runs here; the steps are checked again when it finishes.
   const fix = async (action, row) => {
     if (action === "drive") { await showDriveDialog(); return check(); }
     for (const r of rows) r.fix.disabled = true;
     row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đang mở trang đăng nhập ChatGPT trong Chrome của tool…";
-    const stop = action === "login" ? showLoginCode(row) : () => {};
     const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
-    stop();
     if (r.superseded) return;
     for (const x of rows) x.fix.disabled = false;
     Object.assign(state, { codex: (await api("state")).codex });
