@@ -11,8 +11,10 @@
 //   GET /api/setup-login            { code } while a sign-in waits for it
 //   GET|POST /api/config/ai         Model AI: { settings, models } / save { model, effort }
 //   GET|POST|DELETE /api/config/drive   the app password: { drive } / log in { password } / log out
+//   GET|POST /api/config/google     the Google account Flow and Gemini run with: { email } / choose { email } ("" is
+//                                   Google's default, the first one signed in)
 import { execFile, spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -36,6 +38,11 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
     });
   });
   const load = (file) => `. '${q(join(here, file))}'`;
+  // The chosen Google account (setup-check.ps1 shows it and drops it once it is no longer signed in; the browser bridge
+  // opens Flow and Gemini with it).
+  const googleFile = join(hubRoot, "workspace", "config", "google-account.json");
+  const googleAccount = () => { try { return String(JSON.parse(readFileSync(googleFile, "utf8")).email || ""); } catch { return ""; } };
+  const withAccount = (url) => (googleAccount() ? `${url}?authuser=${encodeURIComponent(googleAccount())}` : url);
   const workspace = q(join(hubRoot, "workspace"));
   const openInToolsChrome = (urls, done) => execFile(process.execPath, browserArgs(urls ? "open" : "login", ...(urls || [])), { cwd: hubRoot, env, timeout: 15 * 60000, windowsHide: true }, (err, stdout) => {
     let r = {}; try { r = JSON.parse(String(stdout).trim().split(/\r?\n/).pop()); } catch { r = { error: err?.message || "Không mở được Chrome của tool." }; }
@@ -95,7 +102,8 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
       // Each AI's own sign-in page in the tools' Chrome (a window), to sign in or switch accounts there.
       const SITES = { gemini: "https://gemini.google.com/app", flow: "https://flow.google.com/", chatgpt: "https://chatgpt.com/" };
       if (step === "google" || (step === "site" && SITES[site])) {
-        openInToolsChrome([step === "google" ? "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fgemini.google.com%2Fapp" : SITES[site]], (r) => json(res, r.error ? 500 : 200, r));
+        const url = step === "google" ? "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fgemini.google.com%2Fapp" : site === "chatgpt" ? SITES[site] : withAccount(SITES[site]);
+        openInToolsChrome([url], (r) => json(res, r.error ? 500 : 200, r));
         return true;
       }
       if (step === "antigravity") {
@@ -138,6 +146,16 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
         : `${load("ai-settings.ps1")}; [pscustomobject]@{ settings = (Get-AiSettings '${q(hubRoot)}'); models = @(Get-AiModels) } | ConvertTo-Json -Depth 6 -Compress`;
       const r = await ps(script, saved ? { HUB_AI_MODEL: String(saved.model || ""), HUB_AI_EFFORT: String(saved.effort || "") } : {});
       json(res, r.error ? 400 : 200, r);
+      return true;
+    }
+    if (path === "/api/config/google") {
+      if (req.method === "POST") {
+        const email = String((await body(req)).email || "").trim();
+        if (email && !/^[^\s@"]+@[^\s@"]+$/.test(email)) { json(res, 400, { error: "Email không hợp lệ." }); return true; }
+        if (email) { mkdirSync(dirname(googleFile), { recursive: true }); writeFileSync(googleFile, JSON.stringify({ email })); }
+        else rmSync(googleFile, { force: true });
+      }
+      json(res, 200, { email: googleAccount() });
       return true;
     }
     if (path === "/api/config/drive") {

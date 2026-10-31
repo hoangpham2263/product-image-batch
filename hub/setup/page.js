@@ -71,6 +71,20 @@
       const lapsed = { expired: " · hết hạn", signedout: " · đã đăng xuất" }[step.SignIn] || "";
       row.account.textContent = step.Account ? `Tài khoản: ${step.Account}${lapsed}` : step.State === "ok" ? "Tài khoản: chưa đọc được email" : "Tài khoản: chưa đăng nhập";
       row.account.classList.toggle("none", !step.Account || !!lapsed);
+      // Google with more than one account signed in: choose here which one Flow and Gemini run with.
+      const accounts = [].concat(step.Accounts || []);
+      if (step.Id === "google" && step.State === "ok" && accounts.length > 1) {
+        const pick = el("select", "account-pick");
+        pick.setAttribute("aria-label", "Tài khoản Google cho Flow và Gemini");
+        for (const email of accounts) pick.append(Object.assign(el("option", "", email), { value: email, selected: email === step.Account }));
+        pick.onchange = async () => {
+          pick.disabled = true;
+          const r = await post("/api/config/google", { email: pick.value });
+          pick.disabled = false;
+          row.detail.textContent = r.error || `Flow và Gemini sẽ chạy bằng ${r.email || pick.value}.`;
+        };
+        row.account.replaceChildren("Tài khoản: ", pick);
+      }
       row.uses.textContent = step.Uses ? `Dùng cho: ${step.Uses}` : "";
       if (step.Id === "login" && quota && quota.State !== "wait" && quota.Detail) row.detail.textContent = `${step.Detail} Hạn mức: ${quota.Detail}`;
       if (step.Id === "antigravity" && step.State !== "ok") row.uses.textContent = `Dùng cho: ${step.Uses || "Viết review: Antigravity CLI"}. Đăng nhập trong Antigravity, đổi tài khoản cũng ở đó.`;

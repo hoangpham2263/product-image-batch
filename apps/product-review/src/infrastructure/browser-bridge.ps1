@@ -1,12 +1,49 @@
 ﻿# Image generation through the signed-in ChatGPT / Google Flow tab (bridge/ + extension/).
 $script:BridgeUrl = 'http://127.0.0.1:8765'
 
+function Get-ImageBridgeStatus {
+    try { return Invoke-RestMethod -Uri "$script:BridgeUrl/status" -TimeoutSec 3 } catch { return $null }
+}
 function Test-ImageBridge {
-    try { return [bool](Invoke-RestMethod -Uri "$script:BridgeUrl/status" -TimeoutSec 3).extension } catch { return $null }
+    $status = Get-ImageBridgeStatus
+    if ($null -eq $status) { return $null }
+    return [bool]$status.extension
+}
+
+# After Cập nhật the bridge and the extension still run the old files: a bridge started on an older server.mjs is
+# stopped (Start-ImageBridge starts it again), an extension of another version than extension/manifest.json reloads.
+function Stop-StaleImageBridge([string]$ProjectRoot) {
+    $status = Get-ImageBridgeStatus
+    if ($null -eq $status) { return }
+    $changed = [DateTimeOffset]::new((Get-Item -LiteralPath (Join-Path $ProjectRoot 'bridge/server.mjs')).LastWriteTimeUtc).ToUnixTimeMilliseconds()
+    if ([long]$status.code -eq $changed) { return }
+    try { Invoke-RestMethod -Method Post -Uri "$script:BridgeUrl/quit" -TimeoutSec 3 | Out-Null } catch {}
+    for ($i = 0; $i -lt 20 -and $null -ne (Get-ImageBridgeStatus); $i++) { Start-Sleep -Milliseconds 250 }
+    if ($null -eq (Get-ImageBridgeStatus)) { return }
+    # A bridge from before /quit: stop its process (started with this file's full path).
+    $server = Join-Path $ProjectRoot 'bridge/server.mjs'
+    if ($script:OnWindows) {
+        Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -like "*$server*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    } else { & pkill -f $server 2>$null }
+    for ($i = 0; $i -lt 20 -and $null -ne (Get-ImageBridgeStatus); $i++) { Start-Sleep -Milliseconds 250 }
+}
+function Update-ImageBridgeExtension([string]$ProjectRoot) {
+    $status = Get-ImageBridgeStatus
+    if ($null -eq $status) { return }
+    $version = [string](Get-Content -LiteralPath (Join-Path $ProjectRoot 'extension/manifest.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    if ($status.extension -and $status.extensionVersion -and $status.extensionVersion -ne $version) {
+        try { Invoke-RestMethod -Method Post -Uri "$script:BridgeUrl/reload" -TimeoutSec 3 | Out-Null } catch {}
+        for ($i = 0; $i -lt 40; $i++) {
+            Start-Sleep -Milliseconds 500
+            $now = Get-ImageBridgeStatus
+            if ($now -and $now.extension -and $now.extensionVersion -eq $version) { return }
+        }
+    }
 }
 
 # Start the local bridge when it is not running, then wait for the extension to connect.
 function Start-ImageBridge([string]$ProjectRoot) {
+    Stop-StaleImageBridge $ProjectRoot
     $state = Test-ImageBridge
     if ($null -eq $state) {
         $server = Join-Path $ProjectRoot 'bridge/server.mjs'
@@ -20,7 +57,7 @@ function Start-ImageBridge([string]$ProjectRoot) {
         else { Start-Process node -ArgumentList $server | Out-Null }
     }
     for ($i = 0; $i -lt 8; $i++) {
-        if (Test-ImageBridge) { return }
+        if (Test-ImageBridge) { Update-ImageBridgeExtension $ProjectRoot; return }
         Start-Sleep -Milliseconds 750
     }
     # No Chrome with the extension: open the tools' own Chrome (hub/browser.mjs) with no window, signed in from Cấu hình.
@@ -29,7 +66,7 @@ function Start-ImageBridge([string]$ProjectRoot) {
     $answer = (& node @flags $browser start | Select-Object -Last 1) | ConvertFrom-Json
     if ($answer.error) { throw "[CAUSE:BRIDGE] $($answer.error)" }
     for ($i = 0; $i -lt 60; $i++) {
-        if (Test-ImageBridge) { return }
+        if (Test-ImageBridge) { Update-ImageBridgeExtension $ProjectRoot; return }
         Start-Sleep -Milliseconds 750
     }
     throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Cấu hình, bấm Mở ở dòng Chrome của tool rồi đăng nhập Google (Flow, Gemini), ChatGPT.'

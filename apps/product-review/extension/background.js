@@ -1,11 +1,16 @@
 // Router: keeps a WebSocket to the local bridge and forwards each job to the matching tab.
 // The job is submitted inside the signed-in tab, so the page itself handles its own anti-abuse checks.
 const BRIDGE_URL = "ws://127.0.0.1:8765";
+// hosts: the tabs to look through; page: a tab a job can run in (a Flow project, under /u/<n>/ for another account).
 const SITES = {
-  chatgpt: { match: "https://chatgpt.com/*", start: "https://chatgpt.com/" },
-  flow: { match: "https://flow.google.com/project/*", start: "https://flow.google.com/" },
-  gemini: { match: "https://gemini.google.com/*", start: "https://gemini.google.com/app" },
+  chatgpt: { hosts: "https://chatgpt.com/*", page: /^https:\/\/chatgpt\.com\//, start: "https://chatgpt.com/" },
+  flow: { hosts: "https://flow.google.com/*", page: /^https:\/\/flow\.google\.com\/(u\/\d+\/)?project\//, start: "https://flow.google.com/" },
+  gemini: { hosts: "https://gemini.google.com/*", page: /^https:\/\/gemini\.google\.com\//, start: "https://gemini.google.com/app" },
 };
+// Flow and Gemini run with the Google account chosen on Cấu hình (job.account; "" is Google's default, the first one
+// signed in). Google opens a page as another signed-in account under /u/<n>/; the default one has none (or /u/0/).
+const otherAccount = (url) => /\/u\/[1-9]\d*\//.test(url || "");
+const startUrl = (platform, account) => SITES[platform].start + (account ? `?authuser=${encodeURIComponent(account)}` : "");
 // One job at a time per site: parallel workflow threads share its tab.
 const queues = {};
 
@@ -33,21 +38,41 @@ function reply(message) {
   if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
 }
 
-async function findTab(platform) {
-  const site = SITES[platform];
-  if (!site) throw new Error(`Nền tảng không hỗ trợ: ${platform}`);
-  const tabs = await chrome.tabs.query({ url: site.match });
-  if (tabs.length) return tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-  if (platform === "flow") return newFlowProject();
-  const tab = await chrome.tabs.create({ url: site.start, active: false });
-  await waitForLoad(tab.id);
+// The tab each site's jobs ran in last and the account it was opened with, so a changed account gets a tab of its own.
+async function remembered(platform) {
+  const { tabs = {} } = await chrome.storage.session.get("tabs");
+  return tabs[platform];
+}
+async function remember(platform, tab, account) {
+  const { tabs = {} } = await chrome.storage.session.get("tabs");
+  tabs[platform] = { id: tab.id, account };
+  await chrome.storage.session.set({ tabs });
   return tab;
 }
 
-// No Flow project open: open Flow's home and press its new-project button, then use that project.
-async function newFlowProject() {
-  const [home] = await chrome.tabs.query({ url: "https://flow.google.com/*" });
-  const tab = home || await chrome.tabs.create({ url: "https://flow.google.com/", active: true });
+async function findTab(platform, account) {
+  const site = SITES[platform];
+  if (!site) throw new Error(`Nền tảng không hỗ trợ: ${platform}`);
+  const known = await remembered(platform);
+  if (known && known.account === account) {
+    const tab = await chrome.tabs.get(known.id).catch(() => null);
+    if (tab && site.page.test(tab.url || "")) return tab;
+  }
+  // The default account can use any open tab of the site that is not another account's.
+  if (!account) {
+    const tabs = (await chrome.tabs.query({ url: site.hosts })).filter((t) => site.page.test(t.url || "") && !otherAccount(t.url));
+    if (tabs.length) return remember(platform, tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0], account);
+  }
+  if (platform === "flow") return remember(platform, await newFlowProject(account), account);
+  const tab = await chrome.tabs.create({ url: startUrl(platform, account), active: false });
+  await waitForLoad(tab.id);
+  return remember(platform, tab, account);
+}
+
+// No Flow project open: open Flow's home (as the chosen account) and press its new-project button, then use that project.
+async function newFlowProject(account) {
+  const [home] = account ? [] : (await chrome.tabs.query({ url: SITES.flow.hosts })).filter((t) => !otherAccount(t.url));
+  const tab = home || await chrome.tabs.create({ url: startUrl("flow", account), active: true });
   if (!home) await waitForLoad(tab.id);
   const ask = () => chrome.tabs.sendMessage(tab.id, { type: "new-project" });
   // A tab open from before the extension (re)loaded has no content script: reload it once.
@@ -56,7 +81,7 @@ async function newFlowProject() {
   await trustedClick(tab, at.x, at.y);
   for (let i = 0; i < 60; i++) {
     const now = await chrome.tabs.get(tab.id);
-    if (/^https:\/\/flow\.google\.com\/project\//.test(now.url || "") && now.status === "complete") return now;
+    if (SITES.flow.page.test(now.url || "") && now.status === "complete") return now;
     await new Promise((r) => setTimeout(r, 500));
   }
   throw new Error("Google Flow chưa tạo được dự án mới.");
@@ -74,12 +99,13 @@ function waitForLoad(tabId) {
 async function runJob(job) {
   const progress = (stage) => reply({ type: "progress", id: job.id, stage });
   try {
-    const tab = await findTab(job.platform);
+    const account = job.platform === "chatgpt" ? "" : String(job.account || "");
+    const tab = await findTab(job.platform, account);
     // Each site gets a window of its own: a tab behind another one is hidden, and Gemini stops answering there.
     if ((await chrome.tabs.query({ windowId: tab.windowId })).length > 1) await chrome.windows.create({ tabId: tab.id, focused: false });
     if (job.platform === "chatgpt" || job.platform === "gemini") {
       // Every job starts in a fresh conversation so earlier images and answers are never reused.
-      await chrome.tabs.update(tab.id, { url: SITES[job.platform].start });
+      await chrome.tabs.update(tab.id, { url: startUrl(job.platform, account) });
       await waitForLoad(tab.id);
     }
     progress("submitting");

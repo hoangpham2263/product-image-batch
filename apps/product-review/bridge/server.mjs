@@ -1,22 +1,34 @@
 // Local bridge: the PowerShell workflow POSTs a job over HTTP, the extension receives it over WebSocket.
 // Listens on 127.0.0.1 only; nothing is exposed to the network.
 import { createServer } from "node:http";
+import { readFileSync, statSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
-import { extname } from "node:path";
+import { dirname, extname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { WebSocketServer } from "ws";
 
 export const PORT = Number(process.env.BRIDGE_PORT || 8765);
 const MIME = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp" };
 
-export function createBridge({ fetchImpl = fetch } = {}) {
-  let extension = null;
+// The Google account chosen on Cấu hình for Flow and Gemini (<hub>/workspace/config/google-account.json); "" is Google's
+// default, the first one signed in.
+const hubConfig = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "workspace", "config", "google-account.json");
+const chosenGoogleAccount = () => { try { return String(JSON.parse(readFileSync(hubConfig, "utf8")).email || ""); } catch { return ""; } };
+
+// When this file was last changed, as the running bridge loaded it: after an update the app sees an older one and
+// restarts it (POST /quit; browser-bridge.ps1).
+const code = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs);
+
+export function createBridge({ fetchImpl = fetch, googleAccount = chosenGoogleAccount, quit = () => process.exit(0) } = {}) {
+  let extension = null, extensionVersion = "";
   const pending = new Map();
 
   const server = createServer(async (req, res) => {
     const send = (status, body) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8" }); res.end(JSON.stringify(body)); };
     try {
-      if (req.method === "GET" && req.url === "/status") return send(200, { extension: !!extension });
+      if (req.method === "GET" && req.url === "/status") return send(200, { extension: !!extension, extensionVersion: extension ? extensionVersion : "", code });
+      if (req.method === "POST" && req.url === "/quit") { send(200, { ok: true }); return setTimeout(quit, 100); }
       if (req.method === "POST" && req.url === "/reload") {
         if (!extension) return send(503, { error: "Extension chưa kết nối." });
         extension.send(JSON.stringify({ type: "reload" }));
@@ -39,7 +51,8 @@ export function createBridge({ fetchImpl = fetch } = {}) {
       const result = await new Promise((resolve, reject) => {
         const timer = setTimeout(() => { pending.delete(id); reject(new Error("timeout")); }, (timeoutSec + 60) * 1000);
         pending.set(id, { resolve, timer });
-        extension.send(JSON.stringify({ type: "generate", id, platform: job.platform, prompt: job.prompt, images, timeoutSec }));
+        const account = job.platform === "chatgpt" ? "" : googleAccount();
+        extension.send(JSON.stringify({ type: "generate", id, platform: job.platform, prompt: job.prompt, images, timeoutSec, account }));
       });
       if (!result.ok) return send(502, { error: result.error });
       // Text replies (Gemini) are written as UTF-8 text.
@@ -69,6 +82,7 @@ export function createBridge({ fetchImpl = fetch } = {}) {
     socket.on("message", (data) => {
       let message;
       try { message = JSON.parse(data); } catch { return; }
+      if (message.type === "hello") extensionVersion = String(message.version || "");
       if (message.type === "progress") console.log(`[${message.id.slice(0, 8)}] ${message.stage}`);
       if (message.type === "result" && pending.has(message.id)) {
         const { resolve, timer } = pending.get(message.id);

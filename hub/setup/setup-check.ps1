@@ -99,18 +99,28 @@ if ($browserReady -and $node) {
         if ($web.error) { $web = $null }
     } catch { $web = $null }
 }
+# The Google account Flow and Gemini run with, chosen on Cấu hình (workspace/config/google-account.json { email });
+# none chosen is Google's default, the first one signed in. A choice no longer signed in there is dropped.
+$googleChoiceFile = Get-SharedConfigPath (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'workspace') 'google-account.json'
+$googleChoice = ''
+try { $googleChoice = [string](Get-Content -LiteralPath $googleChoiceFile -Raw -Encoding UTF8 | ConvertFrom-Json).email } catch {}
 function Get-WebStep([string]$Id, [string]$Title, [string]$Site, [string]$Uses) {
     $state = if (-not $browserReady) { 'wait' } elseif (-not $web) { 'warn' } elseif ($web.$Site) { 'ok' } else { 'fail' }
-    # Flow and Gemini open with the first (default) Google account; the others are only listed.
     $accounts = @(if ($web -and $web.accounts) { $web.accounts })
+    if ($googleChoice -and $accounts.Count -and $accounts -notcontains $googleChoice) {
+        Remove-Item -LiteralPath $googleChoiceFile -Force -ErrorAction SilentlyContinue
+        $script:googleChoice = ''
+    }
+    $account = if ($state -ne 'ok' -or -not $accounts.Count) { '' } elseif ($script:googleChoice) { $script:googleChoice } else { [string]$accounts[0] }
     $detail = switch ($state) {
         'wait' { 'Mở Chrome của tool trước.' }
         'warn' { 'Chưa kiểm tra được. Bấm Mở để xem trong Chrome của tool.' }
-        'ok' { if ($accounts.Count -gt 1) { "Flow và Gemini dùng tài khoản trên (tài khoản đầu tiên). Còn đăng nhập: $(($accounts | Select-Object -Skip 1) -join ', '); muốn dùng tài khoản đó thì Đổi tài khoản, đăng xuất hết rồi đăng nhập nó trước." } else { 'Đã đăng nhập trong Chrome của tool.' } }
+        'ok' { if ($accounts.Count -gt 1) { "Flow và Gemini chạy bằng tài khoản đang chọn ($($accounts.Count) tài khoản đã đăng nhập)." } else { 'Đã đăng nhập trong Chrome của tool.' } }
         default { 'Chưa đăng nhập. Bấm Mở rồi đăng nhập Google trong Chrome của tool.' }
     }
-    # Google's account chooser in the tools' Chrome: sign in, add or switch the account.
-    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Account = $(if ($state -eq 'ok' -and $accounts.Count) { [string]$accounts[0] } else { '' }); Uses = $Uses; Action = $(if ($browserReady) { 'google' } else { '' }) }
+    # Google's account chooser in the tools' Chrome: sign in, add or switch the account. Accounts: every one signed in
+    # there, for the page to choose from.
+    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Account = $account; Accounts = $(if ($state -eq 'ok') { @($accounts) } else { @() }); Uses = $Uses; Action = $(if ($browserReady) { 'google' } else { '' }) }
 }
 # Antigravity CLI (agy, Google sign-in): Viết review: Antigravity CLI. agy models answers only when signed in.
 $agy = Get-Command agy -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
