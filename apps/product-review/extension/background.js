@@ -93,9 +93,30 @@ chrome.alarms.create("bridge", { periodInMinutes: 0.5 });
 chrome.alarms.onAlarm.addListener(connect);
 chrome.runtime.onStartup.addListener(connect);
 chrome.runtime.onInstalled.addListener(connect);
+// A real left click at (x, y) in the tab's viewport, sent through the debugger so the page sees a trusted event.
+// Chrome shows its "debugging this browser" bar while attached, for this moment only.
+async function trustedClick(tab, x, y) {
+  await chrome.tabs.update(tab.id, { active: true });
+  await chrome.windows.update(tab.windowId, { focused: true });
+  const target = { tabId: tab.id };
+  await chrome.debugger.attach(target, "1.3");
+  try {
+    const mouse = (type, extra = {}) => chrome.debugger.sendCommand(target, "Input.dispatchMouseEvent", { type, x, y, button: "left", ...extra });
+    await mouse("mouseMoved", { button: "none" });
+    await mouse("mousePressed", { buttons: 1, clickCount: 1 });
+    await mouse("mouseReleased", { buttons: 0, clickCount: 1 });
+  } finally {
+    await chrome.debugger.detach(target).catch(() => {});
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "click" && _sender.tab) {
+    trustedClick(_sender.tab, message.x, message.y).then(() => sendResponse({ ok: true }), (error) => sendResponse({ ok: false, error: String(error.message || error) }));
+    return true;
+  }
   if (message?.type === "needs-click" && _sender.tab) {
-    // Flow needs one real click on "Bắt đầu tạo": bring that tab to the front.
+    // The automatic click did not start Flow: bring that tab to the front for the user's click.
     chrome.tabs.update(_sender.tab.id, { active: true });
     chrome.windows.update(_sender.tab.windowId, { focused: true });
     reply({ type: "progress", id: "flow", stage: "waiting for the Flow click" });

@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "product-review-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cầu nối local: nhận lệnh tạo ảnh từ Product Review (Tools Hub), gửi trong tab ChatGPT/Google Flow đang đăng nhập và trả ảnh về máy.",
   "background": { "service_worker": "background.js" },
-  "permissions": ["tabs", "storage", "alarms"],
+  "permissions": ["tabs", "storage", "alarms", "debugger"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://flow.google.com/*",

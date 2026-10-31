@@ -1,6 +1,6 @@
-// Google Flow: paste references and the prompt into the composer, then return the new image.
-// Flow only starts a generation from a real click, so the user presses "Bắt đầu tạo" once;
-// everything before and after that click is automatic.
+// Google Flow: paste references and the prompt into the composer, press the generate button, then return the new
+// image. Flow only starts a generation from a real click: the background clicks it through the debugger (a trusted
+// mouse event). When that does not start one, the button is highlighted for the user to press once.
 const flowImages = () => new Set([...document.querySelectorAll('img[src*="flow-content.google/image/"]')].map((img) => img.src.split("?")[0]));
 
 async function generateFlow(job) {
@@ -15,10 +15,17 @@ async function generateFlow(job) {
   }
   typePrompt(editor, job.prompt);
   const button = await waitFor(() => document.querySelector("button.generate-icon-button:not([disabled])"), 30000, "nút tạo của Flow");
-  button.style.outline = "3px solid #f5b400";
-  button.style.outlineOffset = "3px";
   button.scrollIntoView({ block: "center" });
-  chrome.runtime.sendMessage({ type: "needs-click", platform: "flow" });
+  await sleep(300);
+  // Started once the composer lets go of the prompt or the button turns off.
+  const started = () => !editor.innerText.includes(job.prompt.slice(0, 20)) || button.disabled || !button.isConnected;
+  const box = button.getBoundingClientRect();
+  const clicked = await chrome.runtime.sendMessage({ type: "click", x: box.left + box.width / 2, y: box.top + box.height / 2 }).catch(() => null);
+  if (!clicked?.ok || !(await waitFor(started, 15000, "").catch(() => false))) {
+    button.style.outline = "3px solid #f5b400";
+    button.style.outlineOffset = "3px";
+    chrome.runtime.sendMessage({ type: "needs-click", platform: "flow" });
+  }
 
   const src = await waitFor(() => {
     const fresh = [...document.querySelectorAll('img[src*="flow-content.google/image/"]')].find((img) => !before.has(img.src.split("?")[0]) && img.complete && img.naturalWidth > 0);
