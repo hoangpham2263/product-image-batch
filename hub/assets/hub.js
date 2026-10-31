@@ -3,6 +3,22 @@
 // Both work through the menu server (hub/picker.mjs, hub/setup/config-api.mjs). A page opened as a file has no server
 // to ask, so no buttons.
 (() => {
+  // A page laid out for a minimum size (<body data-fit="960x680">) scales down to fit a smaller window instead of
+  // being squeezed or cut off, as Product Review does; below 60% it stops shrinking and scrolls. Its height, a
+  // 100vh layout, is set to the scaled window's.
+  const fit = /^(\d+)x(\d+)$/.exec(document.body?.dataset.fit || "");
+  if (fit) {
+    const [w, h] = [Number(fit[1]), Number(fit[2])];
+    const apply = () => {
+      const zoom = Math.max(0.6, Math.min(1, innerWidth / w, innerHeight / h));
+      document.documentElement.style.zoom = zoom === 1 ? "" : String(zoom);
+      document.body.style.height = zoom === 1 ? "" : `${Math.max(h, innerHeight / zoom)}px`;
+      document.body.style.overflow = innerWidth / zoom < w - 1 || innerHeight / zoom < h - 1 ? "auto" : "";
+      document.documentElement.style.overflow = document.body.style.overflow;
+    };
+    apply();
+    addEventListener("resize", apply);
+  }
   if (!location.protocol.startsWith("http")) return;
   const header = document.querySelector("header");
   if (!header) return;

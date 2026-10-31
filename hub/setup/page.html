@@ -26,14 +26,17 @@
 .ai-model { display: grid; grid-template-columns: minmax(0, 1fr) 188px; gap: 6px 10px; }
 .ai-model > span { grid-column: 1 / -1; }
 header .again { margin-left: auto; }
+.note-line { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 @media (max-width: 760px) { .setup-page { grid-template-columns: minmax(0, 1fr); } }
+/* Narrow window: the buttons go under the text, side by side. */
+@media (max-width: 600px) { .item { grid-template-columns: 22px minmax(0, 1fr); } .item .side { grid-column: 2; flex-direction: row; flex-wrap: wrap; margin-top: 6px; } }
 </style>
 </head>
 <body>
 <main>
   <header><button class="btn back" type="button">← Quay lại</button><h1>Cấu hình</h1><button class="btn again" type="button">Kiểm tra lại</button></header>
   <div class="layout setup-page">
-    <section class="group wide"><h2>Tài khoản AI · mỗi AI đăng nhập riêng, có thể là tài khoản khác nhau</h2><div class="items" id="ai"></div></section>
+    <section class="group wide"><h2>Tài khoản AI</h2><div class="note-line">Mỗi AI đăng nhập riêng, có thể là tài khoản khác nhau. Đổi tài khoản ngay ở đây hoặc mở trang web của AI để đăng nhập.</div><div class="items" id="ai"></div></section>
     <section class="group"><h2>Cài đặt</h2><div class="items" id="base"></div></section>
     <section class="group"><h2>Model AI của Codex</h2>
       <div class="ai-model"><span class="muted">Model nhẹ, mức thấp tốn ít token hơn.</span><select class="model"></select><select class="effort"></select></div>

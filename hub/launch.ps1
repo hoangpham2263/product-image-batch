@@ -129,7 +129,7 @@ try {
     return
 }
 
-$form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; Size = '1120,840'; MinimumSize = '900,640'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240) }
+$form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; Size = '1120,840'; MinimumSize = '640,480'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240) }
 $hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
 if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
 $form.Controls.Add($webView)

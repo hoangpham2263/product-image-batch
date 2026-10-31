@@ -4,7 +4,10 @@
 //   POST /api/setup                 the steps (setup-check.ps1 -AsJson)
 //   POST /api/setup-step {step}     install: Codex and every tool's browser bridge; login: codex login with a
 //                                   one-time code, typed on the sign-in page opened in the tools' own Chrome;
-//                                   browser: that Chrome, to sign in to Google Flow, ChatGPT (hub/browser.mjs)
+//                                   browser: that Chrome, to sign in to Google Flow, ChatGPT (hub/browser.mjs);
+//                                   google: Google's account chooser there (sign in, add or switch an account);
+//                                   site {site}: gemini, flow or chatgpt opened there; antigravity: a terminal
+//                                   with agy, where /login (/logout first to switch) signs it in
 //   GET /api/setup-login            { code } while a sign-in waits for it
 //   GET|POST /api/config/ai         Model AI: { settings, models } / save { model, effort }
 //   GET|POST|DELETE /api/config/drive   the app password: { drive } / log in { password } / log out
@@ -12,7 +15,8 @@ import { execFile, spawn } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { findTool as findIn, runTool, psCommand, psFile, onWindows, killTree } from "../platform.mjs";
+import { homedir } from "node:os";
+import { findTool as findIn, runTool, psCommand, psFile, onWindows, killTree, openTerminal } from "../platform.mjs";
 import { browserArgs } from "../browser.mjs";
 import { createSetupReader } from "./setup-report.mjs";
 
@@ -87,7 +91,21 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
     }
     if (path === "/api/setup-step" && req.method === "POST") {
       // Cài (Codex via npm, then each tool's browser bridge) or Đăng nhập (opens the browser, waits for the sign-in).
-      const { step } = await body(req);
+      const { step, site } = await body(req);
+      // Each AI's own sign-in page in the tools' Chrome (a window), to sign in or switch accounts there.
+      const SITES = { gemini: "https://gemini.google.com/app", flow: "https://flow.google.com/", chatgpt: "https://chatgpt.com/" };
+      if (step === "google" || (step === "site" && SITES[site])) {
+        openInToolsChrome([step === "google" ? "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fgemini.google.com%2Fapp" : SITES[site]], (r) => json(res, r.error ? 500 : 200, r));
+        return true;
+      }
+      if (step === "antigravity") {
+        // Antigravity signs in on its own (not through Chrome), from inside agy.
+        const agy = findTool("agy") || [join(homedir(), ".local", "bin", onWindows ? "agy.exe" : "agy")].find((p) => existsSync(p));
+        if (!agy) { json(res, 400, { error: "Chưa cài Antigravity CLI (agy)." }); return true; }
+        openTerminal(agy);
+        json(res, 200, { ok: true });
+        return true;
+      }
       if (step === "browser") {
         // The first time this downloads Chrome for Testing (about 150 MB) before it opens.
         openInToolsChrome(null, (r) => json(res, r.error ? 500 : 200, r));
@@ -100,11 +118,12 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
         codexLogin(codex, (r) => { if (!answered) { answered = true; json(res, r.error ? 500 : 200, r); } });
         return true;
       }
-      if (step === "install" && !npm) { json(res, 400, { error: "Chưa có Node.js. Mở lại start-app để cài." }); return true; }
-      const [cmd, args] = step === "install" ? [npm, ["install", "-g", "@openai/codex"]] : [codex || "codex", ["login"]];
+      // Anything else (a site not listed, an unknown step) is refused; only Cài is left below.
+      if (step !== "install") { json(res, 400, { error: "Bước không hỗ trợ." }); return true; }
+      if (!npm) { json(res, 400, { error: "Chưa có Node.js. Mở lại start-app để cài." }); return true; }
+      const [cmd, args] = [npm, ["install", "-g", "@openai/codex"]];
       runTool(cmd, args, { cwd: hubRoot, timeout: 15 * 60000, env, windowsHide: true }, (err, stdout, stderr) => {
         if (err) return json(res, 500, { error: (String(stderr || stdout).trim().split(/\r?\n/).pop() || err.message).slice(0, 300) });
-        if (step !== "install") return json(res, 200, { ok: true });
         const bridges = readdirSync(join(hubRoot, "apps"), { withFileTypes: true }).filter((d) => d.isDirectory())
           .map((d) => join(hubRoot, "apps", d.name, "bridge")).filter((b) => existsSync(join(b, "package.json")));
         const next = () => (bridges.length ? runTool(npm, ["install", "--silent"], { cwd: bridges.shift(), timeout: 10 * 60000, env, windowsHide: true }, next) : json(res, 200, { ok: true }));

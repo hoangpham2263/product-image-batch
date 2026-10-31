@@ -101,10 +101,11 @@ function Get-WebStep([string]$Id, [string]$Title, [string]$Site, [string]$Uses) 
     $detail = switch ($state) {
         'wait' { 'Mở Chrome của tool trước.' }
         'warn' { 'Chưa kiểm tra được. Bấm Mở để xem trong Chrome của tool.' }
-        'ok' { if ($accounts.Count -gt 1) { "Đã đăng nhập. Trong Chrome của tool còn: $(($accounts | Select-Object -Skip 1) -join ', ')." } else { 'Đã đăng nhập trong Chrome của tool.' } }
+        'ok' { if ($accounts.Count -gt 1) { "Flow và Gemini dùng tài khoản trên (tài khoản đầu tiên). Còn đăng nhập: $(($accounts | Select-Object -Skip 1) -join ', '); muốn dùng tài khoản đó thì Đổi tài khoản, đăng xuất hết rồi đăng nhập nó trước." } else { 'Đã đăng nhập trong Chrome của tool.' } }
         default { 'Chưa đăng nhập. Bấm Mở rồi đăng nhập Google trong Chrome của tool.' }
     }
-    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Account = $(if ($state -eq 'ok' -and $accounts.Count) { [string]$accounts[0] } else { '' }); Uses = $Uses; Action = $(if ($browserReady) { 'browser' } else { '' }) }
+    # Google's account chooser in the tools' Chrome: sign in, add or switch the account.
+    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Account = $(if ($state -eq 'ok' -and $accounts.Count) { [string]$accounts[0] } else { '' }); Uses = $Uses; Action = $(if ($browserReady) { 'google' } else { '' }) }
 }
 # Antigravity CLI (agy, Google sign-in): Viết review: Antigravity CLI. agy models answers only when signed in.
 $agy = Get-Command agy -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
@@ -139,7 +140,7 @@ $steps = @(
         Detail = $(if ($browserReady) { 'Đã mở để đăng nhập. Bấm Mở để đăng nhập thêm hoặc lại.' } else { 'Chưa mở. Bấm Mở rồi đăng nhập Google (Flow, Gemini), ChatGPT (lần đầu tải khoảng 150 MB).' })
         Action = 'browser' }
     Get-WebStep 'google' 'Google (Flow, Gemini web)' 'google' 'Tạo ảnh: Google Flow · Viết review: Gemini web'
-    [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Account = $agyAccount; Uses = 'Viết review: Antigravity CLI'; Action = '' }
+    [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Account = $agyAccount; Uses = 'Viết review: Antigravity CLI'; Action = $(if ($agy) { 'antigravity' } else { '' }) }
 )
 $report = [pscustomobject]@{
     Ready = $ready

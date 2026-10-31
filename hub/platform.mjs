@@ -59,6 +59,14 @@ export function appWindow(url, size = "1120,840") {
   execFile("open", ["-na", "Google Chrome", "--args", ...args], (err) => { if (err) execFile("open", [url]); });
 }
 
+// A terminal window running a program the user works in themselves (Antigravity's /login): Terminal on macOS, a
+// console window on Windows.
+export function openTerminal(program) {
+  if (onWindows) return spawn("cmd.exe", ["/c", "start", '""', "cmd.exe", "/k", `"${program}"`], { detached: true, stdio: "ignore", windowsHide: false, windowsVerbatimArguments: true }).unref();
+  const quoted = `'${program.replace(/'/g, "'\\''")}'`;
+  execFile("osascript", ["-e", `tell application "Terminal" to do script "${quoted.replace(/["\\]/g, "\\$&")}"`, "-e", 'tell application "Terminal" to activate']);
+}
+
 // The system file dialog: real paths, opened at folder. filter is "images" or "table" (CSV or ZIP / RAR / 7Z).
 export function chooseFiles({ folder = "", table = false }, done) {
   const lines = (err, stdout) => done(err ? [] : String(stdout).split(/\r?\n/).map((p) => p.trim()).filter(Boolean));

@@ -109,6 +109,19 @@ function shortUrl(link) {
   return `${site} › ${name}`;
 }
 
+// ---------- fit to the window ----------
+// Laid out for 1024 x 721 at least (#client). A smaller window scales the whole page down to fit instead of cutting
+// it off; below 60% it stops shrinking and scrolls. Child windows are centred in the page's own (scaled) size.
+let zoom = 1;
+const viewWidth = () => innerWidth / zoom, viewHeight = () => innerHeight / zoom;
+function fitWindow() {
+  zoom = Math.max(0.6, Math.min(1, innerWidth / 1024, innerHeight / 721));
+  document.documentElement.style.zoom = zoom === 1 ? "" : String(zoom);
+  document.body.style.overflow = viewWidth() < 1023 || viewHeight() < 720 ? "auto" : "";
+}
+fitWindow();
+addEventListener("resize", fitWindow);
+
 // ---------- child windows ----------
 const stack = [];
 function openWindow(title, w, h, { white = false } = {}) {
@@ -124,8 +137,8 @@ function openWindow(title, w, h, { white = false } = {}) {
   modal.append(win);
   document.body.append(modal);
   const place = () => {
-    win.style.left = Math.max(0, Math.round((innerWidth - win.offsetWidth) / 2)) + "px";
-    win.style.top = Math.max(0, Math.round((innerHeight - win.offsetHeight) / 2)) + "px";
+    win.style.left = Math.max(0, Math.round((viewWidth() - win.offsetWidth) / 2)) + "px";
+    win.style.top = Math.max(0, Math.round((viewHeight() - win.offsetHeight) / 2)) + "px";
   };
   place();
   const view = { body, win, onClose: null, closed: false, cancel: null };
@@ -157,8 +170,9 @@ function dropMenu(anchor, items) {
     if (!item.disabled) row.onclick = () => { done(); item.onClick(); };
     menu.append(row);
   }
+  // Screen positions are scaled by the page's zoom (fitWindow); the menu's are not.
   const r = anchor.getBoundingClientRect();
-  Object.assign(menu.style, { left: r.left + "px", top: r.bottom + "px" });
+  Object.assign(menu.style, { left: r.left / zoom + "px", top: r.bottom / zoom + "px" });
   document.body.append(menu);
   addEventListener("mousedown", outside, true);
   addEventListener("keydown", escape, true);
@@ -180,8 +194,8 @@ function messageBox(text, title = "", buttons = ["OK"], labels = {}) {
     view.body.append(el("div", "txt", { text }), bar);
     view.onClose = () => resolve(answer);
     view.win.style.minWidth = "180px";
-    view.win.style.left = Math.round((innerWidth - view.win.offsetWidth) / 2) + "px";
-    view.win.style.top = Math.round((innerHeight - view.win.offsetHeight) / 2) + "px";
+    view.win.style.left = Math.round((viewWidth() - view.win.offsetWidth) / 2) + "px";
+    view.win.style.top = Math.round((viewHeight() - view.win.offsetHeight) / 2) + "px";
     bar.firstChild.focus();
   });
 }
@@ -202,8 +216,8 @@ function askReason(title) {
     bar.append(skip, cancel);
     view.body.append(box, bar);
     view.onClose = () => resolve(answer);
-    view.win.style.left = Math.round((innerWidth - view.win.offsetWidth) / 2) + "px";
-    view.win.style.top = Math.round((innerHeight - view.win.offsetHeight) / 2) + "px";
+    view.win.style.left = Math.round((viewWidth() - view.win.offsetWidth) / 2) + "px";
+    view.win.style.top = Math.round((viewHeight() - view.win.offsetHeight) / 2) + "px";
     box.focus();
   });
 }

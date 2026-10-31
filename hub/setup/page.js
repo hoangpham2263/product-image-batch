@@ -23,7 +23,7 @@
     body.append(name, account, detail, uses, extra); side.append(fix);
     box.append(mark, body, side);
     parent.append(box);
-    const row = { box, mark, name, account, detail, uses, extra, fix };
+    const row = { box, mark, name, account, detail, uses, extra, fix, side };
     items.set(id, row);
     return row;
   };
@@ -31,14 +31,24 @@
   for (const id of BASE) item(id, $("#base"));
   const NAMES = { login: "Codex (ChatGPT)", google: "Google (Flow, Gemini web)", antigravity: "Antigravity CLI", drive: "Mật khẩu app", node: "Node.js", codex: "Codex", browser: "Chrome của tool" };
   for (const [id, row] of items) row.name.textContent = NAMES[id];
-  const LABELS = { install: "Cài", browser: "Mở", login: "Đăng nhập", drive: "Đăng nhập" };
+  const LABELS = { install: "Cài", browser: "Mở", login: "Đăng nhập", drive: "Đăng nhập", google: "Đăng nhập", antigravity: "Đăng nhập" };
+  // Beside the sign-in button: the AI's own site in the tools' Chrome, to see or switch the account there.
+  const SITES = { login: [["Mở ChatGPT", "chatgpt"]], google: [["Mở Gemini", "gemini"], ["Mở Flow", "flow"]] };
+  const WAIT = {
+    install: "Đang cài…",
+    browser: "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…",
+    login: "Đang mở trang đăng nhập ChatGPT trong Chrome của tool…",
+    google: "Đã mở trang chọn tài khoản Google trong Chrome của tool: đăng nhập, thêm hoặc đổi tài khoản ở đó, xong bấm Kiểm tra lại.",
+    antigravity: "Đã mở Terminal chạy Antigravity: gõ /logout nếu muốn đổi tài khoản, rồi /login và đăng nhập Google trên trang mở ra. Xong bấm Kiểm tra lại.",
+    site: "Đã mở trang trong Chrome của tool. Đăng nhập hoặc đổi tài khoản ở đó, xong bấm Kiểm tra lại.",
+  };
 
   let checking = false;
   const check = async () => {
     if (checking) return;
     checking = true;
     $(".again").disabled = true;
-    for (const row of items.values()) { row.mark.textContent = "○"; row.mark.style.color = ""; row.detail.textContent = "Đang kiểm tra…"; row.fix.hidden = true; }
+    for (const row of items.values()) { row.mark.textContent = "○"; row.mark.style.color = ""; row.detail.textContent = "Đang kiểm tra…"; row.fix.hidden = true; row.side.querySelectorAll(".site").forEach((b) => b.remove()); }
     const abort = new AbortController();
     const timer = setTimeout(() => abort.abort(), 60000);
     const report = await fetch("/api/setup", { method: "POST", signal: abort.signal, cache: "no-store" }).then((r) => r.json())
@@ -64,10 +74,16 @@
       if (step.Id === "antigravity" && step.State !== "ok") row.uses.textContent = `Dùng cho: ${step.Uses || "Viết review: Antigravity CLI"}. Đăng nhập trong Antigravity, đổi tài khoản cũng ở đó.`;
       if (step.Action) {
         const signedIn = step.State === "ok";
-        row.fix.textContent = signedIn && step.Action === "login" ? "Đổi tài khoản" : signedIn && step.Action === "browser" && step.Id === "google" ? "Đổi tài khoản" : signedIn && step.Action === "drive" ? "Đăng xuất" : LABELS[step.Action] || "Mở";
+        row.fix.textContent = signedIn && ["login", "google", "antigravity"].includes(step.Action) ? "Đổi tài khoản" : signedIn && step.Action === "drive" ? "Đăng xuất" : LABELS[step.Action] || "Mở";
         row.fix.classList.toggle("primary", !signedIn);
         row.fix.hidden = false;
         row.fix.onclick = () => fix(step, row);
+      }
+      if (step.Action && SITES[step.Id]) for (const [text, site] of SITES[step.Id]) {
+        const b = el("button", "btn site", text);
+        b.type = "button";
+        b.onclick = () => fix({ ...step, Action: "site" }, row, site);
+        row.side.append(b);
       }
     }
     if (!items.get("login").detail.dataset.code) watchLogin();
@@ -100,7 +116,7 @@
         setTimeout(() => { copy.textContent = "Chép mã"; }, 2000);
       };
       detail.replaceChildren(`Mã đăng nhập: ${code} `, copy, ". Dán vào trang đăng nhập vừa mở trong Chrome của tool (đăng nhập tài khoản ChatGPT muốn dùng). Lỗi thì bấm lại để lấy mã mới.");
-      for (const r of items.values()) r.fix.disabled = false;
+      for (const b of buttons()) b.disabled = false;
     }, 1000);
   };
 
@@ -129,14 +145,17 @@
   };
 
   // Installing, opening the tools' Chrome or signing in runs on this computer; the steps are checked again after.
-  const fix = async (step, row) => {
+  const buttons = () => [...document.querySelectorAll(".item .side .btn")];
+  const fix = async (step, row, site) => {
     if (step.Action === "drive") return drive(step, row);
-    for (const r of items.values()) r.fix.disabled = true;
-    row.detail.textContent = step.Action === "install" ? "Đang cài…" : step.Action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút). Đăng nhập hoặc đổi tài khoản Google ở đó, xong bấm Kiểm tra lại." : "Đang mở trang đăng nhập ChatGPT trong Chrome của tool…";
+    for (const b of buttons()) b.disabled = true;
+    row.detail.textContent = WAIT[step.Action] || "Đang mở…";
     if (step.Action === "login") watchLogin();
-    const r = await post("/api/setup-step", { step: step.Action });
+    const r = await post("/api/setup-step", { step: step.Action, site });
     if (r.superseded) return;
-    for (const x of items.values()) x.fix.disabled = false;
+    for (const b of buttons()) b.disabled = false;
+    // Signing in on a site or in Antigravity happens outside this page: keep the hint until Kiểm tra lại.
+    if (["google", "antigravity", "site"].includes(step.Action) && !r.error) return;
     await check();
     if (r.error) row.detail.textContent = r.error;
   };
