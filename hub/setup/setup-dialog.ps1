@@ -54,6 +54,9 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$HubRoot) {
         } catch { $rows[0].Detail.Text = 'Chưa kiểm tra được. Bấm Kiểm tra lại.' }
         finally { $dialog.Cursor = 'Default'; $again.Enabled = $true }
     }.GetNewClosure()
+    # The handlers below are closures (GetNewClosure), which see only global functions: take these along as values,
+    # so the window works from the menu (launch.ps1) as well as from a tool.
+    $getAiSettings = ${function:Get-AiSettings}; $setAiSettings = ${function:Set-AiSettings}; $getAiModels = ${function:Get-AiModels}
     $ai = @{ Models = @(); Efforts = @(); Filling = $false }
     $effortNames = @{ low = 'Thấp · ít token nhất'; medium = 'Vừa'; high = 'Cao'; xhigh = 'Rất cao'; max = 'Tối đa'; ultra = 'Siêu cao' }
     $fillEfforts = {
@@ -68,13 +71,13 @@ function Show-SetupDialog([Windows.Forms.Form]$Owner, [string]$HubRoot) {
         if ($ai.Filling) { return }
         $ai.Filling = $true
         try { & $fillEfforts $(if ($aiEffort.SelectedIndex -gt 0) { $ai.Efforts[$aiEffort.SelectedIndex] } else { '' }) } finally { $ai.Filling = $false }
-        Set-AiSettings $HubRoot $(if ($aiModel.SelectedIndex -gt 0) { $ai.Models[$aiModel.SelectedIndex - 1].slug } else { '' }) $ai.Efforts[$aiEffort.SelectedIndex]
+        & $setAiSettings $HubRoot $(if ($aiModel.SelectedIndex -gt 0) { $ai.Models[$aiModel.SelectedIndex - 1].slug } else { '' }) $ai.Efforts[$aiEffort.SelectedIndex]
     }.GetNewClosure()
     $loadAi = {
         $ai.Filling = $true
         try {
-            $saved = Get-AiSettings $HubRoot
-            $ai.Models = @(Get-AiModels)
+            $saved = & $getAiSettings $HubRoot
+            $ai.Models = @(& $getAiModels)
             if ($saved.model -and -not @($ai.Models | Where-Object slug -eq $saved.model).Count) { $ai.Models = @([pscustomobject]@{ slug = $saved.model; name = $saved.model; efforts = @('low', 'medium', 'high'); default_effort = '' }) + $ai.Models }
             $aiModel.Items.Clear(); [void]$aiModel.Items.Add('Model mặc định của Codex')
             foreach ($m in $ai.Models) { [void]$aiModel.Items.Add($m.name) }

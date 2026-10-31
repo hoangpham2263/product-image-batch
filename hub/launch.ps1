@@ -22,6 +22,15 @@ if ($Mac) {
 }
 
 $tool = $tools[0]
+# A web tool opens in its own app window (no tabs or address bar), as on macOS: Edge, which every Windows 10/11 has,
+# else Chrome; the default browser only when neither is found.
+function Open-WebTool($Tool) {
+    $page = Join-Path $Tool.Root $Tool.web
+    $browser = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+        "$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+    if ($browser) { Start-Process $browser -ArgumentList @(('--app="' + ([Uri]$page).AbsoluteUri + '"'), '--window-size=1120,840') } else { Start-Process $page }
+}
 if ($tools.Count -gt 1) {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
     $form = New-Object Windows.Forms.Form -Property @{ Text = ('Tools Hub ' + (Get-InstalledVersion $root)).Trim(); Size = '1120,840'; MinimumSize = '1040,760'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240); Font = New-Object Drawing.Font('Segoe UI', 10) }
@@ -102,10 +111,11 @@ if ($tools.Count -gt 1) {
     $script:cardHoverPen = New-Object Drawing.Pen($script:Ui.Accent)
     $script:rulePen = New-Object Drawing.Pen([Drawing.Color]::FromArgb(227, 227, 227))
     $script:smallFont = New-Object Drawing.Font('Segoe UI', 8.5)
+    $script:featureFont = New-Object Drawing.Font('Segoe UI', 9.75)
     $muted = [Drawing.Color]::FromArgb(96, 96, 96)
     # Any control in a card finds its card, the panel whose Tag is the tool.
     $cardOf = { param($c) while ($c -and -not ($c -is [Windows.Forms.Panel] -and $c.Name -eq 'toolCard')) { $c = $c.Parent }; $c }
-    $openCard = { param($s) $card = & $cardOf $s; if ($card.Tag.web) { Start-Process (Join-Path $card.Tag.Root $card.Tag.web) } else { $form.Tag = $card.Tag; $form.Close() } }
+    $openCard = { param($s) $card = & $cardOf $s; if ($card.Tag.web) { Open-WebTool $card.Tag } else { $form.Tag = $card.Tag; $form.Close() } }
     $hoverCard = { param($s) $card = & $cardOf $s; $on = $card.ClientRectangle.Contains($card.PointToClient([Windows.Forms.Cursor]::Position)); if ($card.AccessibleDescription -ne "$on") { $card.AccessibleDescription = "$on"; $card.Invalidate() } }
     foreach ($item in $tools) {
         $card = New-Object Windows.Forms.Panel -Property @{ Name = 'toolCard'; Tag = $item; Dock = 'Fill'; Margin = '0,0,12,12'; BackColor = [Drawing.Color]::White; Cursor = 'Hand' }
@@ -121,14 +131,20 @@ if ($tools.Count -gt 1) {
                 [Windows.Forms.TextRenderer]::DrawText($g, [string]$p.name, $script:smallFont, (New-Object Drawing.Point(($x + 11), 45)), [Drawing.Color]::FromArgb(96, 96, 96))
                 $x += 11 + [Windows.Forms.TextRenderer]::MeasureText([string]$p.name, $script:smallFont).Width + 8
             }
+            $y = 92
+            foreach ($f in @($s.Tag.features)) {
+                if (-not $f) { continue }
+                [Windows.Forms.TextRenderer]::DrawText($g, '✓', $script:featureFont, (New-Object Drawing.Point(16, $y)), $script:Ui.Accent)
+                [Windows.Forms.TextRenderer]::DrawText($g, [string]$f, $script:featureFont, (New-Object Drawing.Rectangle(36, $y, ($s.Width - 52), 22)), [Drawing.Color]::FromArgb(30, 30, 30), [Windows.Forms.TextFormatFlags]'EndEllipsis')
+                $y += 23
+            }
         })
         $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
         $icon = New-Object Windows.Forms.PictureBox -Property @{ Location = '16,16'; Size = '48,48'; SizeMode = 'Zoom'; BackColor = [Drawing.Color]::Transparent }
         if (Test-Path -LiteralPath $png) { $icon.Image = New-Object Drawing.Bitmap($png) }
         $name = New-Object Windows.Forms.Label -Property @{ Text = $item.name; Location = '74,18'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI', 11); BackColor = [Drawing.Color]::Transparent }
-        $features = New-Object Windows.Forms.Label -Property @{ Text = ((@($item.features) | Where-Object { $_ } | ForEach-Object { "✓  $_" }) -join "`r`n"); Location = '16,92'; AutoSize = $true; MaximumSize = '320,0'; Font = New-Object Drawing.Font('Segoe UI', 9.5); BackColor = [Drawing.Color]::Transparent }
-        $card.Controls.AddRange(@($icon, $name, $features))
-        $card.Add_Resize({ param($s) foreach ($c in $s.Controls) { if ($c.Top -ge 90) { $c.MaximumSize = New-Object Drawing.Size(($s.Width - 32), 0) } } })
+        $card.Controls.AddRange(@($icon, $name))
+        $card.Add_Resize({ param($s) $s.Invalidate() })
         foreach ($c in @($card) + @($card.Controls)) { $c.Add_Click($openCard); $c.Add_MouseEnter($hoverCard); $c.Add_MouseLeave($hoverCard); $c.Cursor = 'Hand' }
         [void]$grid.Controls.Add($card)
     }
@@ -139,7 +155,7 @@ if ($tools.Count -gt 1) {
     if (-not $form.Tag) { return }
     $tool = $form.Tag
 }
-if ($tool.web) { Start-Process (Join-Path $tool.Root $tool.web); return }
+if ($tool.web) { Open-WebTool $tool; return }
 # The tool shows "← Menu" back here when there is a menu to go back to.
 if ($tools.Count -gt 1) { $env:TOOLS_HUB_MENU = '1' }
 & (Join-Path $tool.Root $tool.windows)
