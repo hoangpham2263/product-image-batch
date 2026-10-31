@@ -218,15 +218,16 @@ function New-NativeToolWindow([string]$Title,[string]$ToolRoot) {
     $hubRoot=[IO.Path]::GetFullPath((Join-Path $ToolRoot '../..'))
     $logs=Join-Path $hubRoot 'workspace/logs'
     $errorLog=Join-Path $ToolRoot 'workspace/app-errors.log'
-    # An error in a click is written down and shown, not lost behind the hidden console.
-    [Windows.Forms.Application]::add_ThreadException({
+    # An error in a click is written down and shown, not lost behind the hidden console (the menu does this for
+    # the pages it opens).
+    if(-not $global:ToolsHubHosted){[Windows.Forms.Application]::add_ThreadException({
         param($sender,$eventArgs)
         try {
             New-Item -ItemType Directory -Force (Split-Path $errorLog -Parent) | Out-Null
             [IO.File]::AppendAllText($errorLog,((Get-Date).ToString('o')+"`r`n"+$eventArgs.Exception.ToString()+"`r`n"))
         } catch { }
         [void][Windows.Forms.MessageBox]::Show("Có lỗi: $($eventArgs.Exception.Message)`r`n`r`nChi tiết đã lưu trong workspace/app-errors.log.",$Title,'OK','Warning')
-    }.GetNewClosure())
+    }.GetNewClosure())}
     $versionFile=Join-Path $hubRoot 'workspace/version.txt'
     $version=if(Test-Path -LiteralPath $versionFile){(Get-Content -LiteralPath $versionFile -Raw).Trim()}else{''}
     $form=New-Object Windows.Forms.Form -Property @{Text=("$Title $version").Trim();Size='1120,840';MinimumSize='1040,760';StartPosition='CenterScreen';Font=$script:NativeFont;BackColor=[Drawing.SystemColors]::Control;ForeColor=$script:Ui.Ink}
@@ -234,7 +235,7 @@ function New-NativeToolWindow([string]$Title,[string]$ToolRoot) {
     if(Test-Path -LiteralPath $iconPng){try{$form.Icon=[Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($iconPng)).GetHicon())}catch{}}
     # Full width before the buttons are anchored right, as in Product Review.
     $header=New-Object Windows.Forms.Panel -Property @{Name='NativeHeader';Size=(New-Object Drawing.Size($form.ClientSize.Width,64));Dock='Top'}
-    $fromHub=[bool]$env:TOOLS_HUB_MENU
+    $fromHub=[bool]$global:ToolsHubHosted
     $menu=New-Object Windows.Forms.Button -Property @{Text='← Menu';Location='20,16';Size='90,32';Visible=$fromHub}
     $titleLabel=New-Object Windows.Forms.Label -Property @{Text=$Title;Location=$(if($fromHub){'122,19'}else{'20,19'});AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));UseMnemonic=$false}
     $update=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Size='100,32';Anchor='Top,Right'}
@@ -292,14 +293,13 @@ function New-NativeToolWindow([string]$Title,[string]$ToolRoot) {
     $form.Controls.AddRange(@($toast,$header,$body))
     $body.BringToFront();$toast.BringToFront()
     $form.Add_FormClosed({param($sender) $sender.Controls['NativeToast'].Tag.Dispose()})
-    return @{Form=$form;Body=$body;Menu=$menu;Root=$hubRoot}
+    return @{Form=$form;Body=$body;Menu=$menu}
 }
-# Shows the window until it closes. After Cập nhật: back in the menu that opened it, which restarts on exit code 3
-# (hub/launch.ps1) with the new files; opened on its own, the tool opens again.
+# Shows the window on its own until it closes; after Cập nhật the tool opens again. (A page of the menu: the menu
+# opens itself again instead, hub/launch.ps1.)
 function Show-NativeToolWindow($Shell,[string]$Entry) {
     [void]$Shell.Form.ShowDialog()
     if($Shell.Form.Tag -ne 'updated'){return}
-    if($env:TOOLS_HUB_MENU -eq 'return'){exit 3}
     Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-STA','-ExecutionPolicy','Bypass','-File',('"'+$Entry+'"'))
 }
 function Show-NativeToast($Form,[string]$Text) {

@@ -314,4 +314,5 @@ $form.Add_FormClosed({
     foreach($picture in $pictures.Values){if($picture){$picture.Dispose()}}
 })
 Update-Social
-if(-not $BuildOnly){Show-NativeToolWindow $shell $PSCommandPath}
+# Opened from the menu (hub/launch.ps1) the window is a page of the menu's window, which runs it.
+if(-not $BuildOnly -and -not $global:ToolsHubHosted){Show-NativeToolWindow $shell $PSCommandPath}

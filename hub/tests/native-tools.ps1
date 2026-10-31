@@ -2,7 +2,7 @@
 param([ValidateSet('grok','social')][string]$Tool)
 $ErrorActionPreference='Stop'
 $hub=Split-Path $PSScriptRoot -Parent
-$env:TOOLS_HUB_MENU='return'
+$global:ToolsHubHosted=$true
 if($Tool -eq 'grok'){
     . (Join-Path $hub '../apps/grok-video-prompt/src/gui.ps1') -BuildOnly
     try {

@@ -115,7 +115,9 @@ function Receive-RunLine([string]$line) {
 
 # An error in a button or window handler goes to workspace/logs/app-errors.log (sent with Gửi lỗi) instead of
 # WinForms' generic dialog; the user sees a short message and the app keeps going.
-if (-not $BuildOnly) {
+# Opened from the Tools Hub menu the window is a page of the menu's window (hub/launch.ps1), which does this itself.
+$hosted = [bool]$global:ToolsHubHosted
+if (-not $BuildOnly -and -not $hosted) {
     [Windows.Forms.Application]::add_ThreadException({
         param($sender, $e)
         Write-AppError $workspace.Logs 'Giao diện Windows' $e.Exception
@@ -135,7 +137,7 @@ $form.ForeColor=$ink
 $appIcon = New-StarIcon
 $form.Icon = $appIcon
 $tray = New-AppTray $form $appIcon
-$tray.Visible = -not $BuildOnly
+$tray.Visible = -not $BuildOnly -and -not $hosted
 $form.Add_FormClosed({ $tray.Visible = $false; $tray.Dispose() })
 # Each region is a bordered panel on the system-grey page so areas read as separate blocks.
 function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H,[string]$Anchor='Top,Left') {
@@ -147,16 +149,11 @@ function New-Card([string]$Name,[string]$Heading,[int]$X,[int]$Y,[int]$W,[int]$H
 # Full width before the button is anchored: a docked panel starts 200px wide, which would push a
 # right-anchored button past the window edge once the panel stretches.
 $header=New-Object Windows.Forms.Panel -Property @{Size=(New-Object Drawing.Size($form.ClientSize.Width,64));Dock='Top';BackColor=$ui.Page}
-# Opened from the Tools Hub menu (hub/launch.ps1 sets TOOLS_HUB_MENU): "← Menu" closes this window and shows the menu.
-$fromHub=[bool]$env:TOOLS_HUB_MENU
+# A page of the Tools Hub menu's window: "← Menu" closes the page and the menu shows again (hub/launch.ps1).
+$fromHub=$hosted
 $btnMenu=New-Object Windows.Forms.Button -Property @{Text='← Menu';Location='20,16';Size='90,32';Visible=$fromHub}
 Set-FlatButton $btnMenu
-$btnMenu.Add_Click({
-    if ($env:TOOLS_HUB_MENU -ne 'return') {
-        Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path (Get-HubRoot $root) 'hub\launch.ps1')+'"'))
-    }
-    $form.Close()
-})
+$btnMenu.Add_Click({ $form.Close() })
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review';Location=$(if($fromHub){'122,19'}else{'20,19'});AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
 $btnUpdate=New-Object Windows.Forms.Button -Property @{Text='Cập nhật';Location='980,16';Size='100,32';Anchor='Top,Right'}
 # Cấu hình: shared by every tool (hub/setup), left of Cập nhật as on the Tools Hub menu.
@@ -240,6 +237,8 @@ $lblThr.Height=$numThr.Height
 $btnUpdate.Add_Click({
     if ($script:proc) { [Windows.Forms.MessageBox]::Show($form, 'Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.', 'Cập nhật') | Out-Null; return }
     if (Show-UpdateDialog $form (Get-HubRoot $root) $workspace.Logs $appVersion) {
+        # A page of the menu: the menu opens itself again with the new files.
+        if ($hosted) { $form.Tag = 'updated'; $form.Close(); return }
         Start-Process powershell -WorkingDirectory $root -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-WindowStyle','Hidden','-File',('"' + (Join-Path $srcDir 'gui.ps1') + '"'))
         $form.Close()
     }
@@ -491,4 +490,4 @@ $form.Add_FormClosing({
 })
 
 Load-Urls
-if(-not $BuildOnly){[void]$form.ShowDialog()}
+if(-not $BuildOnly -and -not $hosted){[void]$form.ShowDialog()}

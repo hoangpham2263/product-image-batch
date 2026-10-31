@@ -1,7 +1,7 @@
 // Cấu hình and Cập nhật for every page the Tools Hub menu serves on macOS (the menu and web tools): buttons at the top
 // right, where Product Review has its own; Cập nhật turns green with the version once a newer one is out. Both work
-// through the menu server (hub/picker.mjs, hub/setup/config-api.mjs). Pages opened as files (Windows) have no server
-// to ask, so no buttons.
+// through the menu server (hub/picker.mjs, hub/setup/config-api.mjs). A page opened as a file has no server to ask,
+// so no buttons. (Windows does not use these pages: its tools are WinForms, hub/native-window.ps1.)
 (() => {
   if (!location.protocol.startsWith("http")) return;
   const header = document.querySelector("header");
