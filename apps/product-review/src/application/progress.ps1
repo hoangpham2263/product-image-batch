@@ -92,6 +92,9 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
             $event.Text = "Sản phẩm $($event.Index): thiếu ảnh mẫu cho loại này."
         } elseif ($line -match '\[CAUSE:PRODUCT_DOWNLOAD\]') {
             $event.Text = "Sản phẩm $($event.Index): chưa tải được trang, thử lại sau."
+        } elseif ($line -match '\[CAUSE:BRIDGE\].*(Google Flow của tài khoản đang chọn[^\r\n]*)') {
+            # The Flow account still needs setting up once (content-flow.js says what to do).
+            $event.Text = "Sản phẩm $($event.Index): $($Matches[1])"
         } elseif ($line -match '\[CAUSE:BRIDGE\]') {
             $event.Text = "Sản phẩm $($event.Index): chưa nối được ChatGPT/Flow, mở Chrome có extension."
         } elseif ($line -match '\[CAUSE:STORE_LOCKED\]') {

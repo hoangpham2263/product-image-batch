@@ -71,9 +71,13 @@ async function findTab(platform, account) {
 
 // No Flow project open: open Flow's home (as the chosen account) and press its new-project button, then use that project.
 async function newFlowProject(account) {
-  const [home] = account ? [] : (await chrome.tabs.query({ url: SITES.flow.hosts })).filter((t) => !otherAccount(t.url));
+  // The chosen account's Flow home from an earlier try (its /u/<n>/ is only known once opened), else a new one.
+  const { flowHome } = await chrome.storage.session.get("flowHome");
+  const kept = account && flowHome?.account === account ? await chrome.tabs.get(flowHome.id).catch(() => null) : null;
+  const [home] = account ? (kept && /^https:\/\/flow\.google\.com\//.test(kept.url || "") && !SITES.flow.page.test(kept.url) ? [kept] : []) : (await chrome.tabs.query({ url: SITES.flow.hosts })).filter((t) => !otherAccount(t.url));
   const tab = home || await chrome.tabs.create({ url: startUrl("flow", account), active: true });
   if (!home) await waitForLoad(tab.id);
+  if (account) await chrome.storage.session.set({ flowHome: { id: tab.id, account } });
   const ask = () => chrome.tabs.sendMessage(tab.id, { type: "new-project" });
   // A tab open from before the extension (re)loaded has no content script: reload it once.
   const at = await ask().catch(async () => { await chrome.tabs.reload(tab.id); await waitForLoad(tab.id); return ask(); }).catch(() => null);

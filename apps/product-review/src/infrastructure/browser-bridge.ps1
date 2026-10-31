@@ -56,11 +56,8 @@ function Start-ImageBridge([string]$ProjectRoot) {
         if ($script:OnWindows) { Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null }
         else { Start-Process node -ArgumentList $server | Out-Null }
     }
-    for ($i = 0; $i -lt 8; $i++) {
-        if (Test-ImageBridge) { Update-ImageBridgeExtension $ProjectRoot; return }
-        Start-Sleep -Milliseconds 750
-    }
-    # No Chrome with the extension: open the tools' own Chrome (hub/browser.mjs) with no window, signed in from Cấu hình.
+    # The tools' own Chrome (hub/browser.mjs), signed in from Cấu hình, runs with no window: started hidden, or started
+    # again hidden when it was left open in a window after signing in. Then the extension connects to the bridge.
     $browser = Join-Path (Get-HubRoot $ProjectRoot) 'hub/browser.mjs'
     $flags = @(if ([int]((& node --version) -replace '^v(\d+).*', '$1') -lt 22) { '--experimental-websocket' })
     $answer = (& node @flags $browser start | Select-Object -Last 1) | ConvertFrom-Json
@@ -110,7 +107,9 @@ function Invoke-BrowserImage([string]$Platform, [string]$Prompt, [string[]]$Imag
         $result = Invoke-RestMethod -Uri "$script:BridgeUrl/generate" -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ($TimeoutSec + 120)
     } catch {
         $detail = Get-BridgeError $_
-        $cause = if ($detail -match 'Hết thời gian|timeout') { 'AI_TIMEOUT' } elseif ($detail -match 'đăng nhập|Extension') { 'BRIDGE' } else { 'BUSY' }
+        # A sign-in or a Flow account not set up for images (its first-visit screen, Tác nhân on) needs the user, so it is
+        # not retried (BRIDGE).
+        $cause = if ($detail -match 'Hết thời gian|timeout') { 'AI_TIMEOUT' } elseif ($detail -match 'đăng nhập|Extension|Google Flow của tài khoản đang chọn') { 'BRIDGE' } else { 'BUSY' }
         throw "[CAUSE:$cause] $Platform không tạo được ảnh. $detail"
     }
     ConvertTo-PngFile $Output

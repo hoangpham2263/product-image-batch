@@ -9,6 +9,8 @@ foreach ($case in @(@('MISSING_DATA','thiếu ảnh mẫu'), @('PRODUCT_TIMEOUT'
     if ($event.Text -notmatch $case[1] -or $event.Text -match 'CAUSE|C:\\|Details') { throw 'Account/network errors leaked technical text or lacked user guidance.' }
 }
 if ((ConvertTo-UiEvent '  [DOWNLOAD-RETRY] Attempt 2/3...  (#1)').Text -notmatch 'Đang tự thử tải lại') { throw 'Product download retry was hidden from the user.' }
+$flowSetup = (ConvertTo-UiEvent 'WARNING: [ITEM 1] Failed; [CAUSE:BRIDGE] URL and source kept for retry. [CAUSE:BRIDGE] flow không tạo được ảnh. Google Flow của tài khoản đang chọn đang bật Tác nhân, không tạo ảnh. Mở Cấu hình, bấm Mở Flow, vào một dự án, tắt Tác nhân và chọn mô hình ảnh Nano Banana rồi chạy lại.').Text
+if ($flowSetup -notmatch 'tắt Tác nhân' -or $flowSetup -match 'CAUSE') { throw 'A Flow account that needs setting up must say what to do.' }
 if ((ConvertTo-UiEvent '[AI-CONNECTION] Connection interrupted').Text -notmatch '60 giây') { throw 'Live connection interruption is hidden.' }
 if ((ConvertTo-UiEvent '[AI-WAIT] 90/480s elapsed.').Stage -notmatch '90/480') { throw 'AI waiting time is hidden.' }
 if ((ConvertTo-UiEvent '[IMAGE-RETRY] AI_TIMEOUT 2/3').Text -notmatch '2/3') { throw 'Automatic image retry count is hidden.' }

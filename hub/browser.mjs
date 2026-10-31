@@ -4,7 +4,7 @@
 // pages drop the extension's clicks.
 //   node hub/browser.mjs login   download it the first time, open it in a window with the sites to sign in to
 //   node hub/browser.mjs open <url>…   the same with these pages (the ChatGPT sign-in for Codex)
-//   node hub/browser.mjs start   start it hidden for a run, unless it is open already (not downloaded yet: exit 2)
+//   node hub/browser.mjs start   for a run: start it hidden, or again hidden when open in a window (not downloaded: exit 2)
 //   node hub/browser.mjs status  { installed, running }
 //   node hub/browser.mjs logins  { installed, google, accounts, chatgpt }: signed in there (its cookies; accounts: the
 //                                Google accounts, the first one being what Flow and Gemini use); starts it hidden if needed
@@ -137,9 +137,11 @@ async function main(command, urls) {
   if (command === "start") {
     if (!existsSync(executable)) { process.exitCode = 2; return { error: "Chưa có Chrome của tool. Mở Cấu hình, bấm Mở ở dòng Chrome của tool." }; }
     if (await running()) {
-      // On macOS it keeps running with every window closed, and the extension then sleeps: start it again hidden.
+      // Runs never show it: a window (opened from Cấu hình to sign in) is closed and started again hidden. On macOS a
+      // hidden one keeps running with every page closed, and the extension then sleeps: that one starts again too.
+      const hidden = existsSync(modeFile) && readFileSync(modeFile, "utf8") === "hidden";
       const pages = (await devtools("/json/list")).filter((t) => t.type === "page");
-      if (pages.length) return { ok: true };
+      if (hidden && pages.length) return { ok: true };
       await close();
     }
     await open({ urls: ["https://flow.google.com/"], hidden: true });
