@@ -1,11 +1,10 @@
-﻿# Run from a tool's Cập nhật button: bring Tools Hub (hub/ and every apps/<tool>/) up to the latest release (vX.Y.Z).
-# The code repo is private: the newest version and its ZIP come from the tools-hub-api Worker, the ZIP only with the
-# app password saved in Cấu hình (scripts/publish-release.sh puts each release there).
+﻿# Run from a tool's Cập nhật button: bring Tools Hub (hub/ and every apps/<tool>/) up to the latest GitHub Release (vX.Y.Z).
 # Git checkouts use git pull; ZIP installs download the newest release ZIP. User data is never touched.
 # -Check prints the newer version ('' when current); -Apply installs it (the app reopens itself afterwards).
 param([string]$Root = (Split-Path $PSScriptRoot -Parent), [switch]$NoRun, [switch]$Check, [switch]$Apply)
 $ErrorActionPreference = 'Stop'
-$script:Api = 'https://tools-hub-api.hoangpham2263.workers.dev'
+$script:Repo = 'hoangpham2263/tools-hub'
+$script:Asset = 'tools-hub.zip'
 # Local data the hub and each tool write; an update keeps it as it is (a tool's AGENTS.md is merged, see Merge-AgentInstructions).
 $script:KeepPaths = '^(workspace|\.git|apps/[^/]+/(workspace|AGENTS\.md|bridge/node_modules))(/|$)'
 
@@ -68,8 +67,7 @@ function Merge-AgentInstructions([string]$Source, [string]$Target) {
 
 function Get-LatestRelease {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
-    $answer = Invoke-RestMethod -Uri "$script:Api/app/version" -Headers @{ 'User-Agent' = 'tools-hub' } -TimeoutSec 10
-    return [pscustomobject]@{ tag_name = [string]$answer.version }
+    return Invoke-RestMethod -Uri "https://api.github.com/repos/$script:Repo/releases/latest" -Headers @{ 'User-Agent' = 'tools-hub' } -TimeoutSec 10
 }
 
 # The version in use: the release a ZIP install came from, or the newest tag of a git checkout (as Get-AppVersion).
@@ -91,20 +89,18 @@ function Update-App([string]$Root) {
         if (Get-Command git -ErrorAction SilentlyContinue) { git -C $Root pull --ff-only --quiet 2>$null | Out-Null }
         return
     }
-    $latest = (Get-LatestRelease).tag_name
-    if ($latest -notmatch '^v\d+(\.\d+)*$') { return }
+    $headers = @{ 'User-Agent' = 'tools-hub' }
+    $release = Get-LatestRelease
+    $latest = $release.tag_name
+    $asset = @($release.assets | Where-Object name -eq $script:Asset)
+    if ($latest -notmatch '^v\d+(\.\d+)*$' -or -not $asset.Count) { return }
     $versionFile = Join-Path $Root 'workspace/version.txt'
     if ((Test-Path -LiteralPath $versionFile) -and (Get-Content -LiteralPath $versionFile -Raw).Trim() -eq $latest) { return }
-    # The app password from Cấu hình (workspace/config/drive.json) is what lets this install download.
-    . (Join-Path $PSScriptRoot 'setup/drive.ps1')
-    $login = Get-DriveConfig (Join-Path $Root 'workspace')
-    if (-not $login) { throw 'Nhập mật khẩu app trong Cấu hình rồi cập nhật lại.' }
-    $headers = @{ 'User-Agent' = 'tools-hub'; 'x-admin-key' = $login.AdminKey }
     $temp = Join-Path ([IO.Path]::GetTempPath()) ('tools-hub-update-' + [Guid]::NewGuid().ToString('N'))
     try {
         New-Item -ItemType Directory -Force -Path $temp | Out-Null
         $zip = Join-Path $temp 'app.zip'
-        Invoke-WebRequest -Uri "$script:Api/app/download" -Headers $headers -OutFile $zip -UseBasicParsing -TimeoutSec 180
+        Invoke-WebRequest -Uri $asset[0].browser_download_url -Headers $headers -OutFile $zip -UseBasicParsing -TimeoutSec 120
         Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $temp 'x') -Force
         $source = @(Get-ChildItem -LiteralPath (Join-Path $temp 'x') -Directory)[0].FullName
         if (-not (Test-Path -LiteralPath (Join-Path $source 'hub/update.ps1'))) { throw 'ZIP không đúng cấu trúc Tools Hub.' }

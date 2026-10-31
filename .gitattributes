@@ -8,6 +8,3 @@
 /.gitattributes export-ignore
 /tools export-ignore
 *.command text eol=lf
-/scripts export-ignore
-/hub/tests export-ignore
-/apps/*/tests export-ignore

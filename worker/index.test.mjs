@@ -326,17 +326,3 @@ test("Grok sample videos: admin uploads by prompt code into Tools Hub/Grok Video
   await call("/api/grok-videos/10/close-to-wide", { method: "DELETE", headers: { "x-admin-key": "secret" } });
   assert.deepEqual((await (await call("/grok/videos")).json()).videos, {});
 });
-
-test("Tools Hub release: version is public, the ZIP needs the app password", async () => {
-  const { env, kv } = setup();
-  await env.STORE.put("app:version", "v9.9.9");
-  await env.STORE.put("app:zip", new Uint8Array([80, 75, 3, 4]).buffer);
-  const call = (path, key) => worker.fetch(new Request(`https://x${path}`, { headers: key ? { "x-admin-key": key } : {} }), env, { waitUntil() {} });
-  assert.equal((await (await call("/app/version")).json()).version, "v9.9.9");
-  assert.equal((await call("/app/download")).status, 401);
-  assert.equal((await call("/app/download", "wrong")).status, 401);
-  const ok = await call("/app/download", "app-pass");
-  assert.equal(ok.status, 200);
-  assert.equal(ok.headers.get("x-version"), "v9.9.9");
-  assert.equal(new Uint8Array(await ok.arrayBuffer())[0], 80);
-});

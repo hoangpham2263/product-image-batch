@@ -25,7 +25,7 @@ try{
     Assert (@((ConvertFrom-ProductBatch $csv '').Errors|Where-Object{$_ -match 'Chọn file'}).Count) 'A table without its folder must ask for the file.'
     Assert (@((ConvertFrom-ProductBatch "product_url,product_image,review_images`nhttps://shop.test/a,missing.jpg," $img).Errors|Where-Object{$_ -match "^Dòng 2: không có ảnh 'missing.jpg'"}).Count) 'A missing image must be named with its line.'
     # The sample zip unpacks to its product-import folder and reads without errors.
-    $zipFolder=Expand-ProductBatchArchive (Join-Path $PSScriptRoot 'fixtures/product-import-sample.zip') $temp
+    $zipFolder=Expand-ProductBatchArchive (Join-Path $root '../../docs/product-import-sample.zip') $temp
     $sample=ConvertFrom-ProductBatch ([IO.File]::ReadAllText((Join-Path $zipFolder 'products.csv'))) $zipFolder
     Assert ((Split-Path -Leaf $zipFolder) -eq 'product-import-sample' -and -not @($sample.Errors).Count -and @($sample.Rows).Count -eq 3) 'The sample zip must unpack and read as a product-import folder.'
     # .7z too (when this tar can write one to test with).
