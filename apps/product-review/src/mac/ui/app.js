@@ -976,7 +976,10 @@ async function showSetupDialog() {
   const showLoginCode = (row) => {
     const timer = setInterval(async () => {
       const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
-      if (code) row.detail.textContent = `Nhập mã ${code} ở trang đăng nhập vừa mở trong Chrome của tool.`;
+      if (!code) return;
+      row.detail.textContent = `Nhập mã ${code} ở trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.`;
+      // The sign-in waits on the page; the buttons work again meanwhile (Đăng nhập again starts over).
+      for (const r of rows) r.fix.disabled = false;
     }, 1000);
     return () => clearInterval(timer);
   };
@@ -988,6 +991,7 @@ async function showSetupDialog() {
     const stop = action === "login" ? showLoginCode(row) : () => {};
     const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
     stop();
+    if (r.superseded) return;
     for (const x of rows) x.fix.disabled = false;
     Object.assign(state, { codex: (await api("state")).codex });
     await check();

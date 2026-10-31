@@ -38,24 +38,30 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
   });
   // codex login opens the system's default browser; with --device-auth it prints a page and a code instead, so the
   // page opens in the tools' own Chrome and Cấu hình shows the code to type there.
-  let loginCode = "";
+  // Đăng nhập again while one waits: that one stops (its answer says so) and a new code comes.
+  let loginCode = "", login = null;
   const codexLogin = (codex, done) => {
-    const child = spawn(onWindows && /\.cmd$/i.test(codex) ? `"${codex}"` : codex, ["login", "--device-auth"], { cwd: hubRoot, env, windowsHide: true, shell: onWindows && /\.cmd$/i.test(codex) });
+    if (login) { const old = login; login = null; loginCode = ""; killTree(old.child); old.done({ superseded: true }); }
+    const child = spawn(onWindows && /\.cmd$/i.test(codex) ? `"${codex}"` : codex, ["login", "--device-auth"], { cwd: hubRoot, env, windowsHide: true, detached: !onWindows, shell: onWindows && /\.cmd$/i.test(codex) });
     const timer = setTimeout(() => killTree(child), 15 * 60000);
     let out = "", opened = false;
+    login = { child, done };
+    const current = () => login?.child === child;
     const read = (chunk) => {
       out = (out + chunk).replace(/\x1b\[[0-9;]*m/g, "");
       const url = out.match(/https:\/\/\S+\/device\b\S*/)?.[0], code = out.match(/\b[A-Z0-9]{4,}-[A-Z0-9]{4,}\b/)?.[0];
-      if (opened || !url || !code) return;
+      if (opened || !url || !code || !current()) return;
       opened = true;
       loginCode = code;
       openInToolsChrome([url], (r) => { if (r.error) { loginCode = ""; killTree(child); done({ error: r.error }); } });
     };
     child.stdout.on("data", read);
     child.stderr.on("data", read);
-    child.on("error", (e) => { clearTimeout(timer); loginCode = ""; done({ error: e.message }); });
+    child.on("error", (e) => { clearTimeout(timer); if (!current()) return; login = null; loginCode = ""; done({ error: e.message }); });
     child.on("close", (code) => {
       clearTimeout(timer);
+      if (!current()) return;
+      login = null;
       loginCode = "";
       done(code === 0 ? { ok: true } : { error: (out.trim().split(/\r?\n/).pop() || "Chưa đăng nhập được ChatGPT.").slice(0, 300) });
     });
