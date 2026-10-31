@@ -176,6 +176,11 @@ function Get-CodexTokenUsage([string]$Trace) {
 # Run `codex exec` with a prompt and optional images. Returns the model's text reply.
 function Invoke-AI([string]$PromptText, [string[]]$Images, [string]$ResultFile, [string]$Sandbox = 'read-only') {
     $isImage = $Sandbox -eq 'workspace-write'
+    # Viết review: Gemini web (the tools' own Chrome, browser-bridge.ps1) or the Antigravity CLI (antigravity.ps1)
+    # handles every text step instead of Codex.
+    $textBackend = if ($script:Config) { $script:Config.TextBackend } else { '' }
+    if (-not $isImage -and $textBackend -eq 'gemini') { return Invoke-BrowserText $PromptText $Images $ResultFile }
+    if (-not $isImage -and $textBackend -eq 'antigravity') { return Invoke-AntigravityText $PromptText $Images $ResultFile }
     # Image retries are owned by Complete-ProductImage, which can first recover saved files.
     $maxAttempts = if ($isImage) { 1 } else { 3 }
     $timeout = if ($isImage) { 480 } else { 180 }

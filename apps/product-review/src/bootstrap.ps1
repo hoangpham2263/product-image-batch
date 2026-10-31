@@ -6,6 +6,7 @@ $script:WorkflowModuleFiles = @(
     'infrastructure/file-system.ps1'
     'infrastructure/codex.ps1'
     'infrastructure/browser-bridge.ps1'
+    'infrastructure/antigravity.ps1'
     'infrastructure/drive-storage.ps1'
     'infrastructure/url-queue.ps1'
     'infrastructure/csv.ps1'

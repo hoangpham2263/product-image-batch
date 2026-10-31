@@ -15,8 +15,8 @@ function ConvertTo-UiEvent([string]$Line, [int]$CurrentIndex = 0) {
         $event.Kind = 'Output'; $event.Path = $Matches[1].Trim()
     } elseif ($line -match '^\[TOKENS\] in=(\d+) cached=(\d+) out=(\d+)') {
         $event.Kind = 'Tokens'; $event.TokensIn = [long]$Matches[1]; $event.TokensCached = [long]$Matches[2]; $event.TokensOut = [long]$Matches[3]
-    } elseif ($line -match '^Model AI: (.+)$') {
-        $event.Kind = 'Info'; $event.Text = "Model AI: $($Matches[1])"
+    } elseif ($line -match '^(Model AI|Viết review): (.+)$') {
+        $event.Kind = 'Info'; $event.Text = $line.Trim()
     } elseif ($line -match '^Missing data: (\d+)') {
         $event.Kind = 'Info'
         $event.Text = "$($Matches[1]) sản phẩm thiếu ảnh mẫu (xem missing-data.csv)."

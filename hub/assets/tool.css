@@ -58,8 +58,10 @@ pre.out { white-space: pre-wrap; word-break: break-word; background: #fff; borde
 details summary { cursor: default; color: var(--muted); }
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: rgb(30, 30, 30); color: #fff; padding: 8px 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.show { opacity: 1; }
-/* Header: [← Menu] Title … [Cập nhật], the update button at the top right as in Product Review (24px from the edge). */
+/* Header: [← Menu] Title … [Tải lại] [Cấu hình] [Cập nhật], at the top right as in Product Review (24px from the edge). */
+header .reload { margin-left: auto; }
 header .config { margin-left: auto; }
+header .reload + .config { margin-left: 0; }
 header .update { margin-left: auto; }
 header .config + .update { margin-left: 0; }
 /* Menu: whether Cấu hình is done (hub.js), above the tools; the tools need every step done. */

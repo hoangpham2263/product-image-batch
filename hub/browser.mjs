@@ -1,11 +1,12 @@
 // The tools' own Chrome: Chrome for Testing in <hub>/workspace/browser, its own profile, every tool's extension
-// (apps/*/extension) loaded. Signed in once from Cấu hình (Mở: Google Flow, ChatGPT) in a window; runs then start it
+// (apps/*/extension) loaded. Signed in once from Cấu hình (Mở: Google Flow, Gemini, ChatGPT) in a window; runs then start it
 // with no window at all (headless), so the user's own Chrome is never needed. A minimized window would not do: its
 // pages drop the extension's clicks.
 //   node hub/browser.mjs login   download it the first time, open it in a window with the sites to sign in to
 //   node hub/browser.mjs open <url>…   the same with these pages (the ChatGPT sign-in for Codex)
 //   node hub/browser.mjs start   start it hidden for a run, unless it is open already (not downloaded yet: exit 2)
 //   node hub/browser.mjs status  { installed, running }
+//   node hub/browser.mjs logins  { installed, google, chatgpt }: signed in there (its cookies); starts it hidden if needed
 // Prints one JSON line.
 import { spawn, execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -19,7 +20,7 @@ const dir = join(root, "workspace", "browser");
 const profile = join(dir, "profile");
 const modeFile = join(dir, "mode.txt");
 const PORT = 45000 + (parseInt(createHash("sha1").update(root).digest("hex").slice(0, 6), 16) % 1000);
-const LOGIN_URLS = ["https://flow.google.com/", "https://chatgpt.com/"];
+const LOGIN_URLS = ["https://flow.google.com/", "https://gemini.google.com/app", "https://chatgpt.com/"];
 const platform = { darwin: process.arch === "arm64" ? "mac-arm64" : "mac-x64", win32: process.arch === "ia32" ? "win32" : "win64" }[process.platform] || "linux64";
 export const executable = join(dir, `chrome-${platform}`, ...(platform.startsWith("mac")
   ? ["Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"]
@@ -50,6 +51,19 @@ const devtools = (path, method = "GET") => fetch(`http://127.0.0.1:${PORT}${path
 const running = () => devtools("/json/version").then(() => true, () => false);
 const extensions = () => readdirSync(join(root, "apps"), { withFileTypes: true })
   .map((d) => join(root, "apps", d.name, "extension")).filter((e) => existsSync(join(e, "manifest.json")));
+
+// The cookies of every site in its profile, read through DevTools.
+async function cookies() {
+  const { webSocketDebuggerUrl } = await devtools("/json/version");
+  const socket = new WebSocket(webSocketDebuggerUrl);
+  await new Promise((done, fail) => { socket.onopen = done; socket.onerror = fail; });
+  try {
+    return await new Promise((done, fail) => {
+      socket.onmessage = (m) => { const d = JSON.parse(m.data); if (d.id === 1) (d.error ? fail(new Error(d.error.message)) : done(d.result.cookies)); };
+      socket.send(JSON.stringify({ id: 1, method: "Storage.getCookies" }));
+    });
+  } finally { socket.close(); }
+}
 
 // Closes it through DevTools (Node 22+ has WebSocket; older Node is started with the flag) and waits until it is gone.
 async function close() {
@@ -86,6 +100,7 @@ async function open({ urls, hidden }) {
   spawn(executable, [
     `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, "--no-first-run", "--no-default-browser-check", "--disable-infobars",
     "--disable-features=DisableLoadExtensionCommandLineSwitch", `--load-extension=${extensions().join(",")}`,
+    "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--disable-background-timer-throttling",
     "--window-size=1200,850", ...(hidden ? ["--headless=new", `--user-agent=${userAgent()}`] : []), ...urls,
   ], { detached: true, stdio: "ignore", windowsHide: hidden }).unref();
   for (let i = 0; i < 60 && !(await running()); i++) await sleep(500);
@@ -99,12 +114,26 @@ async function main(command, urls) {
     await open({ urls: command === "open" ? urls : LOGIN_URLS, hidden: false });
     return { ok: true };
   }
+  if (command === "logins") {
+    if (!existsSync(executable)) return { installed: false, google: false, chatgpt: false };
+    if (!(await running())) await open({ urls: [], hidden: true });
+    const all = await cookies();
+    const has = (domain, test) => all.some((c) => c.domain.endsWith(domain) && test(c.name) && c.expires !== 0);
+    // Google's sign-in cookie covers Flow and Gemini; ChatGPT keeps its session in next-auth's (sometimes split) cookie.
+    return { installed: true, google: has("google.com", (n) => n === "SID" || n === "__Secure-1PSID"), chatgpt: has("chatgpt.com", (n) => n.startsWith("__Secure-next-auth.session-token")) };
+  }
   if (command === "start") {
     if (!existsSync(executable)) { process.exitCode = 2; return { error: "Chưa có Chrome của tool. Mở Cấu hình, bấm Mở ở dòng Chrome của tool." }; }
-    if (!(await running())) await open({ urls: ["https://flow.google.com/"], hidden: true });
+    if (await running()) {
+      // On macOS it keeps running with every window closed, and the extension then sleeps: start it again hidden.
+      const pages = (await devtools("/json/list")).filter((t) => t.type === "page");
+      if (pages.length) return { ok: true };
+      await close();
+    }
+    await open({ urls: ["https://flow.google.com/"], hidden: true });
     return { ok: true };
   }
-  throw new Error("Lệnh: login | open <url> | start | status");
+  throw new Error("Lệnh: login | open <url> | start | status | logins");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

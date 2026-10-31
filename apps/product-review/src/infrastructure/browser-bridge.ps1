@@ -32,7 +32,14 @@ function Start-ImageBridge([string]$ProjectRoot) {
         if (Test-ImageBridge) { return }
         Start-Sleep -Milliseconds 750
     }
-    throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Cấu hình, bấm Mở ở dòng Chrome của tool rồi đăng nhập Google Flow, ChatGPT.'
+    throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Cấu hình, bấm Mở ở dòng Chrome của tool rồi đăng nhập Google (Flow, Gemini), ChatGPT.'
+}
+
+# The bridge answers {"error": "..."} with escaped characters; the message itself is what the cause is read from.
+function Get-BridgeError($ErrorRecord) {
+    $text = if ($ErrorRecord.ErrorDetails.Message) { $ErrorRecord.ErrorDetails.Message } else { $ErrorRecord.Exception.Message }
+    try { $json = $text | ConvertFrom-Json; if ($json.error) { return [string]$json.error } } catch {}
+    return $text
 }
 
 # Browser backends cannot write files themselves; drop the file-delivery lines meant for Codex.
@@ -41,12 +48,30 @@ function ConvertTo-BrowserPrompt([string]$Prompt) {
     return ($lines -join "`n").Trim()
 }
 
+# Text steps through Gemini web (Viết review: Gemini web): the reply is written to $ResultFile and returned. One
+# retry for a busy page; a timeout or a missing sign-in stops there.
+function Invoke-BrowserText([string]$Prompt, [string[]]$Images, [string]$ResultFile, [int]$TimeoutSec = 300) {
+    $body = @{ platform = 'gemini'; prompt = $Prompt; images = @($Images | Where-Object { $_ }); output = $ResultFile; timeoutSec = $TimeoutSec } | ConvertTo-Json -Depth 4
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        try {
+            Invoke-RestMethod -Uri "$script:BridgeUrl/generate" -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ($TimeoutSec + 120) | Out-Null
+            $text = [IO.File]::ReadAllText($ResultFile, [Text.Encoding]::UTF8).Trim()
+            if ($text) { return $text }
+            $detail = 'Gemini trả lời trống.'
+        } catch { $detail = Get-BridgeError $_ }
+        if ($attempt -eq 2 -or $detail -match 'Hết thời gian|timeout|đăng nhập|Extension') { break }
+        Write-Host "  [RETRY] Gemini; attempt $($attempt + 1)/2..." -ForegroundColor Yellow
+    }
+    $cause = if ($detail -match 'Hết thời gian|timeout') { 'AI_TIMEOUT' } elseif ($detail -match 'đăng nhập|Extension') { 'BRIDGE' } else { 'BUSY' }
+    throw "AI failed. Gemini web: $detail [CAUSE:$cause]"
+}
+
 function Invoke-BrowserImage([string]$Platform, [string]$Prompt, [string[]]$Images, [string]$Output, [int]$TimeoutSec = 600) {
     $body = @{ platform = $Platform; prompt = (ConvertTo-BrowserPrompt $Prompt); images = @($Images); output = $Output; timeoutSec = $TimeoutSec } | ConvertTo-Json -Depth 4
     try {
         $result = Invoke-RestMethod -Uri "$script:BridgeUrl/generate" -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ($TimeoutSec + 120)
     } catch {
-        $detail = $_.ErrorDetails.Message
+        $detail = Get-BridgeError $_
         $cause = if ($detail -match 'Hết thời gian|timeout') { 'AI_TIMEOUT' } elseif ($detail -match 'đăng nhập|Extension') { 'BRIDGE' } else { 'BUSY' }
         throw "[CAUSE:$cause] $Platform không tạo được ảnh. $detail"
     }

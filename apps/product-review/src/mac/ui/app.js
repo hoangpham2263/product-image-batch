@@ -164,13 +164,13 @@ function dropMenu(anchor, items) {
   addEventListener("keydown", escape, true);
 }
 // MessageBox.Show: resolves "OK", "Yes" or "No".
-function messageBox(text, title = "", buttons = ["OK"]) {
+function messageBox(text, title = "", buttons = ["OK"], labels = {}) {
   return new Promise((resolve) => {
     const view = openWindow(title, 0, 0);
     view.win.classList.add("msg");
     view.body.style.width = view.body.style.height = "";
     const bar = el("div", "bar");
-    const names = { OK: "OK", Yes: "Yes", No: "No" };
+    const names = { OK: "OK", Yes: "Yes", No: "No", ...labels };
     let answer = buttons.includes("No") ? "No" : "OK";
     for (const b of buttons) {
       const btn = el("button", "btn", { text: names[b], type: "button" });
@@ -231,12 +231,14 @@ function buildMain() {
   // Cấu hình: shared by every tool (hub/setup), left of Cập nhật as on the Tools Hub menu.
   ui.btnSetup = at(button("Cấu hình"), null, 16, 100, 32, { right: 132, left: false });
   // Tải về máy runs in the background (src/sync-source.ps1); its progress shows here, in the header, so work goes on.
-  ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 244 });
+  ui.syncLabel = at(label("", "muted"), 260, 14, null, 22, { right: 342 });
   ui.syncLabel.style.textAlign = "right";
-  ui.syncBar = at(el("div", "progress"), null, 40, 200, 4, { right: 244, left: false });
+  ui.syncBar = at(el("div", "progress"), null, 40, 200, 4, { right: 342, left: false });
   ui.syncBar.append(el("span"));
   ui.syncLabel.hidden = ui.syncBar.hidden = true;
-  header.append(ui.btnSetup, ui.btnUpdate, ui.syncLabel, ui.syncBar);
+  // Tải lại: this tool's server starts again on the files as they are now and the page loads afresh.
+  ui.btnReload = at(button("Tải lại"), null, 16, 90, 32, { right: 240, left: false });
+  header.append(ui.btnReload, ui.btnSetup, ui.btnUpdate, ui.syncLabel, ui.syncBar);
 
   // Link sản phẩm & ảnh (20,78 820x344, Top/Left/Right).
   const cardList = at(el("div", "card"), 20, 78, null, 344, { right: 264 });
@@ -262,16 +264,31 @@ function buildMain() {
   ui.btnRun = at(button("Bắt đầu", true), 14, 11, 160, 40);
   ui.btnStop = at(button("Dừng"), 186, 11, 100, 40);
   ui.btnStop.disabled = true;
-  ui.lblStatus = at(label("", "muted"), 302, 18, 220, 26);
+  ui.lblStatus = at(label("", "muted"), 302, 18, 150, 26);
   ui.lblStatus.style.lineHeight = "26px";
   ui.lblThr = at(label("Luồng:", "muted"), null, 19, 56, 24, { right: 88, left: false });
   ui.numThr = at(numeric(1, 4, 2), null, 16, 64, 24, { right: 22, left: false });
   ui.lblThr.style.lineHeight = "24px";
+  // Which AI does the work: Codex, or the sites in the tools' own Chrome (signed in from Cấu hình). Viết review covers
+  // every text step; Tạo ảnh the photo. Remembered on this machine.
+  const picker = (text, y, key, values, labels) => {
+    const name = at(label(text, "muted"), null, y, 76, 22, { right: 316, left: false });
+    name.style.lineHeight = "22px";
+    const box = at(combo(), null, y, 150, 22, { right: 158, left: false });
+    box.setItems(values, labels);
+    try { box.value = localStorage.getItem(key) || values[0]; } catch {}
+    if (!box.value) box.value = values[0];
+    box.onchange = () => { try { localStorage.setItem(key, box.value); } catch {} };
+    return [name, box];
+  };
+  [ui.lblText, ui.cmbText] = picker("Viết review:", 6, "textBackend", ["codex", "gemini", "antigravity"], ["Codex", "Gemini web", "Antigravity CLI"]);
+  [ui.lblBackend, ui.cmbBackend] = picker("Tạo ảnh:", 33, "imageBackend", ["codex", "flow"], ["Codex", "Google Flow"]);
   // Tokens this run has used (added up from each Codex call) and the quota left, refreshed in the background.
-  ui.lblTokens = at(label("", "muted"), 530, 11, 370, 20);
-  ui.lblQuota = at(label("", "muted"), 530, 31, 370, 20);
+  // They shrink with the window (cut with …) so they never run under the pickers on the right.
+  ui.lblTokens = at(label("", "muted"), 460, 11, null, 20, { right: 400 });
+  ui.lblQuota = at(label("", "muted"), 460, 31, null, 20, { right: 400 });
   for (const l of [ui.lblTokens, ui.lblQuota]) Object.assign(l.style, { fontSize: "12px", lineHeight: "20px" });
-  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblTokens, ui.lblQuota, ui.lblThr, ui.numThr);
+  cardRun.append(ui.btnRun, ui.btnStop, ui.lblStatus, ui.lblTokens, ui.lblQuota, ui.lblText, ui.cmbText, ui.lblBackend, ui.cmbBackend, ui.lblThr, ui.numThr);
 
   // Tiến trình & thông báo (20,508 1060x282, all anchors).
   const cardLog = at(el("div", "card"), 20, 508, null, null, { right: 24, bottom: 10 });
@@ -918,10 +935,10 @@ function showReviewPreview(item, decide) {
 
 // ----- Cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
 async function showSetupDialog() {
-  const view = openWindow("Cấu hình", 520, 488);
-  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool"];
+  const view = openWindow("Cấu hình", 520, 566);
+  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool", "Google (Flow, Gemini)", "Antigravity CLI"];
   const rows = titles.map((title, i) => {
-    const y = 16 + i * 58;
+    const y = 16 + i * 54;
     const icon = at(label("○"), 20, y, 26, 24);
     icon.style.fontSize = "16px";
     const detail = at(label("", "muted"), 52, y + 22, 330, 32);
@@ -932,8 +949,8 @@ async function showSetupDialog() {
     return { icon, detail, fix };
   });
   // Model AI: the model and reasoning level Codex uses (Get-AiSettings); lighter ones use fewer tokens.
-  const aiModel = at(combo(), 52, 390, 250, 24), aiEffort = at(combo(), 312, 390, 188, 24);
-  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 364, 448, 22), aiModel, aiEffort);
+  const aiModel = at(combo(), 52, 478, 250, 24), aiEffort = at(combo(), 312, 478, 188, 24);
+  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 452, 448, 22), aiModel, aiEffort);
   const effortNames = { low: "Thấp · ít token nhất", medium: "Vừa", high: "Cao", xhigh: "Rất cao", max: "Tối đa", ultra: "Siêu cao" };
   let models = [];
   const fillEfforts = (selected) => {
@@ -952,7 +969,7 @@ async function showSetupDialog() {
     aiModel.value = saved.model || "";
     fillEfforts(saved.effort || "");
   }).catch(() => { aiModel.setItems([""], ["Model mặc định của Codex"]); fillEfforts(""); });
-  const again = at(button("Kiểm tra lại"), 290, 438, 110, 34), close = at(button("Đóng"), 410, 438, 90, 34);
+  const again = at(button("Kiểm tra lại"), 290, 516, 110, 34), close = at(button("Đóng"), 410, 516, 90, 34);
   close.onclick = view.close;
   view.body.append(again, close);
   const icons = { ok: ["✔", "var(--ok)"], fail: ["✖", "var(--error)"], warn: ["!", "var(--warn)"] };
@@ -961,8 +978,9 @@ async function showSetupDialog() {
     for (const row of rows) { row.icon.textContent = "○"; row.icon.style.color = "var(--muted)"; row.detail.textContent = "Đang kiểm tra…"; row.fix.hidden = true; }
     try {
       const steps = list((await (await fetch("/api/setup", { method: "POST" })).json()).Steps);
-      steps.forEach((step, i) => {
-        const row = rows[i];
+      const ids = ["drive", "node", "codex", "login", "quota", "browser", "google", "antigravity"];
+      steps.forEach((step) => {
+        const row = rows[ids.indexOf(step.Id)];
         if (!row) return;
         const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
         row.icon.textContent = mark; row.icon.style.color = color;
@@ -1091,6 +1109,7 @@ function updateActionAvailability() {
   for (const b of [ui.btnRun, ui.btnSetup, ui.btnLogs, ui.btnReview, ui.btnOut, ui.btnUpdate, ui.btnClearLog, ui.btnAdd, ui.btnBulk, ui.btnClear]) b.disabled = busy;
   ui.btnStop.disabled = !run.active;
   ui.numThr.enabled = !busy;
+  ui.cmbBackend.disabled = ui.cmbText.disabled = busy;
   ui.flow.style.pointerEvents = busy ? "none" : "";
 }
 function setActionBusy(reason, on) {
@@ -1167,7 +1186,9 @@ async function startBatch() {
   updateUsage();
   for (const r of state.rows) r.stage = null;
   await updateReviewButton();
-  const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: 1, threads: ui.numThr.value }) });
+  // The AIs chosen are the only ones used: nothing falls back to Codex without asking (finish()).
+  Object.assign(run, { text: ui.cmbText.value, image: ui.cmbBackend.value });
+  const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: 1, threads: ui.numThr.value, backend: run.image, text: run.text }) });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
     return appendLog("Chưa khởi động được lượt xử lý: " + (body.error || r.status));
@@ -1209,7 +1230,18 @@ async function finish(r) {
     appendLog("Một số sản phẩm chưa hoàn tất. Bạn có thể bấm Bắt đầu để thử lại các link còn lại, hoặc Duyệt & xuất file với các ảnh đã xong.");
     appendLog("Nếu lỗi lặp lại, bấm Gửi lỗi để admin kiểm tra.");
   }
-  updateReviewButton();
+  await updateReviewButton();
+  // Another AI was chosen and some links failed: Codex is the steady one, but only on the user's yes, and only for
+  // this retry (the choices shown go back to theirs next time).
+  const others = [run.text !== "codex" && ui.cmbText.selectedOptions[0]?.text, run.image !== "codex" && ui.cmbBackend.selectedOptions[0]?.text].filter(Boolean);
+  if (!r.stopped && (r.exitCode !== 0 || run.failure) && others.length && countUrls()) {
+    const answer = await messageBox(`Một số sản phẩm chưa xong với ${others.join(" và ")}. Chạy lại các link còn lại bằng Codex?`, "Chạy lại bằng Codex", ["Yes", "No"], { Yes: "Chạy bằng Codex", No: "Không" });
+    if (answer === "Yes") {
+      if (run.text !== "codex") ui.cmbText.value = "codex";
+      if (run.image !== "codex") ui.cmbBackend.value = "codex";
+      startBatch();
+    }
+  }
 }
 // Running animation only in the status label.
 setInterval(() => { if (run.active && !run.stopped) { run.anim = (run.anim + 1) % 3; setStatus("Đang chạy " + [".", "..", "..."][run.anim], "var(--accent)"); } }, 350);
@@ -1247,6 +1279,16 @@ function wire() {
   ui.btnUpdate.onclick = () => (run.active ? messageBox("Đang xử lý sản phẩm. Chờ chạy xong rồi cập nhật.", "Cập nhật") : showUpdateDialog());
 
   ui.btnRun.onclick = () => startBatch();
+  ui.btnReload.onclick = async () => {
+    if (run.active) return messageBox("Đang chạy. Dừng hoặc chờ xong rồi tải lại.");
+    ui.btnReload.disabled = true;
+    ui.btnReload.textContent = "Đang tải…";
+    const r = await fetch("/api/reload", { method: "POST" }).catch(() => null);
+    if (!r || !r.ok) return location.reload();
+    const wait = () => fetch("/api/rpc", { method: "POST", body: JSON.stringify({ cmd: "state", args: {} }) })
+      .then((x) => (x.ok ? location.reload() : setTimeout(wait, 400))).catch(() => setTimeout(wait, 400));
+    setTimeout(wait, 900);
+  };
   ui.btnStop.onclick = async () => { if (run.active) { run.stopped = true; await fetch("/api/stop", { method: "POST" }); setStatus("Đang dừng...", "var(--accent)"); } };
   addEventListener("beforeunload", (e) => { if (run.active) { e.preventDefault(); e.returnValue = ""; } });
   addEventListener("resize", () => renderRows());

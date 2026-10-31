@@ -4,7 +4,10 @@ const BRIDGE_URL = "ws://127.0.0.1:8765";
 const SITES = {
   chatgpt: { match: "https://chatgpt.com/*", start: "https://chatgpt.com/" },
   flow: { match: "https://flow.google.com/project/*", start: "https://flow.google.com/" },
+  gemini: { match: "https://gemini.google.com/*", start: "https://gemini.google.com/app" },
 };
+// One job at a time per site: parallel workflow threads share its tab.
+const queues = {};
 
 let socket = null;
 
@@ -20,7 +23,7 @@ function connect() {
   socket.onmessage = (event) => {
     let job;
     try { job = JSON.parse(event.data); } catch { return; }
-    if (job.type === "generate") runJob(job);
+    if (job.type === "generate") queues[job.platform] = (queues[job.platform] || Promise.resolve()).then(() => runJob(job));
     // After an update the app asks for this, so the new files load without a click in chrome://extensions.
     if (job.type === "reload") chrome.runtime.reload();
   };
@@ -72,9 +75,11 @@ async function runJob(job) {
   const progress = (stage) => reply({ type: "progress", id: job.id, stage });
   try {
     const tab = await findTab(job.platform);
-    if (job.platform === "chatgpt") {
-      // Every job starts in a fresh conversation so earlier images are never reused.
-      await chrome.tabs.update(tab.id, { url: SITES.chatgpt.start });
+    // Each site gets a window of its own: a tab behind another one is hidden, and Gemini stops answering there.
+    if ((await chrome.tabs.query({ windowId: tab.windowId })).length > 1) await chrome.windows.create({ tabId: tab.id, focused: false });
+    if (job.platform === "chatgpt" || job.platform === "gemini") {
+      // Every job starts in a fresh conversation so earlier images and answers are never reused.
+      await chrome.tabs.update(tab.id, { url: SITES[job.platform].start });
       await waitForLoad(tab.id);
     }
     progress("submitting");

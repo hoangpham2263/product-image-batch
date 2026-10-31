@@ -26,7 +26,7 @@ export function createBridge({ fetchImpl = fetch } = {}) {
       let raw = "";
       for await (const chunk of req) raw += chunk;
       const job = JSON.parse(raw);
-      if (!["chatgpt", "flow"].includes(job.platform)) return send(400, { error: "platform must be chatgpt or flow" });
+      if (!["chatgpt", "flow", "gemini"].includes(job.platform)) return send(400, { error: "platform must be chatgpt, flow or gemini" });
       if (!job.prompt || !job.output) return send(400, { error: "prompt and output are required" });
       if (!extension) return send(503, { error: "Extension chưa kết nối. Mở Chrome có cài product-review-bridge." });
       const images = await Promise.all((job.images || []).map(async (path, index) => ({
@@ -42,6 +42,11 @@ export function createBridge({ fetchImpl = fetch } = {}) {
         extension.send(JSON.stringify({ type: "generate", id, platform: job.platform, prompt: job.prompt, images, timeoutSec }));
       });
       if (!result.ok) return send(502, { error: result.error });
+      // Text replies (Gemini) are written as UTF-8 text.
+      if (typeof result.text === "string") {
+        await writeFile(job.output, result.text, "utf8");
+        return send(200, { ok: true, output: job.output, chars: result.text.length, source: result.source || "" });
+      }
       let bytes;
       if (result.data) bytes = Buffer.from(result.data, "base64");
       else {

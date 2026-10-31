@@ -77,13 +77,17 @@ async function receive(line) {
   if (event.Kind === "Output") run.resultFolder = event.Path;
   run.events.push(event);
 }
-async function startRun({ per = 1, threads = 1 }) {
+async function startRun({ per = 1, threads = 1, backend = "codex", text = "codex" }) {
   if (run.proc) throw new Error("Đang chạy.");
   await mkdir(logs, { recursive: true });
   const stamp = Date.now();
   Object.assign(run, { events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", done: false,
     logFile: join(logs, `image-batch-mac-${stamp}.log`), errFile: join(logs, `image-batch-mac-${stamp}.err.log`) });
   const args = ["-PhotosPerImage", String(per), "-ThrottleLimit", String(threads)];
+  // Tạo ảnh: Codex, or Google Flow in the tools' own Chrome (bridge/ + extension/).
+  if (["flow", "chatgpt"].includes(backend)) args.push("-ImageBackend", backend);
+  // Viết review: Codex, Gemini web in the same Chrome, or the Antigravity CLI, for every text step.
+  if (["gemini", "antigravity"].includes(text)) args.push("-TextBackend", text);
   const map = join(workspace, "reference-inputs", "references.json");
   if (existsSync(map)) args.push("-ReferenceMapFile", map);
   // Own process group (macOS), so Dừng stops codex and every other child too.
@@ -240,6 +244,19 @@ async function handle(req, res) {
     // table: a CSV or ZIP / RAR / 7Z archive for Nhập hàng loạt instead of images.
     const { folder = "", table = false } = JSON.parse((await body(req)).toString("utf8") || "{}");
     chooseFiles({ folder, table }, (paths) => send(res, 200, { paths }));
+    return;
+  }
+  if (path === "/api/reload" && req.method === "POST") {
+    // Tải lại: a fresh server on the files as they are now; the page reloads once it answers again. Not mid-run.
+    if (run.proc) return send(res, 409, { error: "Đang chạy. Dừng hoặc chờ xong rồi tải lại." });
+    send(res, 200, { ok: true });
+    setTimeout(() => {
+      const out = openSync(logFile("mac-server.log"), "a");
+      server.close();
+      spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, windowsHide: true, stdio: ["ignore", out, out], env: { ...process.env, PR_WAIT_PORT: "1" } }).unref();
+      rpcProc?.kill();
+      setTimeout(() => process.exit(0), 300);
+    }, 300);
     return;
   }
   if (path === "/api/update" && req.method === "POST") {

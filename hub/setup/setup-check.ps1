@@ -74,6 +74,41 @@ $quotaText = if ($quotaAvailable -and $quota.Resets) { "Đặt lại: $($quota.R
 # exists once it has been opened to sign in.
 $browserDir = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'workspace/browser'
 $browserReady = (Test-Path -LiteralPath (Join-Path $browserDir 'profile/Default'))
+# Who is signed in there, from its cookies (hub/browser.mjs logins; starts it hidden if needed). Google covers Flow and
+# Gemini web.
+$web = $null
+if ($browserReady -and $node) {
+    try {
+        $flags = @(if ([int]((& node --version) -replace '^v(\d+).*', '$1') -lt 22) { '--experimental-websocket' })
+        $web = (& node @flags (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'hub/browser.mjs') logins | Select-Object -Last 1) | ConvertFrom-Json
+        if ($web.error) { $web = $null }
+    } catch { $web = $null }
+}
+function Get-WebStep([string]$Id, [string]$Title, [string]$Site, [string]$Uses) {
+    $state = if (-not $browserReady) { 'wait' } elseif (-not $web) { 'warn' } elseif ($web.$Site) { 'ok' } else { 'fail' }
+    $detail = switch ($state) {
+        'wait' { 'Mở Chrome của tool trước.' }
+        'warn' { 'Chưa kiểm tra được. Bấm Mở để xem trong Chrome của tool.' }
+        'ok' { "Đã đăng nhập. Dùng cho $Uses." }
+        default { "Chưa đăng nhập. Bấm Mở rồi đăng nhập; cần cho $Uses." }
+    }
+    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Action = $(if ($browserReady) { 'browser' } else { '' }) }
+}
+# Antigravity CLI (agy, Google sign-in): Viết review: Antigravity CLI. agy models answers only when signed in.
+$agy = Get-Command agy -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
+if (-not $agy) { $agy = @((Join-Path $HOME '.local/bin/agy'), (Join-Path $HOME '.local/bin/agy.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1 }
+$agyState = 'warn'; $agyDetail = 'Chưa cài (không bắt buộc). Cài Antigravity để chọn Viết review: Antigravity CLI.'
+if ($agy) {
+    $agyOk = $false
+    try {
+        # -WindowStyle exists only on Windows.
+        $hidden = @{}; if ($env:OS -eq 'Windows_NT') { $hidden.WindowStyle = 'Hidden' }
+        $p = Start-Process -FilePath $agy -ArgumentList 'models' -PassThru @hidden -RedirectStandardOutput ([IO.Path]::GetTempFileName()) -RedirectStandardError ([IO.Path]::GetTempFileName())
+        if ($p.WaitForExit(20000)) { $agyOk = $p.ExitCode -eq 0 } else { $p.Kill() }
+    } catch { $agyOk = $false }
+    if ($agyOk) { $agyState = 'ok'; $agyDetail = 'Đã đăng nhập Google. Dùng cho Viết review: Antigravity CLI.' }
+    else { $agyState = 'fail'; $agyDetail = 'Chưa đăng nhập. Mở Antigravity (hoặc chạy agy trong Terminal) rồi đăng nhập Google.' }
+}
 $steps = @(
     [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $driveState; Detail = $driveDetail; Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
@@ -84,8 +119,10 @@ $steps = @(
     [pscustomobject]@{ Id = 'quota'; Title = 'Hạn mức sử dụng'; State = $(if (-not $loggedIn) { 'wait' } elseif ($apiKey -or $quotaAvailable) { 'ok' } else { 'warn' })
         Detail = $(if (-not $loggedIn) { 'Đăng nhập trước.' } else { $quotaText }); Action = '' }
     [pscustomobject]@{ Id = 'browser'; Title = 'Chrome của tool'; State = $(if ($browserReady) { 'ok' } else { 'warn' })
-        Detail = $(if ($browserReady) { 'Đã mở để đăng nhập. Bấm Mở để đăng nhập thêm hoặc lại.' } else { 'Chưa mở. Bấm Mở rồi đăng nhập Google Flow, ChatGPT (lần đầu tải khoảng 150 MB).' })
+        Detail = $(if ($browserReady) { 'Đã mở để đăng nhập. Bấm Mở để đăng nhập thêm hoặc lại.' } else { 'Chưa mở. Bấm Mở rồi đăng nhập Google (Flow, Gemini), ChatGPT (lần đầu tải khoảng 150 MB).' })
         Action = 'browser' }
+    Get-WebStep 'google' 'Google (Flow, Gemini)' 'google' 'Tạo ảnh: Google Flow và Viết review: Gemini web'
+    [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Action = '' }
 )
 $report = [pscustomobject]@{
     Ready = $ready

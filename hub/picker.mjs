@@ -113,6 +113,17 @@ const server = createServer(async (req, res) => {
       process.exit(0);
     }, 300);
   }
+  if (url.pathname === "/api/reload" && req.method === "POST") {
+    // Tải lại: a fresh menu on the files as they are now (the page reloads once it answers again). Tool servers keep
+    // running; each tool's own Tải lại restarts it.
+    res.writeHead(200, { "content-type": TYPES[".json"] });
+    res.end(JSON.stringify({ ok: true }));
+    return setTimeout(() => {
+      server.close();
+      spawn(process.execPath, [join(here, "picker.mjs")], { cwd: root, detached: true, windowsHide: true, stdio: "ignore", env: { ...process.env, HUB_NO_WINDOW: "1", HUB_WAIT_PORT: "1" } }).unref();
+      process.exit(0);
+    }, 300);
+  }
   if (url.pathname === "/api/quit" && req.method === "POST") {
     // The Windows app window closed: the tools' servers stop their runs and quit, then this menu.
     res.writeHead(200, { "content-type": TYPES[".json"] });

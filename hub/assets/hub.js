@@ -8,7 +8,18 @@
   if (!header) return;
   const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn update", textContent: "Cập nhật" });
   const config = Object.assign(document.createElement("button"), { type: "button", className: "btn config", textContent: "Cấu hình" });
-  header.append(config, btn);
+  // Tải lại: the menu starts again on the files as they are now and the page loads afresh (after an update, or when
+  // the page looks out of date).
+  const reload = Object.assign(document.createElement("button"), { type: "button", className: "btn reload", textContent: "Tải lại" });
+  header.append(reload, config, btn);
+  reload.onclick = async () => {
+    reload.disabled = true;
+    reload.textContent = "Đang tải lại…";
+    const r = await fetch("/api/reload", { method: "POST" }).catch(() => null);
+    if (!r || !r.ok) return location.reload();
+    const wait = () => fetch("/api/root").then((x) => (x.ok ? location.reload() : setTimeout(wait, 400))).catch(() => setTimeout(wait, 400));
+    setTimeout(wait, 900);
+  };
   // The window title carries the installed version, as Product Review's does: "Grok Video Prompt v2.0.21".
   fetch("/api/root").then((r) => r.json()).then((r) => { if (r.version && !document.title.endsWith(r.version)) document.title = `${document.title} ${r.version}`; }).catch(() => {});
   config.onclick = showSetup;
@@ -95,7 +106,7 @@
     return shade;
   }
   function showSetup() {
-    const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool"];
+    const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool", "Google (Flow, Gemini)", "Antigravity CLI"];
     const shade = dialog("setup", `${titles.map((t) => `<div class="step"><span class="mark">○</span><span>${t}</span><span class="detail"></span><button class="btn primary" type="button" hidden></button></div>`).join("")}
       <div class="ai"><span>Model AI · model nhẹ, mức thấp tốn ít token hơn</span><select class="model"></select><select class="effort"></select></div>
       <div class="actions"><button class="btn again" type="button">Kiểm tra lại</button><button class="btn close" type="button">Đóng</button></div>`);
@@ -115,7 +126,7 @@
         }
       }
       steps.forEach((step) => {
-        const r = rows[['drive', 'node', 'codex', 'login', 'quota', 'browser'].indexOf(step.Id)];
+        const r = rows[['drive', 'node', 'codex', 'login', 'quota', 'browser', 'google', 'antigravity'].indexOf(step.Id)];
         if (!r) return;
         const [mark, color] = marks[step.State] || ["○", ""];
         r.mark.textContent = mark; r.mark.style.color = color; r.detail.textContent = step.Detail || "";

@@ -10,10 +10,15 @@ async function generateFlow(job) {
   let editor = await waitFor(composer, 30000, "ô nhập Flow");
   const before = flowImages();
   const files = filesFromJob(job);
-  await pasteFiles(editor, files);
   // Uploaded references appear in the project grid as well; record them so they are not mistaken for results.
+  // A new project sometimes drops the first paste (nothing ever uploads): paste again into the composer it has now.
+  for (let paste = 1; paste <= 3; paste++) {
+    await pasteFiles(editor, files);
+    if (!files.length) break;
+    try { await waitFor(() => flowImages().size >= before.size + files.length, paste === 3 ? 120000 : 45000, "tải ảnh tham khảo lên Flow"); break; }
+    catch (error) { if (paste === 3) throw error; editor = await waitFor(composer, 30000, "ô nhập Flow"); }
+  }
   if (files.length) {
-    await waitFor(() => flowImages().size >= before.size + files.length, 120000, "tải ảnh tham khảo lên Flow");
     flowImages().forEach((src) => before.add(src));
     // Flow draws the composer again once a reference is attached.
     editor = await waitFor(composer, 30000, "ô nhập Flow");

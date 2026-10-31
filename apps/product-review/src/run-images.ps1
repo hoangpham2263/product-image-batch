@@ -12,7 +12,10 @@ param(
     [string]$ReferenceMapFile = '',
     [switch]$LocalOnly,
     # codex: Codex CLI; chatgpt / flow: the signed-in browser tab through bridge/ + extension/.
-    [ValidateSet('codex', 'chatgpt', 'flow')][string]$ImageBackend = $(if ($env:PIB_IMAGE_BACKEND) { $env:PIB_IMAGE_BACKEND } else { 'codex' })
+    [ValidateSet('codex', 'chatgpt', 'flow')][string]$ImageBackend = $(if ($env:PIB_IMAGE_BACKEND) { $env:PIB_IMAGE_BACKEND } else { 'codex' }),
+    # Every text step (product, checks, review): codex: Codex CLI; gemini: Gemini web in the tools' own Chrome;
+    # antigravity: the Antigravity CLI (agy), signed in with Google.
+    [ValidateSet('codex', 'gemini', 'antigravity')][string]$TextBackend = 'codex'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,9 +43,12 @@ if($script:Config.DriveRequired){
     catch{Write-Warning ("Failed; "+$_.Exception.Message);throw}
 }
 $script:Config.ImageBackend = $ImageBackend
-if ($ImageBackend -ne 'codex') { Start-ImageBridge $ProjectRoot }
+$script:Config.TextBackend = $TextBackend
+if ($ImageBackend -ne 'codex' -or $TextBackend -eq 'gemini') { Start-ImageBridge $ProjectRoot }
 if($ReferenceMapFile){$script:Config.ManualReferences=Read-ManualReferenceMap $ReferenceMapFile}
-Write-Host "Model AI: $(Get-AiModelSummary $ProjectRoot)"
+# What each step runs on; the Codex model only matters where Codex is used.
+$names = @{ codex = "Codex ($(Get-AiModelSummary $ProjectRoot))"; gemini = 'Gemini web'; antigravity = 'Antigravity CLI'; flow = 'Google Flow'; chatgpt = 'ChatGPT web' }
+Write-Host "Viết review: $($names[$TextBackend]) | Tạo ảnh: $($names[$ImageBackend])"
 try {
     Invoke-BatchWorkflow $ProjectRoot $List $OutDir $ThrottleLimit $script:WorkflowModuleFiles
 } catch {

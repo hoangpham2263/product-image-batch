@@ -11,6 +11,8 @@ function Complete-ProductImage($Request, $Context, [string]$ItemId) {
         catch{
             if($_.Exception.Message -notmatch '\[CAUSE:(AI_TIMEOUT|NETWORK|BUSY)\]' -or $attempt -eq $maxAttempts){throw}
             $cause=$Matches[1]
+            # Kept so a retried failure can still be looked into.
+            [IO.File]::WriteAllText((Join-Path $script:Batch.Logs "$ItemId-attempt-$attempt-error.txt"),$_.Exception.Message,[Text.UTF8Encoding]::new($false))
             if(Test-Path -LiteralPath $Request.Output){Copy-Item -LiteralPath $Request.Output -Destination (Join-Path $script:Batch.Logs "$ItemId-attempt-$attempt-generated.png") -Force}
             if(-not $interruption){$interruption="Previous generation interrupted ($cause); no complete image files were delivered."}
             Write-Host "  [IMAGE-RETRY] $cause $($attempt+1)/$maxAttempts" -ForegroundColor Yellow
