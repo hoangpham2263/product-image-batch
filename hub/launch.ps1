@@ -22,14 +22,21 @@ if ($Mac) {
 }
 
 $tool = $tools[0]
-# A web tool opens in its own app window (no tabs or address bar), as on macOS: Edge, which every Windows 10/11 has,
-# else Chrome; the default browser only when neither is found.
+# A web tool opens in its own app window (no tabs or address bar), as on macOS, served by hub/web-server.ps1 so it has
+# Cấu hình and Cập nhật like on macOS: Edge, which every Windows 10/11 has, else Chrome. Without the server the page
+# opens as a file; without either browser, in the default one.
 function Open-WebTool($Tool) {
-    $page = Join-Path $Tool.Root $Tool.web
+    $port = Get-HubWebPort $root
+    $running = { try { (Invoke-RestMethod "http://127.0.0.1:$port/api/root" -TimeoutSec 2).root -eq $root } catch { $false } }
+    if (-not (& $running)) {
+        Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'web-server.ps1') + '"'), '-Port', $port)
+        for ($i = 0; $i -lt 40 -and -not (& $running); $i++) { Start-Sleep -Milliseconds 250 }
+    }
+    $page = if (& $running) { "http://127.0.0.1:$port/apps/$($Tool.id)/$($Tool.web)?win=1" } else { ([Uri](Join-Path $Tool.Root $Tool.web)).AbsoluteUri }
     $browser = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
         "$env:ProgramFiles\Google\Chrome\Application\chrome.exe", "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe", "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe") |
         Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
-    if ($browser) { Start-Process $browser -ArgumentList @(('--app="' + ([Uri]$page).AbsoluteUri + '"'), '--window-size=1120,840') } else { Start-Process $page }
+    if ($browser) { Start-Process $browser -ArgumentList @(('--app="' + $page + '"'), '--window-size=1120,840') } else { Start-Process $page }
 }
 if ($tools.Count -gt 1) {
     Add-Type -AssemblyName System.Windows.Forms, System.Drawing
@@ -95,6 +102,8 @@ if ($tools.Count -gt 1) {
     $btnConfig.Add_Click({ Show-HubSetup $form $root; & $startSetupCheck })
     $setupFix.Add_Click({ $btnConfig.PerformClick() })
     $form.Add_Shown({
+        # No button starts focused: Windows would draw it with a thick black border.
+        $form.ActiveControl = $null
         & $startSetupCheck
         try {
             $next = Get-AppUpdate $root

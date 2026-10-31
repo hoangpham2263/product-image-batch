@@ -7,6 +7,8 @@
   color-scheme: light;
 }
 * { box-sizing: border-box; }
+/* hidden wins over a class that sets display (.btn), e.g. "← Menu" when there is no menu to go back to. */
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--control); color: var(--ink); font: 13.33px/1.35 var(--font); -webkit-font-smoothing: antialiased; }
 /* The same frame as Product Review's window (1120 x 840 by default): 20px left, 24px right, 20px at the bottom,
    the 64px header, then 14px to the first group; groups 16px apart side by side and 12px apart above and below. */

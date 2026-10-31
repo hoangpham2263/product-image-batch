@@ -9,7 +9,8 @@ $script:Ui=@{
 function Set-FlatButton($Button,[switch]$Primary) {
     $ui=$script:Ui
     if($Primary){$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Accent;$Button.ForeColor=[Drawing.Color]::White;$Button.FlatAppearance.BorderSize=0;$Button.FlatAppearance.MouseOverBackColor=$ui.AccentDark}
-    else{$Button.FlatStyle='Standard';$Button.UseVisualStyleBackColor=$true}
+    # Back from green: the system colours again, not the white text it had.
+    else{$Button.FlatStyle='Standard';$Button.ForeColor=[Drawing.SystemColors]::ControlText;$Button.BackColor=[Drawing.SystemColors]::Control;$Button.UseVisualStyleBackColor=$true}
 }
 # Chevron: one thin rounded mark for every dropdown (lists and menu buttons), drawn the same as on macOS.
 function New-ChevronImage([Drawing.Color]$Color) {

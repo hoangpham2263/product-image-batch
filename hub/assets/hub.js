@@ -6,6 +6,8 @@
   if (!location.protocol.startsWith("http")) return;
   const header = document.querySelector("header");
   if (!header) return;
+  // Opened from the Windows menu (hub/web-server.ps1, ?win=1): that menu is its own window, so no "← Menu" here.
+  if (new URLSearchParams(location.search).has("win")) document.getElementById("menu")?.setAttribute("hidden", "");
   const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn update", textContent: "Cập nhật" });
   const config = Object.assign(document.createElement("button"), { type: "button", className: "btn config", textContent: "Cấu hình" });
   header.append(config, btn);
