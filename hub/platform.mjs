@@ -1,9 +1,10 @@
 // What the Node servers (hub/picker.mjs, each tool's src/mac/server.mjs) do differently on macOS and Windows: the
 // same pages and servers run on both; on Windows the window is hub/launch.ps1's WebView2 app window.
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { delimiter, dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { appProfile, executable as toolsChrome } from "./browser.mjs";
 
 export const onWindows = process.platform === "win32";
 
@@ -46,11 +47,16 @@ export function killTree(proc) {
   try { process.kill(-proc.pid, "SIGKILL"); } catch { try { proc.kill("SIGKILL"); } catch {} }
 }
 
-// A window of its own on macOS: Chrome in app mode (no tabs or address bar), else the default browser. On Windows the
-// app window (hub/launch.ps1) shows the pages, so nothing opens here.
+// A window of its own on macOS: the tools' own Chrome (hub/browser.mjs) in app mode (no tabs or address bar); before
+// it is downloaded, the user's Chrome, else the default browser. On Windows the app window (hub/launch.ps1) shows the
+// pages, so nothing opens here.
 export function appWindow(url, size = "1120,840") {
   if (onWindows) return;
-  execFile("open", ["-na", "Google Chrome", "--args", `--app=${url}`, `--window-size=${size}`], (err) => { if (err) execFile("open", [url]); });
+  const args = [`--app=${url}`, `--window-size=${size}`];
+  if (existsSync(toolsChrome)) {
+    return spawn(toolsChrome, [`--user-data-dir=${appProfile}`, "--no-first-run", "--no-default-browser-check", ...args], { detached: true, stdio: "ignore" }).unref();
+  }
+  execFile("open", ["-na", "Google Chrome", "--args", ...args], (err) => { if (err) execFile("open", [url]); });
 }
 
 // The system file dialog: real paths, opened at folder. filter is "images" or "table" (CSV or ZIP / RAR / 7Z).

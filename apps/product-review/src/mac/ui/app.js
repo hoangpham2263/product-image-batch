@@ -972,12 +972,22 @@ async function showSetupDialog() {
     } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
     finally { again.disabled = false; }
   };
+  // While Codex signs in: the one-time code to type on the page opened in the tools' Chrome.
+  const showLoginCode = (row) => {
+    const timer = setInterval(async () => {
+      const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
+      if (code) row.detail.textContent = `Nhập mã ${code} ở trang đăng nhập vừa mở trong Chrome của tool.`;
+    }, 1000);
+    return () => clearInterval(timer);
+  };
   // Installing or signing in runs here; the steps are checked again when it finishes.
   const fix = async (action, row) => {
     if (action === "drive") { await showDriveDialog(); return check(); }
     for (const r of rows) r.fix.disabled = true;
-    row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
+    row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đang mở trang đăng nhập ChatGPT trong Chrome của tool…";
+    const stop = action === "login" ? showLoginCode(row) : () => {};
     const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
+    stop();
     for (const x of rows) x.fix.disabled = false;
     Object.assign(state, { codex: (await api("state")).codex });
     await check();

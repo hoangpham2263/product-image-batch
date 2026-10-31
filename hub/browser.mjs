@@ -3,6 +3,7 @@
 // with no window at all (headless), so the user's own Chrome is never needed. A minimized window would not do: its
 // pages drop the extension's clicks.
 //   node hub/browser.mjs login   download it the first time, open it in a window with the sites to sign in to
+//   node hub/browser.mjs open <url>…   the same with these pages (the ChatGPT sign-in for Codex)
 //   node hub/browser.mjs start   start it hidden for a run, unless it is open already (not downloaded yet: exit 2)
 //   node hub/browser.mjs status  { installed, running }
 // Prints one JSON line.
@@ -20,7 +21,7 @@ const modeFile = join(dir, "mode.txt");
 const PORT = 45000 + (parseInt(createHash("sha1").update(root).digest("hex").slice(0, 6), 16) % 1000);
 const LOGIN_URLS = ["https://flow.google.com/", "https://chatgpt.com/"];
 const platform = { darwin: process.arch === "arm64" ? "mac-arm64" : "mac-x64", win32: process.arch === "ia32" ? "win32" : "win64" }[process.platform] || "linux64";
-const executable = join(dir, `chrome-${platform}`, ...(platform.startsWith("mac")
+export const executable = join(dir, `chrome-${platform}`, ...(platform.startsWith("mac")
   ? ["Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"]
   : [platform.startsWith("win") ? "chrome.exe" : "chrome"]));
 
@@ -91,11 +92,11 @@ async function open({ urls, hidden }) {
   if (!(await running())) throw new Error("Không mở được Chrome của tool.");
 }
 
-async function main(command) {
+async function main(command, urls) {
   if (command === "status") return { installed: existsSync(executable), running: await running() };
-  if (command === "login") {
+  if (command === "login" || command === "open") {
     if (!existsSync(executable)) await download();
-    await open({ urls: LOGIN_URLS, hidden: false });
+    await open({ urls: command === "open" ? urls : LOGIN_URLS, hidden: false });
     return { ok: true };
   }
   if (command === "start") {
@@ -103,12 +104,15 @@ async function main(command) {
     if (!(await running())) await open({ urls: ["https://flow.google.com/"], hidden: true });
     return { ok: true };
   }
-  throw new Error("Lệnh: login | start | status");
+  throw new Error("Lệnh: login | open <url> | start | status");
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main(process.argv[2]).then((r) => console.log(JSON.stringify(r)), (e) => { console.log(JSON.stringify({ error: e.message })); process.exitCode = 1; });
+  main(process.argv[2], process.argv.slice(3)).then((r) => console.log(JSON.stringify(r)), (e) => { console.log(JSON.stringify({ error: e.message })); process.exitCode = 1; });
 }
 
 // How the servers and PowerShell run it: a Node with WebSocket.
-export const browserArgs = (command) => [...(Number(process.versions.node.split(".")[0]) < 22 ? ["--experimental-websocket"] : []), fileURLToPath(import.meta.url), command];
+export const browserArgs = (command, ...args) => [...(Number(process.versions.node.split(".")[0]) < 22 ? ["--experimental-websocket"] : []), fileURLToPath(import.meta.url), command, ...args];
+// The Tools Hub windows (hub/platform.mjs appWindow) use the same Chrome with a profile of their own, so they never
+// share the run's hidden one.
+export const appProfile = join(dir, "app");

@@ -32,7 +32,7 @@ if ($engine) {
 $checks.Add([pscustomobject]@{
     Ok = $loggedIn
     Message = $(if ($apiKey) { 'Tài khoản: đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'ChatGPT: đã đăng nhập.' } else { 'ChatGPT: chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.' })
-    Action = 'Bấm Đăng nhập Codex rồi đăng nhập ChatGPT trong trình duyệt.'
+    Action = 'Bấm Đăng nhập rồi nhập mã hiện ra ở trang đăng nhập ChatGPT trong Chrome của tool.'
 })
 . (Join-Path $PSScriptRoot 'quota.ps1')
 $quotaAvailable = $false

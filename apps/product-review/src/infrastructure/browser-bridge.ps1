@@ -10,7 +10,12 @@ function Start-ImageBridge([string]$ProjectRoot) {
     $state = Test-ImageBridge
     if ($null -eq $state) {
         $server = Join-Path $ProjectRoot 'bridge/server.mjs'
-        if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) { throw 'Bridge chưa cài. Bấm Cấu hình → Cài trong app, hoặc chạy npm install trong bridge/.' }
+        # Its one package (ws) is installed on first use, so no setup step is needed for it.
+        if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) {
+            Push-Location (Join-Path $ProjectRoot 'bridge')
+            try { & npm install --silent --no-audit --no-fund 2>&1 | Out-Null } finally { Pop-Location }
+            if (-not (Test-Path -LiteralPath (Join-Path $ProjectRoot 'bridge/node_modules/ws'))) { throw '[CAUSE:BRIDGE] Chưa cài được bridge (npm install trong bridge/). Kiểm tra mạng rồi chạy lại.' }
+        }
         if ($script:OnWindows) { Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null }
         else { Start-Process node -ArgumentList $server | Out-Null }
     }
