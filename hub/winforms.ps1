@@ -26,10 +26,11 @@ function New-ChevronImage([Drawing.Color]$Color) {
 # and opens the list like the arrow did. Call it once the combo is on its form (its height follows the font).
 function Set-ComboChevron($Combo) {
     $ink=New-ChevronImage ([Drawing.Color]::FromArgb(68,68,68));$dim=New-ChevronImage ([Drawing.Color]::FromArgb(160,160,160))
-    $normal=[Drawing.Color]::FromArgb(225,225,225);$hot=[Drawing.Color]::FromArgb(229,241,251);$off=[Drawing.Color]::FromArgb(204,204,204)
+    $normal=[Drawing.Color]::FromArgb(225,225,225);$hover=[Drawing.Color]::FromArgb(229,241,251);$off=[Drawing.Color]::FromArgb(204,204,204)
     $cover=New-Object Windows.Forms.Label -Property @{Name='Chevron';ImageAlign='MiddleCenter';Image=$ink;BackColor=$normal}
     $place={$cover.Bounds=New-Object Drawing.Rectangle(($Combo.Width-21),1,20,($Combo.Height-2))}.GetNewClosure()
-    $look={param([bool]$Hot)$cover.Image=$(if($Combo.Enabled){$ink}else{$dim});$cover.BackColor=$(if(-not $Combo.Enabled){$off}elseif($Hot){$hot}else{$normal})}.GetNewClosure()
+    # PowerShell names ignore case: the colour is $hover, so the [bool] $IsHot never stands in for it.
+    $look={param([bool]$IsHot)$cover.Image=$(if($Combo.Enabled){$ink}else{$dim});$cover.BackColor=$(if(-not $Combo.Enabled){$off}elseif($IsHot){$hover}else{$normal})}.GetNewClosure()
     $Combo.Controls.Add($cover);& $place;& $look $false
     $Combo.Add_SizeChanged($place);$Combo.Add_EnabledChanged({& $look $false}.GetNewClosure())
     $Combo.Add_MouseEnter({& $look $true}.GetNewClosure());$Combo.Add_MouseLeave({& $look $false}.GetNewClosure())
