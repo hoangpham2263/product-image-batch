@@ -26,6 +26,12 @@
 .ai-model { display: grid; grid-template-columns: minmax(0, 1fr) 188px; gap: 6px 10px; }
 .ai-model > span { grid-column: 1 / -1; }
 header .again { margin-left: auto; }
+/* Tài khoản AI: the AIs side by side in one row, each a short card (name, account, state, buttons). */
+#ai { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+#ai .item { grid-template-columns: 22px minmax(0, 1fr); align-content: start; }
+#ai .item .side { grid-column: 2; flex-direction: row; flex-wrap: wrap; margin-top: 6px; }
+#ai .item .side .btn { min-width: 0; height: 28px; padding: 0 10px; }
+@media (max-width: 860px) { #ai { grid-template-columns: minmax(0, 1fr); } }
 .note-line { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
 @media (max-width: 760px) { .setup-page { grid-template-columns: minmax(0, 1fr); } }
 /* Narrow window: the buttons go under the text, side by side. */

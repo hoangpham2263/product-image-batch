@@ -67,7 +67,9 @@ function readQuota(command, timeoutMs = 12000) {
             send({ method: 'initialized', params: {} });
             send({ id: 2, method: 'account/rateLimits/read' });
           } else if (message.id === 2 && phase === 'quota') {
-            if (message.error || !message.result) return finish({ available: false, reason: 'unavailable' });
+            // A 401 means the saved sign-in is no longer accepted (expired or revoked); only that is told apart.
+            if (message.error) return finish({ available: false, reason: /\b401\b|unauthorized|sign(ing)? in again/i.test(String(message.error.message || '')) ? 'auth' : 'unavailable' });
+            if (!message.result) return finish({ available: false, reason: 'unavailable' });
             finish({ available: true, data: message.result });
           }
         }

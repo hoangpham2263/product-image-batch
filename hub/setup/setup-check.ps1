@@ -30,10 +30,12 @@ if ($engine) {
     } catch { $loggedIn = $false }
 }
 # The ChatGPT account Codex signed in with: the email in its sign-in token (auth.json), never the token itself.
+# Read even when the sign-in has run out, so the page can say whose session expired.
 $codexAccount = ''
-if ($loggedIn -and -not $apiKey) {
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+$codexAuthFile = Test-Path -LiteralPath (Join-Path $codexHome 'auth.json')
+if ($codexAuthFile -and -not $apiKey) {
     try {
-        $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
         $part = ((Get-Content -LiteralPath (Join-Path $codexHome 'auth.json') -Raw | ConvertFrom-Json).tokens.id_token -split '\.')[1].Replace('-', '+').Replace('_', '/')
         $part += '=' * ((4 - $part.Length % 4) % 4)
         $codexAccount = [string]([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($part)) | ConvertFrom-Json).email
@@ -46,6 +48,7 @@ $checks.Add([pscustomobject]@{
 })
 . (Join-Path $PSScriptRoot 'quota.ps1')
 $quotaAvailable = $false
+$codexExpired = $false
 $quotaMessages = @()
 if ($loggedIn) {
     if ($apiKey) {
@@ -55,8 +58,10 @@ if ($loggedIn) {
         $quotaAvailable = $quota.Available
         $quotaMessages = @($quota.Messages)
     }
+    # Signed in on paper but the server refuses the sign-in: it has expired, and the tools cannot use Codex.
+    $codexExpired = [bool]$quota.Expired
     foreach ($message in $quotaMessages) {
-        $checks.Add([pscustomobject]@{ Ok = $true; Message = $message; Action = '' })
+        $checks.Add([pscustomobject]@{ Ok = -not $codexExpired; Message = $message; Action = $(if ($codexExpired) { 'Bấm Cấu hình rồi Đăng nhập lại.' } else { '' }) })
     }
 }
 $ready = @($checks | Where-Object { -not $_.Ok }).Count -eq 0
@@ -142,11 +147,38 @@ $steps = @(
     Get-WebStep 'google' 'Google (Flow, Gemini web)' 'google' 'Tạo ảnh: Google Flow · Viết review: Gemini web'
     [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Account = $agyAccount; Uses = 'Viết review: Antigravity CLI'; Action = $(if ($agy) { 'antigravity' } else { '' }) }
 )
+# Each AI's sign-in: signed in, expired (its sign-in is still on this computer but no longer accepted), signed out
+# (it was signed in here before) or never. The last account seen is kept (workspace/config/ai-accounts.json), so an
+# expired or signed-out AI still says whose it was, instead of looking as if it had never been set up.
+$accountsFile = Get-SharedConfigPath (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'workspace') 'ai-accounts.json'
+$known = @{}
+try { (Get-Content -LiteralPath $accountsFile -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $known[$_.Name] = [string]$_.Value } } catch {}
+$stored = $false
+foreach ($step in $steps | Where-Object { $_.Id -in @('login', 'google', 'antigravity') }) {
+    $was = $known[$step.Id]
+    $signIn = if ($step.Id -eq 'login' -and $codexExpired) { 'expired' } elseif ($step.State -eq 'ok') { 'ok' } elseif ($step.State -eq 'wait') { 'wait' }
+        elseif ($step.Id -eq 'login' -and $codexAuthFile) { 'expired' }
+        elseif ($step.Id -eq 'antigravity' -and $agy -and (Test-Path -LiteralPath (Join-Path $HOME '.gemini/oauth_creds.json'))) { 'expired' }
+        elseif ($was) { 'signedout' } else { 'none' }
+    if ($signIn -eq 'ok' -and $step.Account -and $step.Account -ne $was) { $known[$step.Id] = $step.Account; $stored = $true }
+    if ($signIn -ne 'ok' -and -not $step.Account) { $step.Account = $was }
+    $step | Add-Member -NotePropertyName SignIn -NotePropertyValue $signIn -Force
+    $whose = if ($step.Account) { " ($($step.Account))" } else { '' }
+    switch ($signIn) {
+        'expired' { $step.State = 'fail'; $step.Detail = "Phiên đăng nhập đã hết hạn$whose. Bấm Đăng nhập lại." }
+        'none' { if ($step.Id -eq 'login') { $step.Detail = 'Chưa đăng nhập. Bấm Đăng nhập.' } }
+        'signedout' { $step.Detail = "Đã đăng xuất hoặc hết phiên$whose. Bấm Đăng nhập lại." }
+    }
+}
+if ($stored) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $accountsFile -Parent) | Out-Null
+    [IO.File]::WriteAllText($accountsFile, ([pscustomobject]$known | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+}
 $report = [pscustomobject]@{
     Ready = $ready
     QuotaAvailable = $quotaAvailable
     # The app turns its check button into this step: install, login or nothing left.
-    NextAction = $(if (-not $engine) { 'install' } elseif (-not $loggedIn) { 'login' } else { '' })
+    NextAction = $(if (-not $engine) { 'install' } elseif (-not $loggedIn -or $codexExpired) { 'login' } else { '' })
     Checks = $checks.ToArray()
     Steps = $steps
     Summary = $(if (-not $ready) { 'Vui lòng xử lý các mục trên trước khi bắt đầu.' } elseif ($apiKey) { 'Đã kiểm tra cài đặt và tài khoản API.' } elseif ($quotaAvailable) { 'Đã kiểm tra đăng nhập và hạn mức Codex. Hạn mức tạo ảnh không được thống kê riêng.' } else { 'Đã kiểm tra cài đặt và đăng nhập. Chưa xác định được hạn mức còn lại.' })

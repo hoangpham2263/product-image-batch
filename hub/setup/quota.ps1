@@ -41,6 +41,7 @@ function Get-ChatGptQuota([string]$CliPath) {
             & node $helper $CliPath 2>$null | Out-String
         }
         $response = $payload | ConvertFrom-Json
+        if ($response.reason -eq 'auth') { return [pscustomobject]@{ Available = $false; Expired = $true; Messages = @('Phiên đăng nhập Codex đã hết hạn. Bấm Đăng nhập lại trong Cấu hình.') } }
         if (-not $response.available) { return $unavailable }
         $messages = @(Get-QuotaMessages $response.data)
         if (-not $messages.Count) { return $unavailable }

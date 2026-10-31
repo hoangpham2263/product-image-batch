@@ -67,14 +67,16 @@
       // The AIs: whose account, and what it is used for; Codex also shows what is left of its quota.
       const isAi = AI.includes(step.Id);
       row.account.hidden = !isAi;
-      row.account.textContent = step.Account ? `Tài khoản: ${step.Account}` : step.State === "ok" ? "Tài khoản: chưa đọc được email" : "Tài khoản: chưa đăng nhập";
-      row.account.classList.toggle("none", !step.Account);
+      // Expired or signed out still names whose account it was (setup-check.ps1 keeps the last one seen).
+      const lapsed = { expired: " · hết hạn", signedout: " · đã đăng xuất" }[step.SignIn] || "";
+      row.account.textContent = step.Account ? `Tài khoản: ${step.Account}${lapsed}` : step.State === "ok" ? "Tài khoản: chưa đọc được email" : "Tài khoản: chưa đăng nhập";
+      row.account.classList.toggle("none", !step.Account || !!lapsed);
       row.uses.textContent = step.Uses ? `Dùng cho: ${step.Uses}` : "";
       if (step.Id === "login" && quota && quota.State !== "wait" && quota.Detail) row.detail.textContent = `${step.Detail} Hạn mức: ${quota.Detail}`;
       if (step.Id === "antigravity" && step.State !== "ok") row.uses.textContent = `Dùng cho: ${step.Uses || "Viết review: Antigravity CLI"}. Đăng nhập trong Antigravity, đổi tài khoản cũng ở đó.`;
       if (step.Action) {
         const signedIn = step.State === "ok";
-        row.fix.textContent = signedIn && ["login", "google", "antigravity"].includes(step.Action) ? "Đổi tài khoản" : signedIn && step.Action === "drive" ? "Đăng xuất" : LABELS[step.Action] || "Mở";
+        row.fix.textContent = signedIn && ["login", "google", "antigravity"].includes(step.Action) ? "Đổi tài khoản" : ["expired", "signedout"].includes(step.SignIn) ? "Đăng nhập lại" : signedIn && step.Action === "drive" ? "Đăng xuất" : LABELS[step.Action] || "Mở";
         row.fix.classList.toggle("primary", !signedIn);
         row.fix.hidden = false;
         row.fix.onclick = () => fix(step, row);
