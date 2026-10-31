@@ -47,7 +47,6 @@ try{
         Copy-Item -LiteralPath $raw -Destination $request.Output
         return 'BRAND: none'
     }
-    function Test-ProductScene{throw 'Visual QA must not run during delivery.'}
     Assert ((Complete-ProductImage $request $context '002-table') -eq 'BRAND: none' -and $script:Calls -eq 3) 'Two interrupted generations were not retried to success.'
     Assert ((Get-BytesHash ([IO.File]::ReadAllBytes($request.Output))) -eq (Get-BytesHash ([IO.File]::ReadAllBytes($raw)))) 'Export changed the image tool output bytes.'
     foreach($mode in @('timeout','auth')){

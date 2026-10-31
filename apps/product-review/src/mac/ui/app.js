@@ -90,13 +90,6 @@ async function upload(file) {
   if (!r.ok) throw new Error(body.error);
   return body.path;
 }
-function pickFiles(accept, multiple) {
-  return new Promise((resolve) => {
-    const input = el("input", "", { type: "file", accept, multiple });
-    input.onchange = () => resolve([...input.files]);
-    input.click();
-  });
-}
 const imageFiles = (items) => [...items].filter((f) => /^image\/(png|jpeg)$/.test(f.type));
 
 // Errors in this window are logged on the Mac side (workspace/logs/app-errors.log) and go out with Gửi lỗi.
