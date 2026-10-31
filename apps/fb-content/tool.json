@@ -5,7 +5,6 @@
   "description": "Từ thông tin và ảnh gốc của sản phẩm: tạo ảnh bối cảnh và soạn bài đăng cho Facebook, Instagram, Threads, TikTok (bản tạm).",
   "icon": "icon.svg",
   "web": "ui/index.html",
-  "windows": "src/gui.ps1",
   "platforms": [
     {
       "name": "Facebook",

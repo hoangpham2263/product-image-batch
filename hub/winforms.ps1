@@ -1,4 +1,4 @@
-﻿# Windows look shared by the Tools Hub menu and every tool's window: Product Review's colours and buttons.
+﻿# Windows dialogs' look (Cấu hình, Cập nhật and Product Review's WinForms window): Product Review's colours and buttons.
 $script:Ui=@{
     Ink=[Drawing.Color]::FromArgb(30,30,30); Muted=[Drawing.Color]::FromArgb(96,96,96); Line=[Drawing.Color]::FromArgb(172,172,172)
     Accent=[Drawing.Color]::FromArgb(40,140,80); AccentDark=[Drawing.Color]::FromArgb(32,118,66); Surface=[Drawing.Color]::White
@@ -14,39 +14,6 @@ function Set-FlatButton($Button,[switch]$Primary) {
     else{$Button.FlatStyle='Standard';$Button.ForeColor=[Drawing.SystemColors]::ControlText;$Button.BackColor=[Drawing.SystemColors]::Control;$Button.UseVisualStyleBackColor=$true}
 }
 
-# Hover stays in WinForms rather than dispatching PowerShell for every child enter/leave.
-if (-not ('ToolsHub.ToolCard' -as [type])) {
-    Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
-using System;
-using System.Drawing;
-using System.Windows.Forms;
-namespace ToolsHub {
-    public class ToolCard : Panel {
-        public bool Hovered { get; private set; }
-        public ToolCard() {
-            DoubleBuffered = true;
-            ResizeRedraw = true;
-        }
-        protected override void OnControlAdded(ControlEventArgs e) {
-            base.OnControlAdded(e);
-            e.Control.MouseEnter += UpdateHover;
-            e.Control.MouseLeave += UpdateHover;
-        }
-        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); UpdateHover(this,e); }
-        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); UpdateHover(this,e); }
-        private void UpdateHover(object sender, EventArgs e) {
-            bool next = ClientRectangle.Contains(PointToClient(Cursor.Position));
-            if (next == Hovered) return;
-            Hovered = next;
-            Invalidate(new Rectangle(0,0,Width,1));
-            Invalidate(new Rectangle(0,Height-1,Width,1));
-            Invalidate(new Rectangle(0,0,1,Height));
-            Invalidate(new Rectangle(Width-1,0,1,Height));
-        }
-    }
-}
-'@
-}
 # Chevron: one thin rounded mark for every dropdown (lists and menu buttons), drawn the same as on macOS.
 function New-ChevronImage([Drawing.Color]$Color) {
     $bitmap=New-Object Drawing.Bitmap(12,8);$g=[Drawing.Graphics]::FromImage($bitmap)

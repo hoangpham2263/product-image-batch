@@ -1,15 +1,16 @@
-// macOS app: serves the window (src/mac/ui) on localhost and runs the same PowerShell code as the
-// Windows app. Application calls go to one long-lived pwsh (rpc.ps1); a run is run-images.ps1.
+// The app's window (src/mac/ui) served on localhost, on macOS and Windows alike, running the tool's PowerShell code.
+// Application calls go to one long-lived PowerShell (rpc.ps1); a run is run-images.ps1.
 import { createServer } from "node:http";
 import { spawn, execFile } from "node:child_process";
 import { createInterface } from "node:readline";
 import { writeFile, mkdir, copyFile, rm, stat, appendFile, readFile } from "node:fs/promises";
 import { createReadStream, existsSync, mkdirSync, openSync, renameSync, statSync, appendFileSync } from "node:fs";
 import { join, dirname, extname, resolve, sep, basename } from "node:path";
-import { tmpdir, homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { randomUUID, createHash } from "node:crypto";
 import { createConfigApi } from "../../../../hub/setup/config-api.mjs";
+import { PWSH, toolEnv, psFile, psCommand, killMatching, killTree, appWindow, chooseFiles } from "../../../../hub/platform.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..");
@@ -21,15 +22,6 @@ let PORT = BASE_PORT;
 const workspace = join(root, "workspace");
 const logs = join(workspace, "logs");
 const uploads = join(workspace, "temp", "mac-uploads");
-// pwsh from PATH or the usual install places (Homebrew, dotnet tool, Microsoft pkg).
-const PWSH = process.env.PR_PWSH || [
-  ...(process.env.PATH || "").split(":").map((d) => join(d, "pwsh")),
-  "/opt/homebrew/bin/pwsh", "/usr/local/bin/pwsh", join(homedir(), ".dotnet", "tools", "pwsh"), "/usr/local/microsoft/powershell/7/pwsh",
-].find((p) => existsSync(p)) || "pwsh";
-// Node, npm and codex live in Homebrew or the npm prefix; Finder-launched apps miss them in PATH.
-const extraPath = ["/opt/homebrew/bin", "/usr/local/bin", join(homedir(), ".npm-global", "bin"), join(homedir(), ".dotnet", "tools")];
-const toolEnv = { ...process.env, PATH: [...new Set([...(process.env.PATH || "").split(":"), ...extraPath, dirname(process.execPath)])].filter(Boolean).join(":") };
-const findTool = (name) => toolEnv.PATH.split(":").map((d) => join(d, name)).find((p) => existsSync(p));
 const configApi = createConfigApi({ hubRoot, pwsh: PWSH, env: toolEnv });
 // Errors from the window, this server and PowerShell go to workspace/logs (app-errors.log as Write-AppError
 // writes it, mac-rpc.err.log), past 1 MB rolled over to *.old.log; Gửi lỗi sends them.
@@ -51,7 +43,7 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": 
 let rpcProc = null;
 const waiting = new Map();
 function startRpc() {
-  rpcProc = spawn(PWSH, ["-NoProfile", "-File", join(here, "rpc.ps1")], { cwd: root, env: toolEnv, stdio: ["pipe", "pipe", "pipe"] });
+  rpcProc = spawn(PWSH, psFile(join(here, "rpc.ps1")), { cwd: root, env: toolEnv, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
   createInterface({ input: rpcProc.stdout }).on("line", (line) => {
     if (!line.startsWith("@@RPC ")) return;
     const answer = JSON.parse(line.slice(6));
@@ -91,11 +83,11 @@ async function startRun({ per = 1, threads = 1 }) {
   const stamp = Date.now();
   Object.assign(run, { events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", done: false,
     logFile: join(logs, `image-batch-mac-${stamp}.log`), errFile: join(logs, `image-batch-mac-${stamp}.err.log`) });
-  const args = ["-NoProfile", "-File", join(root, "src", "run-images.ps1"), "-PhotosPerImage", String(per), "-ThrottleLimit", String(threads)];
+  const args = ["-PhotosPerImage", String(per), "-ThrottleLimit", String(threads)];
   const map = join(workspace, "reference-inputs", "references.json");
   if (existsSync(map)) args.push("-ReferenceMapFile", map);
-  // Own process group, so Dừng stops codex and every other child too.
-  const proc = spawn(PWSH, args, { cwd: root, env: toolEnv, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  // Own process group (macOS), so Dừng stops codex and every other child too.
+  const proc = spawn(PWSH, psFile(join(root, "src", "run-images.ps1"), args), { cwd: root, env: toolEnv, detached: process.platform !== "win32", windowsHide: true, stdio: ["ignore", "pipe", "pipe"] });
   run.proc = proc;
   let chain = Promise.resolve();
   for (const [stream, file] of [[proc.stdout, run.logFile], [proc.stderr, run.errFile]]) {
@@ -123,7 +115,7 @@ async function startRun({ per = 1, threads = 1 }) {
 function stopRun() {
   if (!run.proc) return;
   run.stopped = true;
-  try { process.kill(-run.proc.pid, "SIGKILL"); } catch { try { run.proc.kill("SIGKILL"); } catch {} }
+  killTree(run.proc);
 }
 
 // ----- Tải về máy in the background (src/sync-source.ps1, as on Windows); the window polls its status file -----
@@ -132,7 +124,7 @@ async function startSync(groups) {
   if (sync.proc) return false;
   await rm(sync.statusFile, { force: true });
   const out = openSync(logFile("mac-sync.log"), "a");
-  sync.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "sync-source.ps1"), "-Group", groups.join("|"), "-StatusFile", sync.statusFile], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  sync.proc = spawn(PWSH, psFile(join(root, "src", "sync-source.ps1"), ["-Group", groups.join("|"), "-StatusFile", sync.statusFile]), { cwd: root, env: toolEnv, windowsHide: true, stdio: ["ignore", out, out] });
   sync.proc.on("exit", () => { sync.proc = null; });
   return true;
 }
@@ -148,7 +140,7 @@ async function startImport(text, folder) {
   await rm(imports.statusFile, { force: true });
   await writeFile(imports.inputFile, text, "utf8");
   const out = openSync(logFile("mac-import.log"), "a");
-  imports.proc = spawn(PWSH, ["-NoProfile", "-File", join(root, "src", "import-batch.ps1"), "-File", imports.inputFile, "-Folder", folder, "-StatusFile", imports.statusFile], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  imports.proc = spawn(PWSH, psFile(join(root, "src", "import-batch.ps1"), ["-File", imports.inputFile, "-Folder", folder, "-StatusFile", imports.statusFile]), { cwd: root, env: toolEnv, windowsHide: true, stdio: ["ignore", out, out] });
   imports.proc.on("exit", () => { imports.proc = null; rm(imports.inputFile, { force: true }).catch(() => {}); });
   return true;
 }
@@ -159,7 +151,7 @@ async function startSendErrors() {
   if (errorsSend.proc) return false;
   await rm(errorsSend.outFile, { force: true });
   const out = openSync(errorsSend.outFile, "a");
-  errorsSend.proc = spawn(process.execPath, [join(root, "src", "support-report.mjs")], { cwd: root, env: toolEnv, stdio: ["ignore", out, out] });
+  errorsSend.proc = spawn(process.execPath, [join(root, "src", "support-report.mjs")], { cwd: root, env: toolEnv, windowsHide: true, stdio: ["ignore", out, out] });
   errorsSend.proc.on("error", (error) => { appendFileSync(errorsSend.outFile, `error|${error.message.replace(/[\r\n|]/g, " ")}\n`); errorsSend.proc = null; });
   errorsSend.proc.on("close", () => { errorsSend.proc = null; });
   return true;
@@ -244,33 +236,25 @@ async function handle(req, res) {
   // Cấu hình is the hub's, shared by every tool (hub/setup/config-api.mjs).
   if (await configApi(req, res, path)) return;
   if (path === "/api/choose-images" && req.method === "POST") {
-    // macOS file dialog: opens the app's own folder and returns real paths (no copy through the browser).
+    // The system file dialog: opens the app's own folder and returns real paths (no copy through the browser).
     // table: a CSV or ZIP / RAR / 7Z archive for Nhập hàng loạt instead of images.
     const { folder = "", table = false } = JSON.parse((await body(req)).toString("utf8") || "{}");
-    const at = folder && existsSync(folder) ? ` default location (POSIX file ${JSON.stringify(folder)})` : "";
-    const what = table ? `"Chọn bảng nhập" of type {"csv", "zip", "rar", "7z"}` : `"Chọn ảnh" of type {"public.png", "public.jpeg"}`;
-    const script = `set picked to choose file with prompt ${what} with multiple selections allowed${at}
-set out to ""
-repeat with f in picked
-set out to out & POSIX path of f & linefeed
-end repeat
-return out`;
-    execFile("osascript", ["-e", script], (err, stdout) => send(res, 200, { paths: err ? [] : stdout.split("\n").map((p) => p.trim()).filter(Boolean) }));
+    chooseFiles({ folder, table }, (paths) => send(res, 200, { paths }));
     return;
   }
   if (path === "/api/update" && req.method === "POST") {
     // Update the files, then start a fresh server on the new code; the page reloads itself.
-    execFile(PWSH, ["-NoProfile", "-Command", `. '${join(hubRoot, "hub", "update.ps1").replace(/'/g, "''")}' -NoRun; Update-App '${hubRoot.replace(/'/g, "''")}'`], { cwd: hubRoot, env: toolEnv, timeout: 300000 }, (err) => {
+    execFile(PWSH, psCommand(`. '${join(hubRoot, "hub", "update.ps1").replace(/'/g, "''")}' -NoRun; Update-App '${hubRoot.replace(/'/g, "''")}'`), { cwd: hubRoot, env: toolEnv, timeout: 300000, windowsHide: true }, (err) => {
       if (err) return send(res, 500, { error: err.message });
       send(res, 200, { ok: true });
       setTimeout(() => {
         const out = openSync(logFile("mac-server.log"), "a");
-        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, stdio: ["ignore", out, out], env: { ...process.env, PR_WAIT_PORT: "1" } }).unref();
+        spawn(process.execPath, [join(here, "server.mjs"), "--no-open"], { cwd: root, detached: true, windowsHide: true, stdio: ["ignore", out, out], env: { ...process.env, PR_WAIT_PORT: "1" } }).unref();
         rpcProc?.kill();
         // The Tools Hub menu runs on the old files too: restart it, without a window of its own.
         const picker = join(hubRoot, "hub", "picker.mjs");
         if (existsSync(picker)) {
-          execFile("pkill", ["-f", picker], () => spawn(process.execPath, [picker], { cwd: hubRoot, detached: true, stdio: "ignore", env: { ...process.env, HUB_NO_WINDOW: "1", HUB_WAIT_PORT: "1" } }).unref());
+          killMatching(picker, () => spawn(process.execPath, [picker], { cwd: hubRoot, detached: true, windowsHide: true, stdio: "ignore", env: { ...process.env, HUB_NO_WINDOW: "1", HUB_WAIT_PORT: "1" } }).unref());
         }
         setTimeout(() => process.exit(0), 300);
       }, 300);
@@ -290,7 +274,6 @@ return out`;
   createReadStream(file).pipe(res);
 }
 
-// Open as its own window (Chrome app mode) when Chrome is installed, else the default browser.
 // A star in the macOS menu bar while the app runs (src/mac/menubar.js); it goes away with the server.
 let menuBar = null;
 function startMenuBar() {
@@ -300,10 +283,8 @@ function startMenuBar() {
 }
 process.on("exit", () => { try { menuBar?.kill(); } catch {} });
 
-function openWindow() {
-  const target = `http://127.0.0.1:${PORT}/`;
-  execFile("open", ["-na", "Google Chrome", "--args", `--app=${target}`, "--window-size=1120,840"], (err) => { if (err) execFile("open", [target]); });
-}
+// Its own window on macOS (hub/platform.mjs); on Windows the launcher's app window shows it.
+const openWindow = () => appWindow(`http://127.0.0.1:${PORT}/`);
 
 const server = createServer((req, res) => handle(req, res).catch((e) => send(res, 500, { error: e.message })));
 function listen(attempt = 0) {

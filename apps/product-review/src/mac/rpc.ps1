@@ -1,7 +1,7 @@
-﻿# macOS app backend: the local web UI (src/mac/server.mjs) calls the same application functions the
-# Windows window uses. One JSON request per stdin line; each answer is one stdout line prefixed '@@RPC '.
+﻿# App backend on macOS and Windows: the local web UI (src/mac/server.mjs) calls the application functions here.
+# One JSON request per stdin line; each answer is one stdout line prefixed '@@RPC '.
 $ErrorActionPreference = 'Stop'
-[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
+[Console]::InputEncoding = [Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $srcDir = Split-Path $PSScriptRoot -Parent
 $root = Split-Path $srcDir -Parent
 . (Join-Path $srcDir 'application/workspace.ps1')
@@ -154,7 +154,7 @@ function Invoke-Rpc([string]$Cmd, $A) {
         'event' { return (ConvertTo-UiEvent ([string]$A.line) ([int]$A.index)) }
         'updateCheck' { return (& (Join-Path (Get-HubRoot $root) 'hub/update.ps1') -Root (Get-HubRoot $root) -Check) }
         'openPath' { $p = [string]$A.path; New-Item -ItemType Directory -Force $p -ErrorAction SilentlyContinue | Out-Null; Open-SystemPath $p; return $true }
-        'revealPath' { & open -R ([string]$A.path); return $true }
+        'revealPath' { if ($script:OnWindows) { Start-Process explorer.exe -ArgumentList ('/select,"' + [string]$A.path + '"') } else { & open -R ([string]$A.path) }; return $true }
         default { throw "Unknown command: $Cmd" }
     }
 }

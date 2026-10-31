@@ -1,25 +1,17 @@
-﻿# Windows: một app WinForms
+﻿# Windows: cùng giao diện với macOS
 
-macOS giữ bản web. Windows là một app WinForms duy nhất, không trình duyệt, không máy chủ web, không mở thêm cửa sổ hay tiến trình cho tool.
+Windows và macOS dùng chung một giao diện: các trang web của hub và của tool, do cùng máy chủ Node phục vụ. Không có giao diện Windows riêng.
 
 ## Cách chạy
 
-- `hub/launch.ps1` là cửa sổ duy nhất. Trang menu (`$menuPage`) hiện các tool; bấm tool thì `Open-HubTool` dựng `src/gui.ps1` của tool trong một module riêng (biến không đụng menu hay tool khác), đặt form của tool vào cửa sổ (`TopLevel=$false`) thay cho trang menu.
-- `← Menu` trong tool đóng form đó; `Close-HubTool` dừng timer của tool và hiện lại menu. Đóng cửa sổ khi đang mở tool thì tool được đóng trước (lưu trạng thái, hỏi khi đang chạy).
-- Tool biết mình là trang qua `$global:ToolsHubHosted`: không `ShowDialog`, không tray, không tự bắt lỗi (menu ghi `workspace/logs/app-errors.log`). Cập nhật từ trong tool thì menu tự mở lại bằng file mới.
-- Tool chạy riêng (một tool, hoặc mở thẳng `src/gui.ps1`) vẫn là cửa sổ của nó, không có `← Menu`.
-- Grok Video Prompt và Content MXH dựng bằng `hub/native-window.ps1`: header như Product Review và các điều khiển chép `hub/assets/tool.css` (Group, Box, CardList, Toggle, Tile, Row, seg, toast; C# 5).
-
-## Kiểm tra (Windows PowerShell, STA)
-
-```powershell
-powershell -NoProfile -STA -ExecutionPolicy Bypass -File hub/tests/native-tools.ps1 -Tool grok
-powershell -NoProfile -STA -ExecutionPolicy Bypass -File hub/tests/native-tools.ps1 -Tool social
-powershell -NoProfile -STA -ExecutionPolicy Bypass -File hub/tests/windows-menu.ps1
-powershell -NoProfile -STA -ExecutionPolicy Bypass -File hub/tests/windows-navigation.ps1
-```
+- `start-app.cmd` chạy `hub/launch.ps1` (Windows PowerShell 5.1, ẩn). Chưa có Node.js thì hỏi rồi chạy `hub/setup/setup-install.ps1`.
+- Launcher chạy `node hub/picker.mjs` (nhiều tool) hoặc máy chủ của tool duy nhất, ẩn, cổng tính như Node (`HUB_PICKER_PORT` / `PR_PORT`), log ở `workspace/logs/server.log`.
+- Cửa sổ app là WinForms + WebView2 (`hub/webview2/`: SDK `Microsoft.Web.WebView2` 1.0.4191.47, bản net462 và `WebView2Loader.dll` x64/x86/arm64). Launcher chép SDK sang `workspace/webview2/sdk` rồi nạp từ đó, để cập nhật thay được file trong `hub/webview2` khi cửa sổ đang mở. Dữ liệu WebView2 ở `workspace/webview2/data`.
+- Trang của menu và máy chủ tool (`http://127.0.0.1:<cổng>/`) mở trong cửa sổ; link ngoài mở trình duyệt mặc định. Máy không có WebView2 Runtime thì mở trang bằng trình duyệt mặc định.
+- Đóng cửa sổ: đang chạy thì hỏi trước, rồi `POST /api/quit` cho menu; menu gọi `/api/quit` của từng máy chủ tool.
+- Khác biệt hệ điều hành gom ở `hub/platform.mjs`: PowerShell (`powershell.exe -ExecutionPolicy Bypass`, vào/ra UTF-8), PATH, dừng tiến trình (`taskkill /T`, lọc dòng lệnh), hộp chọn file (`OpenFileDialog`), không tự mở cửa sổ Chrome.
 
 ## Còn làm
 
-- Chạy các test trên trên máy Windows thật và so ảnh chụp với trang macOS; chưa kiểm tra được từ máy Mac.
-- Tạo ảnh và viết bài bằng AI của Content MXH chưa có ở cả hai bản.
+- Chạy thử trên máy Windows thật: mở menu, mở từng tool, Cấu hình, Cập nhật, chọn ảnh, chạy và Dừng một lượt Product Review, đóng cửa sổ khi đang chạy. Chưa kiểm tra được từ máy Mac.
+- WinForms của Product Review (`apps/product-review/src/gui.ps1`) còn giữ làm dự phòng; bỏ khi bản web chạy ổn trên Windows.

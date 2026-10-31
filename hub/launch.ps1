@@ -1,15 +1,20 @@
-﻿# Opens Tools Hub: tidies an install updated from before Tools Hub, then shows the tools (apps/*/tool.json, each with
-# its icon) and opens the one picked. On Windows it is one WinForms window: a tool ("windows" in tool.json) opens as
-# a page inside it, like the macOS web menu; on macOS a tool is a web page ("web") or a Node server ("mac"):
-# start-app.command gets the Node entry to start printed, hub/picker.mjs when there is more than one tool.
+﻿# Opens Tools Hub: tidies an install updated from before Tools Hub, then starts the menu (hub/picker.mjs, when there
+# is more than one tool) or the only tool's own server. macOS and Windows show the same web pages from the same Node
+# servers: start-app.command gets the Node entry to start printed (-Mac); on Windows this script starts it and shows
+# it in one app window (WinForms with WebView2, hub/webview2): no browser or address bar, a tool opens as a page in it.
 # -Migrate only tidies the layout.
 param([switch]$Mac, [switch]$Migrate)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'update.ps1') -NoRun
 try { Move-LegacyLayout $root } catch { Write-Warning "Không dọn được cấu trúc cũ: $($_.Exception.Message)" }
-# Files an update no longer ships (the updater only adds and replaces): the old Windows web server.
-if (-not (Test-Path -LiteralPath (Join-Path $root '.git'))) { Remove-Item -LiteralPath (Join-Path $PSScriptRoot 'web-server.ps1') -Force -ErrorAction SilentlyContinue }
+# Files an update no longer ships (the updater only adds and replaces): the old Windows web server and the Windows-only
+# tool windows, now the same pages as on macOS.
+if (-not (Test-Path -LiteralPath (Join-Path $root '.git'))) {
+    foreach ($old in @('hub/web-server.ps1', 'hub/native-window.ps1', 'apps/grok-video-prompt/src/gui.ps1', 'apps/grok-video-prompt/src/export-prompts.cjs', 'apps/fb-content/src/gui.ps1', 'apps/fb-content/src/model.ps1', 'apps/fb-content/assets')) {
+        Remove-Item -LiteralPath (Join-Path $root $old) -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
 if ($Migrate) { return }
 
 $tools = @(Get-HubTools $root)
@@ -24,222 +29,116 @@ if ($Mac) {
     return (Join-Path $tools[0].Root $tools[0].mac)
 }
 
-$tool = $tools[0]
-if ($tools.Count -gt 1) {
-    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
-    [Windows.Forms.Application]::EnableVisualStyles()
-    $form = New-Object Windows.Forms.Form -Property @{ Text = ('Tools Hub ' + (Get-InstalledVersion $root)).Trim(); Size = '1120,840'; MinimumSize = '1040,760'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240); Font = New-Object Drawing.Font('Segoe UI', 10) }
-    $hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
-    if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
-    $menuTitle = $form.Text; $menuIcon = $form.Icon
-    # One window, as on macOS: the menu is a page, and a tool opens as a page in its place (Open-HubTool); "← Menu"
-    # in the tool brings the menu back. The menu page is as wide as the window before anything is anchored in it.
-    $menuPage = New-Object Windows.Forms.Panel -Property @{ Size = $form.ClientSize; Dock = 'Fill' }
-    $form.Controls.Add($menuPage)
-    # Same size and 20px sides as Product Review's window; the title row is 64px high like its header.
-    $title = New-Object Windows.Forms.Label -Property @{ Text = 'Tools Hub'; Location = '20,19'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI', 13) }
-    $menuPage.Controls.Add($title)
-    # Cập nhật: top right in every window, as in Product Review; green with the version once a newer one is out.
-    . (Join-Path $PSScriptRoot 'winforms.ps1'); . (Join-Path $PSScriptRoot 'update-dialog.ps1')
-    $logDir = Join-Path $root 'workspace/logs'; New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-    $current = Get-InstalledVersion $root
-    $btnUpdate = New-Object Windows.Forms.Button -Property @{ Text = 'Cập nhật'; Size = '100,32'; Anchor = 'Top,Right' }
-    $btnUpdate.Location = New-Object Drawing.Point(($form.ClientSize.Width - 24 - 100), 16)
-    Set-FlatButton $btnUpdate
-    $btnUpdate.Add_Click({
-        if (Show-UpdateDialog $form $root $logDir $current) {
-            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'launch.ps1') + '"'))
-            $form.Close()
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+[Windows.Forms.Application]::EnableVisualStyles()
+$logs = Join-Path $root 'workspace/logs'
+New-Item -ItemType Directory -Force -Path $logs | Out-Null
+function Write-HubError([string]$Text) {
+    try { Add-Content -LiteralPath (Join-Path $logs 'app-errors.log') -Encoding UTF8 -Value ("[{0:o}] Tools Hub`r`n  {1}`r`n" -f (Get-Date), $Text) } catch { }
+}
+function Show-HubMessage([string]$Text) { [void][Windows.Forms.MessageBox]::Show($Text, 'Tools Hub', 'OK', 'Warning') }
+
+# Node runs the pages' servers; without it, the installer from Cấu hình (Node.js, Codex, sign-in) runs first.
+function Find-Node {
+    @((Get-Command node.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source), (Join-Path $env:ProgramFiles 'nodejs\node.exe')) |
+        Where-Object { $_ -and (Test-Path -LiteralPath $_) } | Select-Object -First 1
+}
+$node = Find-Node
+if (-not $node) {
+    if ([Windows.Forms.MessageBox]::Show("Tools Hub cần Node.js. Cài ngay?`r`n`r`nCửa sổ cài đặt sẽ mở; cài xong Tools Hub tự mở.", 'Tools Hub', 'OKCancel', 'Information') -ne 'OK') { return }
+    Start-Process powershell.exe -Wait -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'setup/setup-install.ps1') + '"'))
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+    $node = Find-Node
+    if (-not $node) { Show-HubMessage 'Chưa cài được Node.js. Mở Tools Hub lại để thử lần nữa.'; return }
+}
+
+# The server to start, on the port Node would pick for its folder (portFor in hub/picker.mjs), handed to it so the
+# two never disagree: the menu, or the only tool's server ("mac" in tool.json).
+function Get-HubPort([string]$Dir, [int]$Base) {
+    $sha = [Security.Cryptography.SHA1]::Create()
+    try { $hex = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Dir)) | ForEach-Object { $_.ToString('x2') }) } finally { $sha.Dispose() }
+    return $Base + ([Convert]::ToInt32($hex.Substring(0, 6), 16) % 1000)
+}
+if ($tools.Count -eq 1 -and $tools[0].mac) {
+    $entry = [IO.Path]::GetFullPath((Join-Path $tools[0].Root $tools[0].mac)); $serverRoot = $tools[0].Root; $port = Get-HubPort $serverRoot 47000
+    $env:PR_PORT = [string]$port; $serverLogs = Join-Path $serverRoot 'workspace/logs'; $arguments = @(('"' + $entry + '"'), '--no-open')
+} else {
+    $entry = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'picker.mjs')); $serverRoot = $root; $port = Get-HubPort $root 46000
+    $env:HUB_PICKER_PORT = [string]$port; $serverLogs = $logs; $arguments = @(('"' + $entry + '"'))
+}
+$env:HUB_NO_WINDOW = '1'
+function Test-HubServer {
+    try {
+        $answer = (New-Object Net.WebClient).DownloadString("http://127.0.0.1:$port/api/root") | ConvertFrom-Json
+        return ([string]$answer.root).TrimEnd('\').ToLowerInvariant() -eq $serverRoot.TrimEnd('\').ToLowerInvariant()
+    } catch { return $false }
+}
+if (-not (Test-HubServer)) {
+    New-Item -ItemType Directory -Force -Path $serverLogs | Out-Null
+    $out = Join-Path $serverLogs 'server.log'; $err = Join-Path $serverLogs 'server.err.log'
+    foreach ($file in @($out, $err)) { if ((Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 1MB) { Move-Item -LiteralPath $file -Destination ($file -replace '\.log$', '.old.log') -Force } }
+    Start-Process $node -ArgumentList $arguments -WorkingDirectory $serverRoot -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err | Out-Null
+    for ($i = 0; $i -lt 80 -and -not (Test-HubServer); $i++) { Start-Sleep -Milliseconds 250 }
+    if (-not (Test-HubServer)) { Write-HubError "Server did not start: $entry (port $port)"; Show-HubMessage "Không mở được Tools Hub.`r`n`r`nChi tiết ở workspace/logs/server.err.log."; return }
+}
+$startUrl = "http://127.0.0.1:$port/"
+
+# The WebView2 SDK is loaded from a copy in workspace/, so an update can replace hub/webview2 while the window is open.
+# Without the WebView2 Runtime (older Windows 10), the pages open in the default browser instead.
+$sdkSource = Join-Path $PSScriptRoot 'webview2'
+$sdk = Join-Path $root 'workspace/webview2/sdk'
+try {
+    foreach ($file in @(Get-ChildItem -LiteralPath $sdkSource -Recurse -File -Filter *.dll)) {
+        $to = Join-Path $sdk $file.FullName.Substring($sdkSource.Length + 1)
+        $copy = Get-Item -LiteralPath $to -ErrorAction SilentlyContinue
+        if (-not $copy -or $copy.Length -ne $file.Length -or $copy.LastWriteTimeUtc -ne $file.LastWriteTimeUtc) {
+            New-Item -ItemType Directory -Force -Path (Split-Path $to -Parent) | Out-Null
+            try { Copy-Item -LiteralPath $file.FullName -Destination $to -Force } catch { }
         }
-    })
-    $menuPage.Controls.Add($btnUpdate)
-    # Cấu hình: the settings every tool shares (hub/setup), left of Cập nhật as in each tool's window.
-    . (Join-Path $PSScriptRoot 'setup/setup-dialog.ps1')
-    $btnConfig = New-Object Windows.Forms.Button -Property @{ Text = 'Cấu hình'; Size = '100,32'; Anchor = 'Top,Right' }
-    Set-FlatButton $btnConfig
-    $placeConfig = { $btnConfig.Location = New-Object Drawing.Point(($btnUpdate.Left - 8 - 100), 16) }
-    & $placeConfig
-    $menuPage.Controls.Add($btnConfig)
-    # Whether Cấu hình is done, above the tools: every step but the quota must be OK before the tools work. Checked in
-    # the background (setup-check.ps1) when the menu opens and after Cấu hình closes; Cấu hình turns green until done.
-    $setupBox = New-Object Windows.Forms.Panel -Property @{ Location = '20,78'; Size = '1064,44'; Anchor = 'Top,Left,Right'; BackColor = [Drawing.Color]::White; BorderStyle = 'FixedSingle' }
-    $setupText = New-Object Windows.Forms.Label -Property @{ Location = '12,0'; Size = '900,42'; Anchor = 'Top,Left,Right'; TextAlign = 'MiddleLeft'; AutoEllipsis = $true; Text = '○  Đang kiểm tra cấu hình…'; ForeColor = $script:Ui.Muted }
-    $setupFix = New-Object Windows.Forms.Button -Property @{ Text = 'Cấu hình ngay'; Size = '130,30'; Location = '922,6'; Anchor = 'Top,Right'; Visible = $false }
-    Set-FlatButton $setupFix -Primary
-    $setupBox.Controls.AddRange(@($setupText, $setupFix)); $menuPage.Controls.Add($setupBox)
-    $setupOut = Join-Path $logDir "menu-setup-$PID.json"
-    $script:setupCheck = $null
-    $setupTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
-    $startSetupCheck = {
-        if ($script:setupCheck) { return }
-        $setupText.Text = '○  Đang kiểm tra cấu hình…'; $setupText.ForeColor = $script:Ui.Muted; $setupFix.Visible = $false
-        $script:setupCheck = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $setupOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'setup/setup-check.ps1') + '"'), '-AsJson')
-        $setupTimer.Start()
     }
-    $setupTimer.Add_Tick({
-        if (-not $script:setupCheck.HasExited) { return }
-        $setupTimer.Stop(); $script:setupCheck.Dispose(); $script:setupCheck = $null
-        $names = @{ drive = 'mật khẩu app'; node = 'Node.js'; codex = 'Codex'; login = 'đăng nhập ChatGPT' }
-        try {
-            $steps = @((Get-Content -LiteralPath $setupOut -Raw -Encoding UTF8 | ConvertFrom-Json).Steps)
-            $missing = @($steps | Where-Object { $names.ContainsKey([string]$_.Id) -and $_.State -notin @('ok', 'warn') } | ForEach-Object { $names[[string]$_.Id] })
-            if ($missing.Count) {
-                $setupText.Text = "✖  Chưa cấu hình xong: còn thiếu $($missing -join ', '). Cấu hình đủ rồi mới dùng được các công cụ."
-                $setupText.ForeColor = $script:Ui.Warn; $setupFix.Visible = $true; Set-FlatButton $btnConfig -Primary
-            } else {
-                $setupText.Text = '✔  Đã cấu hình đủ. Các công cụ sẵn sàng dùng.'
-                $setupText.ForeColor = $script:Ui.Ok; Set-FlatButton $btnConfig
-            }
-        } catch { $setupText.Text = '!  Chưa kiểm tra được cấu hình. Bấm Cấu hình để xem.'; $setupText.ForeColor = $script:Ui.Warn }
-    })
-    $btnConfig.Add_Click({ Show-HubSetup $form $root; & $startSetupCheck })
-    $setupFix.Add_Click({ $btnConfig.PerformClick() })
-    $updateOut = Join-Path $logDir "menu-update-$PID.txt"
-    $script:menuUpdateCheck = $null
-    $menuUpdateTimer = New-Object Windows.Forms.Timer -Property @{ Interval = 500 }
-    $menuUpdateTimer.Add_Tick({
-        if (-not $script:menuUpdateCheck -or -not $script:menuUpdateCheck.HasExited) { return }
-        $menuUpdateTimer.Stop()
-        try {
-            $script:menuUpdateCheck.WaitForExit()
-            $next = (Get-Content -LiteralPath $updateOut -Raw -Encoding UTF8 -ErrorAction SilentlyContinue).Trim()
-            if ($script:menuUpdateCheck.ExitCode -eq 0 -and $next -match '^v?\d+\.\d+\.\d+$') {
-                $btnUpdate.Text = "Cập nhật $next"; $btnUpdate.Width = 150; $btnUpdate.Left = $form.ClientSize.Width - 24 - 150; Set-FlatButton $btnUpdate -Primary; & $placeConfig
-            }
-        } catch { } finally { $script:menuUpdateCheck.Dispose(); $script:menuUpdateCheck = $null }
-    })
-    $form.Add_Shown({
-        # No button starts focused: Windows would draw it with a thick black border.
-        $form.ActiveControl = $null
-        & $startSetupCheck
-        try {
-            $script:menuUpdateCheck = Start-Process powershell.exe -WindowStyle Hidden -PassThru -RedirectStandardOutput $updateOut -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'update.ps1') + '"'), '-Root', ('"' + $root + '"'), '-Check')
-            $menuUpdateTimer.Start()
-        } catch { }
-    })
-    # Tools in a 3-column grid, as on macOS (hub/picker.mjs): icon, name and the platforms it works with ("platforms" in
-    # tool.json), a line, then what it does ("features"). No bold text; the whole card opens the tool.
-    $cols = 3; $rows = [Math]::Ceiling($tools.Count / $cols)
-    $grid = New-Object Windows.Forms.TableLayoutPanel -Property @{ Location = '20,134'; Size = (New-Object Drawing.Size(1076, ($rows * 202))); Anchor = 'Top,Left,Right'; ColumnCount = $cols; RowCount = $rows }
-    for ($i = 0; $i -lt $cols; $i++) { [void]$grid.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent', (100 / $cols)))) }
-    for ($i = 0; $i -lt $rows; $i++) { [void]$grid.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute', 202))) }
-    $script:cardPen = New-Object Drawing.Pen([Drawing.Color]::FromArgb(172, 172, 172))
-    $script:cardHoverPen = New-Object Drawing.Pen($script:Ui.Accent)
-    $script:rulePen = New-Object Drawing.Pen([Drawing.Color]::FromArgb(227, 227, 227))
-    $script:smallFont = New-Object Drawing.Font('Segoe UI', 8.5)
-    $script:featureFont = New-Object Drawing.Font('Segoe UI', 9.75)
-    # Any control in a card finds its card, the panel whose Tag is the tool.
-    $cardOf = { param($c) while ($c -and -not ($c -is [Windows.Forms.Panel] -and $c.Name -eq 'toolCard')) { $c = $c.Parent }; $c }
-    # A tool's page: its own window (src/gui.ps1, the same one it shows on its own) built in a module of its own, so
-    # its variables never meet the menu's or another tool's, then placed in this window instead of the menu. Closing
-    # it ("← Menu") brings the menu back; one closed after Cập nhật opens a new menu with the new files.
-    $script:page = $null; $script:pageModule = $null
-    function Open-HubTool($Tool) {
-        if ($script:page) { return }
-        $form.Cursor = 'WaitCursor'
-        try {
-            if (-not $Tool.windows) { throw 'Công cụ chưa có giao diện Windows.' }
-            $global:ToolsHubHosted = $true
-            $module = New-Module -Name "tools-hub-$($Tool.id)" -ScriptBlock { param($Entry) . $Entry; Export-ModuleMember } -ArgumentList (Join-Path $Tool.Root $Tool.windows)
-            $page = & $module { $form }
-            if (-not ($page -is [Windows.Forms.Form])) { throw 'Công cụ không dựng được cửa sổ.' }
-            $page.TopLevel = $false; $page.FormBorderStyle = 'None'; $page.MinimumSize = [Drawing.Size]::Empty; $page.Dock = 'Fill'
-            $shown = @{ Done = $false }
-            $page.Add_Shown({ $shown.Done = $true }.GetNewClosure())
-            $page.Add_FormClosed({ param($sender) Close-HubTool $sender })
-            $page.Add_Disposed({ param($sender) Close-HubTool $sender })
-            $script:page = $page; $script:pageModule = $module
-            $form.Controls.Add($page); $page.BringToFront(); $menuPage.Visible = $false
-            $form.Text = $page.Text; if ($page.Icon) { $form.Icon = $page.Icon }
-            $page.Show(); [void]$page.Focus()
-            # A form inside another may not get Shown; the tool's start-up work (checks, downloads) waits on it.
-            [void]$form.BeginInvoke([Windows.Forms.MethodInvoker]{
-                if (-not $shown.Done -and -not $page.IsDisposed) { $shown.Done = $true; [Windows.Forms.Form].GetMethod('OnShown', [Reflection.BindingFlags]'Instance,NonPublic').Invoke($page, @([EventArgs]::Empty)) }
-            }.GetNewClosure())
-        } catch {
-            Write-HubError $_.Exception
-            if ($script:page) { $page = $script:page; $script:page = $null; $form.Controls.Remove($page); $page.Dispose() }
-            $script:pageModule = $null; $menuPage.Visible = $true; $form.Text = $menuTitle; $form.Icon = $menuIcon
-            [void][Windows.Forms.MessageBox]::Show($form, "Không mở được công cụ: $($_.Exception.Message)", 'Tools Hub')
-        } finally { $form.Cursor = 'Default' }
-    }
-    function Close-HubTool($Page) {
-        if (-not $script:page -or -not [object]::ReferenceEquals($script:page, $Page)) { return }
-        $module = $script:pageModule; $script:page = $null; $script:pageModule = $null
-        # The tool's timers stop with its page (its own process used to end them).
-        if ($module) { try { & $module { Get-Variable -Scope Script | Where-Object { $_.Value -is [Windows.Forms.Timer] } | ForEach-Object { try { $_.Value.Stop(); $_.Value.Dispose() } catch { } } } } catch { } }
-        if (-not $form.IsDisposed) { $form.Controls.Remove($Page) }
-        if ($Page.Tag -eq 'updated') {
-            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'launch.ps1') + '"'))
-            if (-not $form.IsDisposed) { $form.Close() }; return
-        }
-        if ($form.IsDisposed -or -not $form.Visible) { return }
-        $menuPage.Visible = $true; $form.Text = $menuTitle; $form.Icon = $menuIcon; $form.ActiveControl = $null
-    }
-    # Closing the window closes the open tool first, so it can save, or say a run is still going.
-    $form.Add_FormClosing({
-        if (-not $script:page) { return }
-        $script:page.Close()
-        if ($script:page) { $_.Cancel = $true }
-    })
-    # An error in a tool's button is written down and shown instead of WinForms' own dialog.
-    function Write-HubError($Exception) {
-        try { [IO.File]::AppendAllText((Join-Path $logDir 'app-errors.log'), ((Get-Date).ToString('o') + "`r`n" + $Exception.ToString() + "`r`n")) } catch { }
-    }
-    [Windows.Forms.Application]::add_ThreadException({
-        param($sender, $e)
-        Write-HubError $e.Exception
-        [void][Windows.Forms.MessageBox]::Show("Có lỗi: $($e.Exception.Message)`r`n`r`nChi tiết đã lưu trong workspace/logs/app-errors.log.", 'Tools Hub', 'OK', 'Warning')
-    })
-    $openCard = { param($s) Open-HubTool (& $cardOf $s).Tag }
-    foreach ($item in $tools) {
-        $card = New-Object ToolsHub.ToolCard -Property @{ Name = 'toolCard'; Tag = $item; Dock = 'Fill'; Margin = '0,0,12,12'; BackColor = [Drawing.Color]::White; Cursor = 'Hand' }
-        # Border (green on hover), the line under the head, and the platforms: a colour dot and the name each.
-        $card.Add_Paint({ param($s, $e)
-            $g = $e.Graphics; $g.SmoothingMode = 'AntiAlias'
-            $g.DrawRectangle($(if ($s.Hovered) { $script:cardHoverPen } else { $script:cardPen }), 0, 0, $s.Width - 1, $s.Height - 1)
-            # Hover invalidates only the border; do not measure and redraw all the card text for it.
-            if (-not $e.ClipRectangle.IntersectsWith((New-Object Drawing.Rectangle(2, 2, ($s.Width - 4), ($s.Height - 4))))) { return }
-            $g.DrawLine($script:rulePen, 16, 80, $s.Width - 17, 80)
-            $x = 76
-            foreach ($p in @($s.Tag.platforms)) {
-                if (-not $p) { continue }
-                $b = New-Object Drawing.SolidBrush([Drawing.ColorTranslator]::FromHtml([string]$p.color)); $g.FillEllipse($b, $x, 50, 7, 7); $b.Dispose()
-                [Windows.Forms.TextRenderer]::DrawText($g, [string]$p.name, $script:smallFont, (New-Object Drawing.Point(($x + 11), 45)), [Drawing.Color]::FromArgb(96, 96, 96))
-                $x += 11 + [Windows.Forms.TextRenderer]::MeasureText([string]$p.name, $script:smallFont).Width + 8
-            }
-            $y = 92
-            foreach ($f in @($s.Tag.features)) {
-                if (-not $f) { continue }
-                [Windows.Forms.TextRenderer]::DrawText($g, '✓', $script:featureFont, (New-Object Drawing.Point(16, $y)), $script:Ui.Accent)
-                [Windows.Forms.TextRenderer]::DrawText($g, [string]$f, $script:featureFont, (New-Object Drawing.Rectangle(36, $y, ($s.Width - 52), 22)), [Drawing.Color]::FromArgb(30, 30, 30), [Windows.Forms.TextFormatFlags]'EndEllipsis')
-                $y += 23
-            }
-        })
-        $png = Join-Path $item.Root ([IO.Path]::ChangeExtension([string]$item.icon, '.png'))
-        $icon = New-Object Windows.Forms.PictureBox -Property @{ Location = '16,16'; Size = '48,48'; SizeMode = 'Zoom'; BackColor = [Drawing.Color]::Transparent }
-        if (Test-Path -LiteralPath $png) { $icon.Image = New-Object Drawing.Bitmap($png) }
-        $name = New-Object Windows.Forms.Label -Property @{ Text = $item.name; Location = '74,18'; AutoSize = $true; Font = New-Object Drawing.Font('Segoe UI', 11); BackColor = [Drawing.Color]::Transparent }
-        $card.Controls.AddRange(@($icon, $name))
-        $card.Add_Resize({ param($s) $s.Invalidate() })
-        foreach ($c in @($card) + @($card.Controls)) { $c.Add_Click($openCard); $c.Cursor = 'Hand' }
-        [void]$grid.Controls.Add($card)
-    }
-    $menuPage.Controls.Add($grid)
-    $footer = New-Object Windows.Forms.Label -Property @{ Text = "© $((Get-Date).Year) Tools Hub"; Dock = 'Bottom'; Height = 36; TextAlign = 'MiddleCenter'; ForeColor = [Drawing.Color]::FromArgb(96, 96, 96); Font = New-Object Drawing.Font('Segoe UI', 9) }
-    $menuPage.Controls.Add($footer)
-    try { [Windows.Forms.Application]::Run($form) }
-    finally {
-        $setupTimer.Stop(); $setupTimer.Dispose()
-        $menuUpdateTimer.Stop(); $menuUpdateTimer.Dispose()
-        if ($script:menuUpdateCheck) { $script:menuUpdateCheck.Dispose(); $script:menuUpdateCheck = $null }
-        if ($script:setupCheck) { $script:setupCheck.Dispose(); $script:setupCheck = $null }
-        $form.Dispose()
-        $script:cardPen.Dispose(); $script:cardHoverPen.Dispose(); $script:rulePen.Dispose()
-        $script:smallFont.Dispose(); $script:featureFont.Dispose()
-    }
+    Add-Type -Path (Join-Path $sdk 'Microsoft.Web.WebView2.Core.dll'), (Join-Path $sdk 'Microsoft.Web.WebView2.WinForms.dll')
+    $arch = switch ($env:PROCESSOR_ARCHITECTURE) { 'ARM64' { 'arm64' } 'AMD64' { 'x64' } default { 'x86' } }
+    [Microsoft.Web.WebView2.Core.CoreWebView2Environment]::SetLoaderDllFolderPath((Join-Path $sdk $arch))
+    [void][Microsoft.Web.WebView2.Core.CoreWebView2Environment]::GetAvailableBrowserVersionString([NullString]::Value)
+    $webView = New-Object Microsoft.Web.WebView2.WinForms.WebView2 -Property @{ Dock = 'Fill' }
+    $webView.CreationProperties = New-Object Microsoft.Web.WebView2.WinForms.CoreWebView2CreationProperties -Property @{ UserDataFolder = (Join-Path $root 'workspace/webview2/data') }
+} catch {
+    Write-HubError "WebView2: $($_.Exception.Message)"
+    Start-Process $startUrl
     return
 }
-# A single tool: its own window, without the menu.
-if (-not $tool.windows) { throw 'Công cụ chưa có giao diện Windows.' }
-& (Join-Path $tool.Root $tool.windows)
+
+$form = New-Object Windows.Forms.Form -Property @{ Text = 'Tools Hub'; Size = '1120,840'; MinimumSize = '900,640'; StartPosition = 'CenterScreen'; BackColor = [Drawing.Color]::FromArgb(240, 240, 240) }
+$hubIcon = Join-Path $PSScriptRoot 'assets/icon.png'
+if (Test-Path -LiteralPath $hubIcon) { $form.Icon = [Drawing.Icon]::FromHandle((New-Object Drawing.Bitmap($hubIcon)).GetHicon()) }
+$form.Controls.Add($webView)
+# The page's title is the window's. The menu and the tools' servers stay in the window; other links (a new window
+# too) open in the default browser.
+$isLocal = { param([string]$Uri) $Uri -match '^(http://127\.0\.0\.1:\d+/|about:|data:)' }
+$webView.add_CoreWebView2InitializationCompleted({
+        param($source, $ready)
+        if (-not $ready.IsSuccess) { Write-HubError "WebView2: $($ready.InitializationException.Message)"; Start-Process $startUrl; $form.Close(); return }
+        $core = $webView.CoreWebView2
+        $core.Settings.IsStatusBarEnabled = $false
+        $core.add_DocumentTitleChanged({ $form.Text = $webView.CoreWebView2.DocumentTitle })
+        $core.add_NewWindowRequested({
+                param($source, $request)
+                $request.Handled = $true
+                if (& $isLocal $request.Uri) { $webView.CoreWebView2.Navigate($request.Uri) } else { Start-Process $request.Uri }
+            })
+        $core.add_NavigationStarting({
+                param($source, $navigation)
+                if (-not (& $isLocal $navigation.Uri)) { $navigation.Cancel = $true; Start-Process $navigation.Uri }
+            })
+    })
+# Closing the window stops the servers (the menu stops the tools'), after asking while a tool's run is still going.
+$form.Add_FormClosing({
+        param($source, $closing)
+        try {
+            $run = (New-Object Net.WebClient).DownloadString("http://127.0.0.1:$(([Uri]$webView.Source).Port)/api/run") | ConvertFrom-Json
+            if ($run.running -and [Windows.Forms.MessageBox]::Show($form, 'Đang chạy. Đóng cửa sổ sẽ dừng lượt chạy này. Vẫn đóng?', 'Tools Hub', 'YesNo', 'Warning') -ne 'Yes') { $closing.Cancel = $true }
+        } catch { }
+    })
+$form.Add_FormClosed({ try { [void](New-Object Net.WebClient).UploadString("http://127.0.0.1:$port/api/quit", '') } catch { } })
+$webView.Source = [Uri]$startUrl
+try { [Windows.Forms.Application]::Run($form) } finally { $webView.Dispose(); $form.Dispose() }
