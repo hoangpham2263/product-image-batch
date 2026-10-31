@@ -5,12 +5,46 @@ $script:Ui=@{
     Page=[Drawing.SystemColors]::Control; Hover=[Drawing.Color]::FromArgb(230,238,248)
     Ok=[Drawing.Color]::DarkGreen; Warn=[Drawing.Color]::FromArgb(176,96,0); Error=[Drawing.Color]::Firebrick
 }
-# Native look like the earlier version: system buttons, only the main action is green.
+# Flat, single-pixel borders as in v1; never fall back to the raised classic Windows button.
 function Set-FlatButton($Button,[switch]$Primary) {
     $ui=$script:Ui
     if($Primary){$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Accent;$Button.ForeColor=[Drawing.Color]::White;$Button.FlatAppearance.BorderSize=0;$Button.FlatAppearance.MouseOverBackColor=$ui.AccentDark}
     # Back from green: the system colours again, not the white text it had.
-    else{$Button.FlatStyle='Standard';$Button.ForeColor=[Drawing.SystemColors]::ControlText;$Button.BackColor=[Drawing.SystemColors]::Control;$Button.UseVisualStyleBackColor=$true}
+    else{$Button.FlatStyle='Flat';$Button.ForeColor=$ui.Ink;$Button.BackColor=$ui.Page;$Button.UseVisualStyleBackColor=$false;$Button.FlatAppearance.BorderSize=1;$Button.FlatAppearance.BorderColor=$ui.Line;$Button.FlatAppearance.MouseOverBackColor=$ui.Hover;$Button.FlatAppearance.MouseDownBackColor=[Drawing.Color]::FromArgb(215,225,235)}
+}
+
+# Hover stays in WinForms rather than dispatching PowerShell for every child enter/leave.
+if (-not ('ToolsHub.ToolCard' -as [type])) {
+    Add-Type -ReferencedAssemblies System.Windows.Forms,System.Drawing -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+namespace ToolsHub {
+    public class ToolCard : Panel {
+        public bool Hovered { get; private set; }
+        public ToolCard() {
+            DoubleBuffered = true;
+            ResizeRedraw = true;
+        }
+        protected override void OnControlAdded(ControlEventArgs e) {
+            base.OnControlAdded(e);
+            e.Control.MouseEnter += UpdateHover;
+            e.Control.MouseLeave += UpdateHover;
+        }
+        protected override void OnMouseEnter(EventArgs e) { base.OnMouseEnter(e); UpdateHover(this,e); }
+        protected override void OnMouseLeave(EventArgs e) { base.OnMouseLeave(e); UpdateHover(this,e); }
+        private void UpdateHover(object sender, EventArgs e) {
+            bool next = ClientRectangle.Contains(PointToClient(Cursor.Position));
+            if (next == Hovered) return;
+            Hovered = next;
+            Invalidate(new Rectangle(0,0,Width,1));
+            Invalidate(new Rectangle(0,Height-1,Width,1));
+            Invalidate(new Rectangle(0,0,1,Height));
+            Invalidate(new Rectangle(Width-1,0,1,Height));
+        }
+    }
+}
+'@
 }
 # Chevron: one thin rounded mark for every dropdown (lists and menu buttons), drawn the same as on macOS.
 function New-ChevronImage([Drawing.Color]$Color) {

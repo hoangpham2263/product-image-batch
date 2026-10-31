@@ -152,7 +152,9 @@ $fromHub=[bool]$env:TOOLS_HUB_MENU
 $btnMenu=New-Object Windows.Forms.Button -Property @{Text='← Menu';Location='20,16';Size='90,32';Visible=$fromHub}
 Set-FlatButton $btnMenu
 $btnMenu.Add_Click({
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path (Get-HubRoot $root) 'hub\launch.ps1')+'"'))
+    if ($env:TOOLS_HUB_MENU -ne 'return') {
+        Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+(Join-Path (Get-HubRoot $root) 'hub\launch.ps1')+'"'))
+    }
     $form.Close()
 })
 $title=New-Object Windows.Forms.Label -Property @{Text='Product Review';Location=$(if($fromHub){'122,19'}else{'20,19'});AutoSize=$true;Font=(New-Object Drawing.Font('Segoe UI',13));ForeColor=$ink}
