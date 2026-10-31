@@ -1,7 +1,8 @@
 ﻿# Opens Tools Hub: tidies an install updated from before Tools Hub, then shows the tools (apps/*/tool.json, each with
-# its icon) and opens the one picked. A tool runs as "windows" (PowerShell), "mac" (Node server) or "web" (a page
-# opened in the browser). Windows (start-app.cmd) shows the picker here; macOS (start-app.command) gets the Node entry
-# to start printed: hub/picker.mjs when there is more than one tool. -Migrate only tidies the layout.
+# its icon) and opens the one picked. On Windows every tool is a WinForms window ("windows" in tool.json), opened in
+# its own process while the menu waits hidden; on macOS a tool is a web page ("web") or a Node server ("mac"):
+# start-app.command gets the Node entry to start printed, hub/picker.mjs when there is more than one tool.
+# -Migrate only tidies the layout.
 param([switch]$Mac, [switch]$Migrate)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -136,6 +137,11 @@ if ($tools.Count -gt 1) {
         }
         $toolTimer.Stop(); $script:toolProcess.WaitForExit(); $toolExitCode = $script:toolProcess.ExitCode
         $script:toolProcess.Dispose(); $script:toolProcess = $null
+        # 3: the tool installed an update (hub/native-window.ps1); this menu's code is old, so a new one opens.
+        if ($toolExitCode -eq 3) {
+            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + (Join-Path $PSScriptRoot 'launch.ps1') + '"'))
+            $form.Close(); return
+        }
         $form.Show(); $form.Activate()
         if ($toolExitCode -ne 0) {
             $setupText.Text = 'Không mở được công cụ. Chi tiết đã lưu trong workspace/logs/tool-startup-error.log.'

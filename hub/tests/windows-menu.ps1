@@ -20,7 +20,7 @@ $state=@{Rounds=0;Waiting=$false;Error=$null;Started=(Get-Date)}
 $check=New-Object Windows.Forms.Timer -Property @{Interval=100}
 try {
     Set-FlatButton $button -Primary; Set-FlatButton $button
-    if($button.FlatStyle -ne 'Flat' -or $button.FlatAppearance.BorderSize -ne 1 -or $button.ForeColor -eq [Drawing.Color]::White){throw 'Button style did not reset to flat v1 style.'}
+    if($button.FlatStyle -ne 'Standard' -or -not $button.UseVisualStyleBackColor -or $button.ForeColor -eq [Drawing.Color]::White){throw 'Button style did not reset to the system button.'}
     # Include spaces in the real child entry path and confirm the inherited menu protocol.
     $entry=Join-Path $testDir 'fake tool.ps1'
     '$env:TOOLS_HUB_MENU | Set-Content -LiteralPath (Join-Path $PSScriptRoot ''menu.txt''); Start-Sleep -Milliseconds 500' | Set-Content -LiteralPath $entry
@@ -58,7 +58,7 @@ try {
         & $menuClick
         if(-not $form.IsDisposed){throw 'Product Review Menu did not close the tool.'}
     } finally { Remove-Item Function:\Start-Process; $env:TOOLS_HUB_MENU=$previousMenu }
-    'PASS: flat button reset, three real child-tool/menu round trips, Product Review return without a duplicate launcher.'
+    'PASS: system button reset, three real child-tool/menu round trips, Product Review return without a duplicate launcher.'
 } finally {
     $check.Stop();$check.Dispose()
     if($toolTimer){$toolTimer.Stop();$toolTimer.Dispose()}

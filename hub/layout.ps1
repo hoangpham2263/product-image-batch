@@ -13,14 +13,6 @@ function Get-HubTools([string]$Root) {
     return @($tools | Sort-Object { if ($null -ne $_.order) { [int]$_.order } else { 99 } }, Root)
 }
 
-# The menu's local address for this install, the same as hub/picker.mjs picks on macOS: 46000 + part of the folder's
-# SHA-1, so two installs never share it.
-function Get-HubWebPort([string]$Root) {
-    $sha = [Security.Cryptography.SHA1]::Create()
-    try { $hex = -join ($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($Root)) | ForEach-Object { $_.ToString('x2') }) } finally { $sha.Dispose() }
-    return 46000 + ([Convert]::ToInt32($hex.Substring(0, 6), 16) % 1000)
-}
-
 # Before Tools Hub the app lived at the root (src/, data/, AGENTS.md, workspace/). An install updated from such a
 # version gets the new files beside the old ones; this moves its data into apps/product-review/ and removes the old
 # files. Kept at the root: src/gui.ps1 and src/mac/server.mjs, which old shortcuts and the old updater still open.

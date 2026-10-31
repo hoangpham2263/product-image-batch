@@ -1,4 +1,4 @@
-# Windows native: bàn giao 31/10/2026
+﻿# Windows native: bàn giao 31/10/2026
 
 Yêu cầu: macOS giữ bản web đang chạy ổn. Windows dùng WinForms native, không mở Edge/Chrome để chạy tool. Cần đồng bộ chức năng và logic, không thay macOS sang native.
 
@@ -22,6 +22,15 @@ powershell -NoProfile -STA -ExecutionPolicy Bypass -File hub/tests/windows-navig
 ```
 
 Đã qua kiểm tra 30 style/thay tên, 4 nền tảng × 3 giọng văn, callback Menu của Product Review, và hai vòng mở/đóng/quay lại của cả ba cửa sổ native thật. Có render xem bố cục Grok/Content MXH. Không chạy AI hoặc kiểm tra xuất bản nội dung thật.
+
+## Cập nhật sau bàn giao (v2.0.37)
+
+- Bỏ hẳn `hub/web-server.ps1`, `Get-HubWebPort` và `?win`: Windows không còn đường web nào.
+- `hub/native-window.ps1` viết lại thành bộ điều khiển dùng chung theo `tool.css`: Group (khung xám, tiêu đề trong khung), Box, CardList (.listbox/.card), Toggle (nút nền tảng có logo), Tile, Row (.qrow), seg, toast; header giống Product Review, Cập nhật tự kiểm tra bản mới. Kiểu C# 5, đã biên dịch thử với WinForms.
+- Nút thường quay lại nút hệ thống Windows 10 (đúng `.btn`), nút chính màu xanh.
+- Grok và Content MXH dựng lại theo đúng bố cục trang macOS (cột phải 400px, nhóm, khoảng cách). Content MXH có hàng sản phẩm như Product Review, nút nền tảng có logo (`apps/fb-content/assets/*.png`), tab bài đăng, ảnh gốc → bối cảnh, hộp Xem / sửa có kéo thả ảnh.
+- Lỗi đã sửa: TLS 1.2 cho API video, WebClient đọc UTF-8, Grok không còn bắt buộc Node, xây lại hàng trong lúc đang bấm nút của hàng đó, cập nhật từ trong tool mở lại menu mới (mã thoát 3).
+- Chưa chạy được trên Windows từ máy Mac: cần chạy lại các test ở trên trên Windows.
 
 ## Còn làm
 

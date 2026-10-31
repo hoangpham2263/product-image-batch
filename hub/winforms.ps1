@@ -5,12 +5,13 @@ $script:Ui=@{
     Page=[Drawing.SystemColors]::Control; Hover=[Drawing.Color]::FromArgb(230,238,248)
     Ok=[Drawing.Color]::DarkGreen; Warn=[Drawing.Color]::FromArgb(176,96,0); Error=[Drawing.Color]::Firebrick
 }
-# Flat, single-pixel borders as in v1; never fall back to the raised classic Windows button.
+# The Windows 10 system button (grey #e1e1e1, 1px #adadad border, blue on hover), which hub/assets/tool.css copies
+# for macOS as .btn; only the main action is green.
 function Set-FlatButton($Button,[switch]$Primary) {
     $ui=$script:Ui
     if($Primary){$Button.FlatStyle='Flat';$Button.UseVisualStyleBackColor=$false;$Button.BackColor=$ui.Accent;$Button.ForeColor=[Drawing.Color]::White;$Button.FlatAppearance.BorderSize=0;$Button.FlatAppearance.MouseOverBackColor=$ui.AccentDark}
     # Back from green: the system colours again, not the white text it had.
-    else{$Button.FlatStyle='Flat';$Button.ForeColor=$ui.Ink;$Button.BackColor=$ui.Page;$Button.UseVisualStyleBackColor=$false;$Button.FlatAppearance.BorderSize=1;$Button.FlatAppearance.BorderColor=$ui.Line;$Button.FlatAppearance.MouseOverBackColor=$ui.Hover;$Button.FlatAppearance.MouseDownBackColor=[Drawing.Color]::FromArgb(215,225,235)}
+    else{$Button.FlatStyle='Standard';$Button.ForeColor=[Drawing.SystemColors]::ControlText;$Button.BackColor=[Drawing.SystemColors]::Control;$Button.UseVisualStyleBackColor=$true}
 }
 
 # Hover stays in WinForms rather than dispatching PowerShell for every child enter/leave.
