@@ -19,8 +19,12 @@ async function generateFlow(job) {
   for (let paste = 1; paste <= 3; paste++) {
     await pasteFiles(editor, files);
     if (!files.length) break;
-    try { await waitFor(() => flowImages().size >= before.size + files.length, paste === 3 ? 120000 : 45000, "tải ảnh tham khảo lên Flow"); break; }
-    catch (error) { if (paste === 3) throw error; editor = await waitFor(composer, 30000, "ô nhập Flow"); }
+    const uploaded = () => {
+      if (flowConsent()) throw new Error(FLOW_CONSENT);
+      return flowImages().size >= before.size + files.length;
+    };
+    try { await waitFor(uploaded, paste === 3 ? 120000 : 45000, "tải ảnh tham khảo lên Flow"); break; }
+    catch (error) { if (paste === 3 || error.message === FLOW_CONSENT) throw error; editor = await waitFor(composer, 30000, "ô nhập Flow"); }
   }
   if (files.length) {
     flowImages().forEach((src) => before.add(src));
@@ -58,6 +62,13 @@ const FLOW_WELCOME = "Google Flow của tài khoản đang chọn đang hiện m
 // each project with it on. The run turns it off (a real click, like the generate button), and Flow's image model (Nano
 // Banana) is then the one in the composer. Only when that does not work does the run stop and say so.
 const FLOW_AGENT = "Google Flow của tài khoản đang chọn đang bật Tác nhân và app chưa tắt được, nên không tạo ảnh. Mở Cấu hình, bấm Mở Flow, vào một dự án, tắt Tác nhân và chọn mô hình ảnh Nano Banana rồi chạy lại.";
+// The first upload of an account asks to agree to Google's terms for uploaded images (Tôi đồng ý / Huỷ). That is the
+// user's own agreement, so the run never clicks it: it stops and says so, instead of pasting again under it.
+const FLOW_CONSENT = "Google Flow của tài khoản đang chọn cần bạn đồng ý quyền sử dụng hình ảnh (lần đầu tải ảnh lên). Mở Cấu hình, bấm Mở Flow, vào một dự án, tải một ảnh lên và bấm Tôi đồng ý rồi chạy lại.";
+const flowConsent = () => [...document.querySelectorAll("[role=dialog]")].some((d) => {
+  const texts = [...d.querySelectorAll("button")].map((b) => b.innerText.trim());
+  return d.getBoundingClientRect().width > 0 && texts.some((t) => /^(Tôi đồng ý|I agree|Agree)$/i.test(t)) && texts.some((t) => /^(Huỷ|Hủy|Cancel)$/i.test(t));
+});
 const agentChip = () => [...document.querySelectorAll("button")].find((b) => b.getAttribute("aria-pressed") === "true" && (b.classList.contains("agent-mode-chip") || /^(Tác nhân|Agent)$/i.test(b.innerText.trim())));
 const flowAgentOn = () => !!agentChip();
 async function turnAgentOff() {
