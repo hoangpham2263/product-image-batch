@@ -9,9 +9,10 @@ $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'update.ps1') -NoRun
 try { Move-LegacyLayout $root } catch { Write-Warning "Không dọn được cấu trúc cũ: $($_.Exception.Message)" }
 # Files an update no longer ships (the updater only adds and replaces): the old Windows web server and the Windows-only
-# tool windows, now the same pages as on macOS.
+# WinForms windows and dialogs, now the same pages as on macOS.
 if (-not (Test-Path -LiteralPath (Join-Path $root '.git'))) {
-    foreach ($old in @('hub/web-server.ps1', 'hub/native-window.ps1', 'apps/grok-video-prompt/src/gui.ps1', 'apps/grok-video-prompt/src/export-prompts.cjs', 'apps/fb-content/src/gui.ps1', 'apps/fb-content/src/model.ps1', 'apps/fb-content/assets')) {
+    foreach ($old in @('hub/web-server.ps1', 'hub/native-window.ps1', 'apps/grok-video-prompt/src/gui.ps1', 'apps/grok-video-prompt/src/export-prompts.cjs', 'apps/fb-content/src/gui.ps1', 'apps/fb-content/src/model.ps1', 'apps/fb-content/assets',
+            'hub/winforms.ps1', 'hub/update-dialog.ps1', 'hub/setup/setup-dialog.ps1', 'hub/setup/drive-login.ps1', 'apps/product-review/src/gui.ps1', 'apps/product-review/src/quota-status.ps1', 'apps/product-review/src/ui')) {
         Remove-Item -LiteralPath (Join-Path $root $old) -Recurse -Force -ErrorAction SilentlyContinue
     }
 }

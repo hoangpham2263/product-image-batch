@@ -1,4 +1,4 @@
-/* Windows 10 classic controls, sized and coloured like src/ui/*.ps1 (WinForms, Segoe UI 10pt). */
+/* Windows 10 classic controls (Segoe UI 10pt). */
 :root {
   --control: #f0f0f0; --ink: rgb(30, 30, 30); --muted: rgb(96, 96, 96); --line: rgb(172, 172, 172);
   --accent: rgb(40, 140, 80); --accent-dark: rgb(32, 118, 66); --surface: #fff; --hover: rgb(230, 238, 248);

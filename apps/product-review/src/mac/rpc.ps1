@@ -17,7 +17,7 @@ $workspace = Initialize-ProjectWorkspace $root
 . (Join-Path $srcDir 'application/batch-import.ps1')
 . (Join-Path $srcDir 'infrastructure/csv.ps1')
 . (Join-Path $srcDir 'application/batch-review.ps1')
-. (Join-Path $srcDir 'ui/progress.ps1')
+. (Join-Path $srcDir 'application/progress.ps1')
 $mapPath = Join-Path $workspace.Root 'reference-inputs/references.json'
 $libraryRoot = Join-Path $root 'data/source-photos'
 

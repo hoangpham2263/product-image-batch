@@ -2,19 +2,11 @@
 $ErrorActionPreference='Stop'
 $root=Split-Path $PSScriptRoot -Parent
 . (Join-Path $root 'src/bootstrap.ps1')
-Add-Type -AssemblyName System.Windows.Forms
-. (Join-Path $root 'src/ui/image-feedback.ps1')
-. (Join-Path $root 'src/ui/manual-references.ps1')
+Add-Type -AssemblyName System.Drawing
 function Assert($Value,[string]$Message){if(-not $Value){throw $Message}}
 $temp=Join-Path $TestWorkspaceRoot ('manual-ref-'+[Guid]::NewGuid().ToString('N'))
 try{
     New-Item -ItemType Directory -Path $temp -Force|Out-Null
-    # The Drive picker keeps only small copies: wide and tall photos both fit the 94px tile.
-    foreach($size in @(@(1280,853),@(853,1280))){
-        $photo=Join-Path $temp "photo-$($size[0]).jpg";$big=[Drawing.Bitmap]::new($size[0],$size[1]);try{$big.Save($photo,[Drawing.Imaging.ImageFormat]::Jpeg)}finally{$big.Dispose()}
-        $thumb=New-ThumbnailImage $photo 94
-        try{Assert ([Math]::Max($thumb.Width,$thumb.Height) -eq 94 -and [Math]::Min($thumb.Width,$thumb.Height) -ge 60) "A $($size[0])x$($size[1]) photo must shrink to fit 94px, got $($thumb.Width)x$($thumb.Height)."}finally{$thumb.Dispose()}
-    }
     $original=Join-Path $temp 'room.png';$bitmap=[Drawing.Bitmap]::new(64,48)
     try{$g=[Drawing.Graphics]::FromImage($bitmap);$g.Clear([Drawing.Color]::Tan);$g.Dispose();$bitmap.Save($original,[Drawing.Imaging.ImageFormat]::Png)}finally{$bitmap.Dispose()}
     $url='https://example.test/p/table';$otherUrl='https://example.test/p/other'
@@ -38,44 +30,10 @@ try{
     $script:Config.ActiveProductUrl='https://example.test/p/unattached'
     $rejected=$false;try{Select-ProductReferences 'product.jpg' 'table' 'missing-manual' $context|Out-Null}catch{$rejected=$true}
     Assert ($rejected -and $script:LibraryCalls -eq 0) 'A product image without a review must stop, never pick from the library.'
-    $editor=New-ProductQueueEditor $temp
-    Set-ProductQueueUrls $editor @($url,$otherUrl)
-    $view=New-Object Windows.Forms.Form -Property @{Size='1120,450';ShowInTaskbar=$false;StartPosition='Manual';Location='-32000,-32000'}
-    $editor.Panel.Dock='Fill';$view.Controls.Add($editor.Panel)
-    try{
-        Assert ($editor.Rows.Count -eq 2 -and $editor.Rows[0].Url.Text -eq $url) 'Inline GUI lost per-link rows.'
-        Assert ($editor.Rows[0].Preview.Image -and $editor.Rows[1].Preview.Image) 'Inline image thumbnails missing.'
-        Assert ($editor.Rows[0].Preview.AllowDrop) 'Missing inline drop target.'
-        $editor.Rows[0].Url.Text='https://example.test/p/new-link'
-        Assert (-not $editor.Rows[0].Preview.Image -and -not $editor.Rows[0].ImagePath) 'Changing a URL carried over the previous product reference.'
-        $queue=Join-Path $temp 'urls.txt'
-        $blocked=$false;try{Save-ProductQueueEditor $editor $queue -RequireReady}catch{$blocked=$true}
-        Assert $blocked 'Start preflight accepted an unattached row.'
-        Add-ProductQueueLinks $editor "https://example.test/p/third`nhttps://example.test/p/fourth`nhttps://example.test/p/third"
-        Assert ($editor.Rows.Count -eq 4) 'Bulk paste lost URL pairs or added duplicate rows.'
-        $editor.Rows[0].Url.Text=$url
-        Assert ($editor.Rows[0].Preview.Image) 'Returning to a saved URL did not restore its own thumbnail.'
-        Set-ProductQueueReference $editor $editor.Rows[2] $first.file
-        Assert ($editor.Rows[2].ImagePath -and $editor.Rows[0].ImagePath -eq $first.file) 'Attaching a new row image replaced a different product pairing.'
-        $fourthUrl=$editor.Rows[3].Url.Text;$editor.Rows[3].Url.Text=$url
-        $blocked=$false;try{Save-ProductQueueEditor $editor $queue}catch{$blocked=$_.Exception.Message -match [regex]::Escape($url)}
-        Assert $blocked 'Duplicate URL rows can overwrite each other reference mapping.'
-        $editor.Rows[3].Url.Text=$fourthUrl
-        Set-ProductQueueReference $editor $editor.Rows[1] $first.file
-        Set-ProductQueueReference $editor $editor.Rows[3] $first.file
-        Save-ProductQueueEditor $editor $queue -RequireReady
-        Assert (@(Get-Content -LiteralPath $queue).Count -eq 4) 'Inline queue did not persist its URLs.'
-        $view.Show();$view.Refresh();$editor.Flow.ScrollControlIntoView($editor.Rows[3].Card)
-        $editor.Rows[3].Card.Controls.Find('RemoveProduct',$true)[0].PerformClick()
-        Assert ($editor.Rows.Count -eq 3 -and $editor.Rows[2].Number.Text -eq '#3') 'Removing an inline row changed the wrong pair or row numbering.'
-        $view.Show();$view.Refresh()
-        $shot=[Drawing.Bitmap]::new($view.Width,$view.Height)
-        try{$view.DrawToBitmap($shot,[Drawing.Rectangle]::new(0,0,$shot.Width,$shot.Height));$shot.Save((Join-Path $TestWorkspaceRoot 'inline-queue-preview.png'),[Drawing.Imaging.ImageFormat]::Png)}finally{$shot.Dispose()}
-    }finally{$view.Dispose()}
     [IO.File]::WriteAllText($first.file,'tampered snapshot');$script:Config.ActiveProductUrl=$url
     $rejected=$false;try{Select-ProductReferences 'product.jpg' 'table' 'changed-manual' $context|Out-Null}catch{$rejected=$true}
     Assert $rejected 'Changed manual snapshot was used without verification.'
-    Write-Host 'PASS: per-URL image snapshots, serialized worker inputs, strict explicit selection, rejection without substitution and manual-reference UI.' -ForegroundColor Green
+    Write-Host 'PASS: per-URL image snapshots, serialized worker inputs, strict explicit selection, and rejection without substitution.' -ForegroundColor Green
 }finally{
     $resolved=[IO.Path]::GetFullPath($temp);$allowed=[IO.Path]::GetFullPath($TestWorkspaceRoot).TrimEnd('\')+'\'
     if($resolved.StartsWith($allowed,[StringComparison]::OrdinalIgnoreCase) -and (Split-Path $resolved -Leaf) -like 'manual-ref-*'){Remove-Item -LiteralPath $resolved -Recurse -Force}

@@ -1,6 +1,5 @@
-// macOS window for Product Review. Layout, texts and behaviour follow the Windows window
-// (src/ui/main-window.ps1 and the dialogs next to it) control by control; the work itself runs in
-// PowerShell through server.mjs.
+// Product Review's window, on macOS and Windows alike, drawn like Windows 10 classic controls; the work itself runs
+// in PowerShell through server.mjs.
 "use strict";
 
 // ---------- helpers ----------

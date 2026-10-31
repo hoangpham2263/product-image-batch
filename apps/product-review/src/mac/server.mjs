@@ -68,7 +68,7 @@ function rpc(cmd, args = {}) {
   });
 }
 
-// ----- Batch run (same arguments as New-RunArguments in main-window.ps1) -----
+// ----- Batch run (src/run-images.ps1) -----
 const run = { proc: null, events: [], index: 0, stopped: false, exitCode: null, resultFolder: "", logFile: "", errFile: "", done: false };
 async function receive(line) {
   const event = await rpc("event", { line, index: run.index }).catch(() => null);

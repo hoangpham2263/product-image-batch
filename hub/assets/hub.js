@@ -84,7 +84,7 @@
     };
   };
 
-  // Same window as Windows (hub/setup/setup-dialog.ps1): each step the tools need, a fix button on the ones not
+  // Each step the tools need (hub/setup/setup-check.ps1), a fix button on the ones not
   // done, then Model AI. Settings are saved once for every tool.
   const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const post = (path, data, method = "POST") => fetch(path, { method, body: data ? JSON.stringify(data) : undefined }).then((r) => r.json()).catch(() => ({ error: "Không kết nối được." }));

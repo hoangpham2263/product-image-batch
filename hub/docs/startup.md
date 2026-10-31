@@ -33,4 +33,3 @@ Các cơ chế này xử lý các dạng lỗi đã xác định; không bảo �
 ## Còn làm
 
 - Chạy thử trên máy Windows thật: mở menu, mở từng tool, Cấu hình, Cập nhật, chọn ảnh, chạy và Dừng một lượt Product Review, đóng cửa sổ khi đang chạy. Chưa kiểm tra được từ máy Mac.
-- WinForms của Product Review (`apps/product-review/src/gui.ps1`) còn giữ làm dự phòng; bỏ khi bản web chạy ổn trên Windows.
