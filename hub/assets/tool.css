@@ -73,16 +73,8 @@ header .config + .update { margin-left: 0; }
 .setup-status.todo { border-color: #b06000; background: #fff8ef; }
 .setup-status.todo .mark { color: #b06000; }
 .setup-status .btn { height: 28px; }
-/* Cấu hình (hub.js): each step with its state and fix button, then Model AI. */
-.dialog.setup { width: 520px; }
-.setup .step { display: grid; grid-template-columns: 26px 1fr 110px; gap: 2px 8px; align-items: center; margin-bottom: 12px; }
-.setup .mark { font-size: 16px; color: var(--muted); }
-.setup .step .detail { grid-column: 2; color: var(--muted); font-size: 12px; }
+/* Cấu hình page (hub/setup/page.html): Chép mã beside Codex's one-time code. */
 .copy-code { margin: 0 2px; padding: 1px 8px; font-size: 12px; min-height: 0; height: auto; }
-.setup .step .btn { grid-row: 1 / span 2; grid-column: 3; }
-.setup .ai { display: grid; grid-template-columns: 1fr 188px; gap: 6px 10px; margin: 16px 0 20px 34px; }
-.setup .ai > span { grid-column: 1 / -1; }
-.setup .err { color: var(--warn, #b06000); min-height: 20px; }
 /* Dialog (Cập nhật), like Product Review's small windows. */
 .shade { position: fixed; inset: 0; background: rgba(0, 0, 0, .25); display: flex; align-items: center; justify-content: center; }
 .dialog { width: 440px; background: var(--control); border: 1px solid var(--line); box-shadow: 0 8px 24px rgba(0, 0, 0, .2); padding: 20px; }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cấu hình</title>
+<link rel="stylesheet" href="/setup/tool.css">
+<script src="/setup/page.js" defer></script>
+<style>
+/* Cấu hình as a page of its own (hub/setup/config-api.mjs serves it to the menu and every tool's server): each AI
+   with the account it is signed in to and what it is used for, then what has to be installed, then Model AI. */
+.setup-page { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.items { display: grid; gap: 8px; }
+.item { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 2px 10px; align-items: start; background: var(--surface); border: 1px solid var(--line); padding: 10px 12px; }
+.item .mark { font-size: 15px; color: var(--muted); line-height: 20px; }
+.item .body { min-width: 0; display: grid; gap: 2px; }
+.item .name { line-height: 20px; }
+.item .account { overflow-wrap: anywhere; }
+.item .account.none { color: var(--muted); }
+.item .detail, .item .uses { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.item .side { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.item .side .btn { min-width: 110px; }
+.item .drive-form { display: flex; gap: 6px; margin-top: 4px; }
+.item .drive-form input { flex: 1; }
+.item .err { color: #b06000; font-size: 12px; }
+.ai-model { display: grid; grid-template-columns: minmax(0, 1fr) 188px; gap: 6px 10px; }
+.ai-model > span { grid-column: 1 / -1; }
+header .again { margin-left: auto; }
+@media (max-width: 760px) { .setup-page { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <header><button class="btn back" type="button">← Quay lại</button><h1>Cấu hình</h1><button class="btn again" type="button">Kiểm tra lại</button></header>
+  <div class="layout setup-page">
+    <section class="group wide"><h2>Tài khoản AI · mỗi AI đăng nhập riêng, có thể là tài khoản khác nhau</h2><div class="items" id="ai"></div></section>
+    <section class="group"><h2>Cài đặt</h2><div class="items" id="base"></div></section>
+    <section class="group"><h2>Model AI của Codex</h2>
+      <div class="ai-model"><span class="muted">Model nhẹ, mức thấp tốn ít token hơn.</span><select class="model"></select><select class="effort"></select></div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

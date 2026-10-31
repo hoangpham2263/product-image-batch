@@ -1,5 +1,6 @@
 // Cấu hình, shared by the Tools Hub menu (hub/picker.mjs) and Product Review's server: the same steps and
 // settings as hub/setup/*.ps1, kept once per install in <hub>/workspace/config.
+//   GET /setup[?back=<path>]        the Cấu hình page (page.html, page.js; tool.css from hub/assets)
 //   POST /api/setup                 the steps (setup-check.ps1 -AsJson)
 //   POST /api/setup-step {step}     install: Codex and every tool's browser bridge; login: codex login with a
 //                                   one-time code, typed on the sign-in page opened in the tools' own Chrome;
@@ -8,7 +9,7 @@
 //   GET|POST /api/config/ai         Model AI: { settings, models } / save { model, effort }
 //   GET|POST|DELETE /api/config/drive   the app password: { drive } / log in { password } / log out
 import { execFile, spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findTool as findIn, runTool, psCommand, psFile, onWindows, killTree } from "../platform.mjs";
@@ -67,7 +68,14 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
     });
   };
 
+  // The page and its two files, the same from the menu and from every tool's server.
+  const PAGE = { "/setup": [join(here, "page.html"), "text/html"], "/setup/page.js": [join(here, "page.js"), "text/javascript"], "/setup/tool.css": [join(here, "..", "assets", "tool.css"), "text/css"] };
   return async function handle(req, res, path) {
+    if (PAGE[path] && req.method === "GET") {
+      res.writeHead(200, { "content-type": `${PAGE[path][1]}; charset=utf-8`, "cache-control": "no-store" });
+      res.end(readFileSync(PAGE[path][0]));
+      return true;
+    }
     if (path === "/api/setup" && req.method === "POST") {
       const {status, report} = await readSetup();
       json(res, status, report);

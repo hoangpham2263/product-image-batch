@@ -933,107 +933,8 @@ function showReviewPreview(item, decide) {
   b.append(original, at(label("Ảnh kết quả"), 548, 12, 500, 24), product, sceneLabel, scene, result, body, state_, keep, skip);
 }
 
-// ----- Cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
-async function showSetupDialog() {
-  const view = openWindow("Cấu hình", 520, 566);
-  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool", "Google (Flow, Gemini)", "Antigravity CLI"];
-  const rows = titles.map((title, i) => {
-    const y = 16 + i * 54;
-    const icon = at(label("○"), 20, y, 26, 24);
-    icon.style.fontSize = "16px";
-    const detail = at(label("", "muted"), 52, y + 22, 330, 32);
-    Object.assign(detail.style, { whiteSpace: "normal", lineHeight: "16px", display: "-webkit-box", webkitLineClamp: "2", webkitBoxOrient: "vertical" });
-    const fix = at(button("", true), 390, y + 6, 110, 32);
-    fix.hidden = true;
-    view.body.append(icon, at(label(title), 52, y, 330, 22), detail, fix);
-    return { icon, detail, fix };
-  });
-  // Model AI: the model and reasoning level Codex uses (Get-AiSettings); lighter ones use fewer tokens.
-  const aiModel = at(combo(), 52, 478, 250, 24), aiEffort = at(combo(), 312, 478, 188, 24);
-  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 452, 448, 22), aiModel, aiEffort);
-  const effortNames = { low: "Thấp · ít token nhất", medium: "Vừa", high: "Cao", xhigh: "Rất cao", max: "Tối đa", ultra: "Siêu cao" };
-  let models = [];
-  const fillEfforts = (selected) => {
-    const model = models.find((m) => m.slug === aiModel.value);
-    const efforts = ["", ...(model ? list(model.efforts) : ["low", "medium", "high"])];
-    aiEffort.setItems(efforts, efforts.map((e) => (e ? effortNames[e] + (model && e === model.default_effort ? " (mặc định)" : "") : "Mức suy nghĩ mặc định")));
-    aiEffort.value = efforts.includes(selected) ? selected : "";
-  };
-  const saveAi = () => { fillEfforts(aiEffort.value); api("aiSettingsSet", { model: aiModel.value, effort: aiEffort.value }).catch((e) => messageBox(e.message, "Model AI")); };
-  aiModel.onchange = saveAi; aiEffort.onchange = saveAi;
-  api("aiModels").then((r) => {
-    models = list(r.models);
-    const saved = r.settings || {};
-    if (saved.model && !models.some((m) => m.slug === saved.model)) models.unshift({ slug: saved.model, name: saved.model, efforts: ["low", "medium", "high"], default_effort: "" });
-    aiModel.setItems(["", ...models.map((m) => m.slug)], ["Model mặc định của Codex", ...models.map((m) => m.name)]);
-    aiModel.value = saved.model || "";
-    fillEfforts(saved.effort || "");
-  }).catch(() => { aiModel.setItems([""], ["Model mặc định của Codex"]); fillEfforts(""); });
-  const again = at(button("Kiểm tra lại"), 290, 516, 110, 34), close = at(button("Đóng"), 410, 516, 90, 34);
-  close.onclick = view.close;
-  view.body.append(again, close);
-  const icons = { ok: ["✔", "var(--ok)"], fail: ["✖", "var(--error)"], warn: ["!", "var(--warn)"] };
-  const check = async () => {
-    again.disabled = true;
-    for (const row of rows) { row.icon.textContent = "○"; row.icon.style.color = "var(--muted)"; row.detail.textContent = "Đang kiểm tra…"; row.fix.hidden = true; }
-    try {
-      const steps = list((await (await fetch("/api/setup", { method: "POST" })).json()).Steps);
-      const ids = ["drive", "node", "codex", "login", "quota", "browser", "google", "antigravity"];
-      steps.forEach((step) => {
-        const row = rows[ids.indexOf(step.Id)];
-        if (!row) return;
-        const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
-        row.icon.textContent = mark; row.icon.style.color = color;
-        row.detail.textContent = step.Detail || "";
-        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "browser" ? "Mở" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.classList.toggle("primary", step.State !== "ok"); row.fix.onclick = () => fix(step.Action, row); }
-      });
-    } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
-    finally { again.disabled = false; }
-  };
-  // While Codex signs in (from this window or another): the one-time code to type on the page opened in the tools'
-  // Chrome. The buttons work meanwhile; Đăng nhập again starts over with a new code.
-  const watchLogin = setInterval(async () => {
-    if (!rows[3].detail.isConnected) return clearInterval(watchLogin);
-    const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
-    const detail = rows[3].detail;
-    if (!code || (detail.dataset.code === code && detail.querySelector(".copy-code"))) return;
-    // Drawn once per code, with Chép mã to paste it on the sign-in page.
-    detail.dataset.code = code;
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.className = "copy-code";
-    copy.textContent = "Chép mã";
-    copy.onclick = async () => {
-      // The clipboard API needs a focused page; the old copy command covers the rest.
-      const done = await navigator.clipboard.writeText(code).then(() => true, () => {
-        const box = Object.assign(document.createElement("textarea"), { value: code });
-        document.body.append(box);
-        box.select();
-        const ok = document.execCommand("copy");
-        box.remove();
-        return ok;
-      });
-      copy.textContent = done ? "Đã chép" : "Chưa chép được";
-      setTimeout(() => { copy.textContent = "Chép mã"; }, 2000);
-    };
-    detail.replaceChildren(`Mã đăng nhập: ${code} `, copy, ". Dán vào trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.");
-    for (const r of rows) r.fix.disabled = false;
-  }, 1000);
-  // Installing or signing in runs here; the steps are checked again when it finishes.
-  const fix = async (action, row) => {
-    if (action === "drive") { await showDriveDialog(); return check(); }
-    for (const r of rows) r.fix.disabled = true;
-    row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đang mở trang đăng nhập ChatGPT trong Chrome của tool…";
-    const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
-    if (r.superseded) return;
-    for (const x of rows) x.fix.disabled = false;
-    Object.assign(state, { codex: (await api("state")).codex });
-    await check();
-    if (r.error) row.detail.textContent = r.error;
-  };
-  again.onclick = check;
-  check();
-}
+// ----- Cấu hình: the hub's page (hub/setup/page.html), shared with the menu; "← Quay lại" comes back here -----
+function showSetupDialog() { location.href = `/setup?back=${encodeURIComponent(location.pathname + location.search)}`; }
 
 // ----- Cập nhật (Show-UpdateDialog): check, then download and install with a running bar -----
 function showUpdateDialog() {
@@ -1075,31 +976,6 @@ function showUpdateDialog() {
     setTimeout(wait, 800);
   };
   check();
-}
-
-// ----- Google Drive (Show-DriveLogin) -----
-function showDriveDialog() {
-  const view = openWindow("Mật khẩu app", 400, 170);
-  const info = at(label(""), 20, 18, 360, 40);
-  info.style.whiteSpace = "normal";
-  const pass = at(el("input", "text", { type: "password" }), 20, 62, 360, 25);
-  const err = at(label(""), 20, 94, 360, 22);
-  err.style.color = "var(--warn)";
-  const ok = at(button("", true), 260, 120, 120, 36);
-  view.body.append(info, pass, err, ok);
-  if (state.drive) {
-    info.textContent = "Đã đăng nhập trên máy này. Ảnh tạo xong tự tải lên Drive.";
-    pass.hidden = true; ok.textContent = "Đăng xuất";
-    ok.onclick = async () => { await api("driveLogout"); view.close(); };
-  } else {
-    info.textContent = "Nhập mật khẩu app một lần trên máy này để tải ảnh lên Drive và dùng kho Drive.";
-    ok.textContent = "Đăng nhập";
-    const login = async () => { try { await api("driveLogin", { password: pass.value }); view.close(); } catch (e) { err.textContent = e.message; } };
-    ok.onclick = login;
-    pass.onkeydown = (e) => { if (e.key === "Enter") login(); };
-    pass.focus();
-  }
-  return new Promise((resolve) => { view.onClose = async () => { Object.assign(state, { drive: (await api("state")).drive }); resolve(); }; });
 }
 
 // ----- run (Start-GuiBatch, timer ticks) -----

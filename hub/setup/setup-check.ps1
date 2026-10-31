@@ -29,6 +29,16 @@ if ($engine) {
         $apiKey = $loggedIn -and $status -match '(?i)api key'
     } catch { $loggedIn = $false }
 }
+# The ChatGPT account Codex signed in with: the email in its sign-in token (auth.json), never the token itself.
+$codexAccount = ''
+if ($loggedIn -and -not $apiKey) {
+    try {
+        $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+        $part = ((Get-Content -LiteralPath (Join-Path $codexHome 'auth.json') -Raw | ConvertFrom-Json).tokens.id_token -split '\.')[1].Replace('-', '+').Replace('_', '/')
+        $part += '=' * ((4 - $part.Length % 4) % 4)
+        $codexAccount = [string]([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($part)) | ConvertFrom-Json).email
+    } catch { $codexAccount = '' }
+}
 $checks.Add([pscustomobject]@{
     Ok = $loggedIn
     Message = $(if ($apiKey) { 'Tài khoản: đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'ChatGPT: đã đăng nhập.' } else { 'ChatGPT: chưa đăng nhập hoặc phiên đăng nhập đã hết hạn.' })
@@ -86,43 +96,50 @@ if ($browserReady -and $node) {
 }
 function Get-WebStep([string]$Id, [string]$Title, [string]$Site, [string]$Uses) {
     $state = if (-not $browserReady) { 'wait' } elseif (-not $web) { 'warn' } elseif ($web.$Site) { 'ok' } else { 'fail' }
+    # Flow and Gemini open with the first (default) Google account; the others are only listed.
+    $accounts = @(if ($web -and $web.accounts) { $web.accounts })
     $detail = switch ($state) {
         'wait' { 'Mở Chrome của tool trước.' }
         'warn' { 'Chưa kiểm tra được. Bấm Mở để xem trong Chrome của tool.' }
-        'ok' { "Đã đăng nhập. Dùng cho $Uses." }
-        default { "Chưa đăng nhập. Bấm Mở rồi đăng nhập; cần cho $Uses." }
+        'ok' { if ($accounts.Count -gt 1) { "Đã đăng nhập. Trong Chrome của tool còn: $(($accounts | Select-Object -Skip 1) -join ', ')." } else { 'Đã đăng nhập trong Chrome của tool.' } }
+        default { 'Chưa đăng nhập. Bấm Mở rồi đăng nhập Google trong Chrome của tool.' }
     }
-    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Action = $(if ($browserReady) { 'browser' } else { '' }) }
+    [pscustomobject]@{ Id = $Id; Title = $Title; State = $state; Detail = $detail; Account = $(if ($state -eq 'ok' -and $accounts.Count) { [string]$accounts[0] } else { '' }); Uses = $Uses; Action = $(if ($browserReady) { 'browser' } else { '' }) }
 }
 # Antigravity CLI (agy, Google sign-in): Viết review: Antigravity CLI. agy models answers only when signed in.
 $agy = Get-Command agy -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
 if (-not $agy) { $agy = @((Join-Path $HOME '.local/bin/agy'), (Join-Path $HOME '.local/bin/agy.exe')) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1 }
-$agyState = 'warn'; $agyDetail = 'Chưa cài (không bắt buộc). Cài Antigravity để chọn Viết review: Antigravity CLI.'
+$agyState = 'warn'; $agyDetail = 'Chưa cài (không bắt buộc). Cài Antigravity để chọn Viết review: Antigravity CLI.'; $agyAccount = ''
 if ($agy) {
     $agyOk = $false
+    # Its own sign-in, apart from Chrome's: its log names the account ("authenticated successfully as …").
+    $agyLog = [IO.Path]::GetTempFileName()
     try {
         # -WindowStyle exists only on Windows.
         $hidden = @{}; if ($env:OS -eq 'Windows_NT') { $hidden.WindowStyle = 'Hidden' }
-        $p = Start-Process -FilePath $agy -ArgumentList 'models' -PassThru @hidden -RedirectStandardOutput ([IO.Path]::GetTempFileName()) -RedirectStandardError ([IO.Path]::GetTempFileName())
+        $p = Start-Process -FilePath $agy -ArgumentList @('--log-file', "`"$agyLog`"", 'models') -PassThru @hidden -RedirectStandardOutput ([IO.Path]::GetTempFileName()) -RedirectStandardError ([IO.Path]::GetTempFileName())
         if ($p.WaitForExit(20000)) { $agyOk = $p.ExitCode -eq 0 } else { $p.Kill() }
+        if ((Get-Content -LiteralPath $agyLog -Raw -ErrorAction SilentlyContinue) -match 'authenticated successfully as (\S+@\S+)') { $agyAccount = $Matches[1] }
     } catch { $agyOk = $false }
-    if ($agyOk) { $agyState = 'ok'; $agyDetail = 'Đã đăng nhập Google. Dùng cho Viết review: Antigravity CLI.' }
+    Remove-Item -LiteralPath $agyLog -Force -ErrorAction SilentlyContinue
+    if ($agyOk) { $agyState = 'ok'; $agyDetail = 'Đã đăng nhập (tài khoản riêng của Antigravity, không theo Chrome).' }
     else { $agyState = 'fail'; $agyDetail = 'Chưa đăng nhập. Mở Antigravity (hoặc chạy agy trong Terminal) rồi đăng nhập Google.' }
 }
 $steps = @(
     [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $driveState; Detail = $driveDetail; Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
     [pscustomobject]@{ Id = 'codex'; Title = 'Codex'; State = $(if ($engine) { 'ok' } else { 'fail' }); Detail = $(if ($engine) { 'Đã cài.' } else { 'Chưa cài công cụ tạo ảnh.' }); Action = $(if ($engine) { '' } else { 'install' }) }
-    [pscustomobject]@{ Id = 'login'; Title = 'Đăng nhập ChatGPT'; State = $(if (-not $engine) { 'wait' } elseif ($loggedIn) { 'ok' } else { 'fail' })
+    [pscustomobject]@{ Id = 'login'; Title = 'Codex (ChatGPT)'; State = $(if (-not $engine) { 'wait' } elseif ($loggedIn) { 'ok' } else { 'fail' }); Account = $codexAccount; Uses = 'Viết review: Codex · Tạo ảnh: Codex' 
         Detail = $(if (-not $engine) { 'Cài Codex trước.' } elseif ($apiKey) { 'Đã cấu hình API, tính phí riêng.' } elseif ($loggedIn) { 'Đã đăng nhập.' } else { 'Chưa đăng nhập hoặc phiên đã hết hạn.' })
-        Action = $(if ($engine -and -not $loggedIn) { 'login' } else { '' }) }
+        # Signed in already: the same button signs in again with another account.
+        Action = $(if ($engine) { 'login' } else { '' }) }
     [pscustomobject]@{ Id = 'quota'; Title = 'Hạn mức sử dụng'; State = $(if (-not $loggedIn) { 'wait' } elseif ($apiKey -or $quotaAvailable) { 'ok' } else { 'warn' })
         Detail = $(if (-not $loggedIn) { 'Đăng nhập trước.' } else { $quotaText }); Action = '' }
     [pscustomobject]@{ Id = 'browser'; Title = 'Chrome của tool'; State = $(if ($browserReady) { 'ok' } else { 'warn' })
         Detail = $(if ($browserReady) { 'Đã mở để đăng nhập. Bấm Mở để đăng nhập thêm hoặc lại.' } else { 'Chưa mở. Bấm Mở rồi đăng nhập Google (Flow, Gemini), ChatGPT (lần đầu tải khoảng 150 MB).' })
         Action = 'browser' }
-    Get-WebStep 'google' 'Google (Flow, Gemini)' 'google' 'Tạo ảnh: Google Flow và Viết review: Gemini web'
-    [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Action = '' }
+    Get-WebStep 'google' 'Google (Flow, Gemini web)' 'google' 'Tạo ảnh: Google Flow · Viết review: Gemini web'
+    [pscustomobject]@{ Id = 'antigravity'; Title = 'Antigravity CLI'; State = $agyState; Detail = $agyDetail; Account = $agyAccount; Uses = 'Viết review: Antigravity CLI'; Action = '' }
 )
 $report = [pscustomobject]@{
     Ready = $ready

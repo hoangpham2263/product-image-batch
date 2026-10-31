@@ -6,7 +6,8 @@
 //   node hub/browser.mjs open <url>…   the same with these pages (the ChatGPT sign-in for Codex)
 //   node hub/browser.mjs start   start it hidden for a run, unless it is open already (not downloaded yet: exit 2)
 //   node hub/browser.mjs status  { installed, running }
-//   node hub/browser.mjs logins  { installed, google, chatgpt }: signed in there (its cookies); starts it hidden if needed
+//   node hub/browser.mjs logins  { installed, google, accounts, chatgpt }: signed in there (its cookies; accounts: the
+//                                Google accounts, the first one being what Flow and Gemini use); starts it hidden if needed
 // Prints one JSON line.
 import { spawn, execFile } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -65,6 +66,16 @@ async function cookies() {
   } finally { socket.close(); }
 }
 
+// The Google accounts signed in there, as Google's account switcher lists them (the first is the default one, which
+// Flow and Gemini open with). Empty when Google does not answer.
+async function googleAccounts(all) {
+  const cookie = all.filter((c) => ["accounts.google.com", ".accounts.google.com", ".google.com"].includes(c.domain)).map((c) => `${c.name}=${c.value}`).join("; ");
+  try {
+    const r = await fetch("https://accounts.google.com/ListAccounts?gpsia=1&source=ChromiumBrowser&json=standard", { method: "POST", headers: { cookie, origin: "https://www.google.com" }, signal: AbortSignal.timeout(10000) });
+    return JSON.parse(await r.text())[1].map((a) => a[3]).filter((e) => /@/.test(e));
+  } catch { return []; }
+}
+
 // Closes it through DevTools (Node 22+ has WebSocket; older Node is started with the flag) and waits until it is gone.
 async function close() {
   const { webSocketDebuggerUrl } = await devtools("/json/version");
@@ -120,7 +131,8 @@ async function main(command, urls) {
     const all = await cookies();
     const has = (domain, test) => all.some((c) => c.domain.endsWith(domain) && test(c.name) && c.expires !== 0);
     // Google's sign-in cookie covers Flow and Gemini; ChatGPT keeps its session in next-auth's (sometimes split) cookie.
-    return { installed: true, google: has("google.com", (n) => n === "SID" || n === "__Secure-1PSID"), chatgpt: has("chatgpt.com", (n) => n.startsWith("__Secure-next-auth.session-token")) };
+    const google = has("google.com", (n) => n === "SID" || n === "__Secure-1PSID");
+    return { installed: true, google, accounts: google ? await googleAccounts(all) : [], chatgpt: has("chatgpt.com", (n) => n.startsWith("__Secure-next-auth.session-token")) };
   }
   if (command === "start") {
     if (!existsSync(executable)) { process.exitCode = 2; return { error: "Chưa có Chrome của tool. Mở Cấu hình, bấm Mở ở dòng Chrome của tool." }; }
