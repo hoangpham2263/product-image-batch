@@ -9,11 +9,13 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findTool as findIn, runTool, psCommand, psFile } from "../platform.mjs";
+import { createSetupReader } from "./setup-report.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const q = (p) => p.replace(/'/g, "''");
 
 export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
+  const readSetup = createSetupReader({ hubRoot, pwsh, args: psFile(join(here, "setup-check.ps1"), ["-AsJson"]), env });
   const findTool = (name) => findIn(name, env);
   const json = (res, status, data) => { res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store" }); res.end(JSON.stringify(data)); };
   const body = (req) => new Promise((done) => { const chunks = []; req.on("data", (c) => chunks.push(c)); req.on("end", () => { try { done(JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}")); } catch { done({}); } }); });
@@ -29,9 +31,8 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
 
   return async function handle(req, res, path) {
     if (path === "/api/setup" && req.method === "POST") {
-      execFile(pwsh, psFile(join(here, "setup-check.ps1"), ["-AsJson"]), { cwd: hubRoot, env, timeout: 120000, windowsHide: true }, (err, stdout) => {
-        try { json(res, 200, JSON.parse(stdout)); } catch { json(res, 500, { error: "setup" }); }
-      });
+      const {status, report} = await readSetup();
+      json(res, status, report);
       return true;
     }
     if (path === "/api/setup-step" && req.method === "POST") {

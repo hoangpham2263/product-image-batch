@@ -91,7 +91,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const parts = url.pathname.split("/").map(decodeURIComponent);
   if (url.pathname === "/") { res.writeHead(200, { "content-type": TYPES[".html"] }); return res.end(page()); }
-  if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"] }); return res.end(JSON.stringify({ root, hub: true, version })); }
+  if (url.pathname === "/api/root") { res.writeHead(200, { "content-type": TYPES[".json"], "cache-control": "no-store" }); return res.end(JSON.stringify({ root, hub: true, version, service: "tools-hub-picker", protocol: 1, pid: process.pid })); }
   // Shared files: /hub/<name>, or /hub/assets/<name> as web tools link them (../../../hub/assets/<name>).
   if (parts[1] === "hub") return ASSETS.includes(parts.at(-1)) ? sendFile(res, join(here, "assets", parts.at(-1))) : (res.writeHead(404), res.end());
   if (await configApi(req, res, url.pathname)) return;

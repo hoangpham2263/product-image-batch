@@ -16,11 +16,27 @@
   // Cấu hình turns green while something is missing; closing the window checks again.
   const status = document.getElementById("setupStatus");
   const STEP_NAMES = { drive: "mật khẩu app", node: "Node.js", codex: "Codex", login: "đăng nhập ChatGPT" };
+  let setupRequest;
+  function requestSetup() {
+    if (setupRequest) return setupRequest;
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 50000);
+    setupRequest = fetch('/api/setup', { method: 'POST', signal: abort.signal, cache: 'no-store' })
+      .then(async response => {
+        const report = await response.json();
+        if (!response.ok) return { error: report.error || 'Không kiểm tra được cấu hình. Bấm Kiểm tra lại.' };
+        if (!Array.isArray(report.Steps) || [...Object.keys(STEP_NAMES), 'quota'].some(id => !report.Steps.some(step => step.Id === id))) return { error: 'Kết quả cấu hình chưa đầy đủ. Bấm Kiểm tra lại.' };
+        return report;
+      })
+      .catch(error => ({ error: error.name === 'AbortError' ? 'Kiểm tra cấu hình quá thời gian. Bấm Kiểm tra lại.' : 'Mất kết nối với app. Đóng và mở lại Tools Hub rồi kiểm tra lại.' }))
+      .finally(() => { clearTimeout(timer); setupRequest = null; });
+    return setupRequest;
+  }
   async function refreshStatus() {
     if (!status) return;
     status.className = "setup-status";
     status.innerHTML = `<span class="mark">○</span><span class="text muted">Đang kiểm tra cấu hình…</span>`;
-    const report = await fetch("/api/setup", { method: "POST" }).then((r) => r.json()).catch(() => null);
+    const report = await requestSetup();
     const steps = [].concat(report?.Steps || []);
     if (!steps.length) { status.innerHTML = `<span class="mark">!</span><span class="text">Chưa kiểm tra được cấu hình. Bấm Cấu hình để xem.</span>`; return; }
     const missing = steps.filter((s) => s.Id in STEP_NAMES && s.State !== "ok" && s.State !== "warn").map((s) => STEP_NAMES[s.Id]);
@@ -90,11 +106,16 @@
     const check = async () => {
       again.disabled = true;
       for (const r of rows) { r.mark.textContent = "○"; r.mark.style.color = ""; r.detail.textContent = "Đang kiểm tra…"; r.fix.hidden = true; }
-      const report = await post("/api/setup");
+      const report = await requestSetup();
       const steps = [].concat(report.Steps || []);
-      if (!steps.length) rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại.";
-      steps.forEach((step, i) => {
-        const r = rows[i];
+      if (!steps.length) {
+        for (const row of rows) {
+          row.mark.textContent = "!"; row.mark.style.color = "#b06000";
+          row.detail.textContent = report.error || "Chưa kiểm tra được. Bấm Kiểm tra lại.";
+        }
+      }
+      steps.forEach((step) => {
+        const r = rows[['drive', 'node', 'codex', 'login', 'quota'].indexOf(step.Id)];
         if (!r) return;
         const [mark, color] = marks[step.State] || ["○", ""];
         r.mark.textContent = mark; r.mark.style.color = color; r.detail.textContent = step.Detail || "";

@@ -60,27 +60,47 @@ function Get-HubPort([string]$Dir, [int]$Base) {
     return $Base + ([Convert]::ToInt32($hex.Substring(0, 6), 16) % 1000)
 }
 if ($tools.Count -eq 1 -and $tools[0].mac) {
+    $serverService = [string]$tools[0].id
     $entry = [IO.Path]::GetFullPath((Join-Path $tools[0].Root $tools[0].mac)); $serverRoot = $tools[0].Root; $port = Get-HubPort $serverRoot 47000
     $env:PR_PORT = [string]$port; $serverLogs = Join-Path $serverRoot 'workspace/logs'; $arguments = @(('"' + $entry + '"'), '--no-open')
 } else {
+    $serverService = 'tools-hub-picker'
     $entry = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'picker.mjs')); $serverRoot = $root; $port = Get-HubPort $root 46000
     $env:HUB_PICKER_PORT = [string]$port; $serverLogs = $logs; $arguments = @(('"' + $entry + '"'))
 }
 $env:HUB_NO_WINDOW = '1'
-function Test-HubServer {
-    try {
-        $answer = (New-Object Net.WebClient).DownloadString("http://127.0.0.1:$port/api/root") | ConvertFrom-Json
-        return ([string]$answer.root).TrimEnd('\').ToLowerInvariant() -eq $serverRoot.TrimEnd('\').ToLowerInvariant()
-    } catch { return $false }
-}
-if (-not (Test-HubServer)) {
+. (Join-Path $PSScriptRoot 'server-health.ps1')
+$basePort = $port
+$addressFile = Join-Path $logs '../server-address.json'
+if (-not (Test-HubServer)) { Stop-LegacyHubServer }
+$serverReady = $false
+for ($attempt = 0; $attempt -lt 3 -and -not $serverReady; $attempt++) {
+    $port = Select-HubServerPort $basePort $addressFile
+    if ($serverService -eq 'tools-hub-picker') { $env:HUB_PICKER_PORT = [string]$port } else { $env:PR_PORT = [string]$port }
+    if (Test-HubServer) { $serverReady = $true; break }
     New-Item -ItemType Directory -Force -Path $serverLogs | Out-Null
-    $out = Join-Path $serverLogs 'server.log'; $err = Join-Path $serverLogs 'server.err.log'
+    $out = Join-Path $serverLogs "server-$port.log"; $err = Join-Path $serverLogs "server-$port.err.log"
     foreach ($file in @($out, $err)) { if ((Test-Path -LiteralPath $file) -and (Get-Item -LiteralPath $file).Length -gt 1MB) { Move-Item -LiteralPath $file -Destination ($file -replace '\.log$', '.old.log') -Force } }
-    Start-Process $node -ArgumentList $arguments -WorkingDirectory $serverRoot -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err | Out-Null
-    for ($i = 0; $i -lt 80 -and -not (Test-HubServer); $i++) { Start-Sleep -Milliseconds 250 }
-    if (-not (Test-HubServer)) { Write-HubError "Server did not start: $entry (port $port)"; Show-HubMessage "Không mở được Tools Hub.`r`n`r`nChi tiết ở workspace/logs/server.err.log."; return }
+    $serverProcess = Start-Process $node -ArgumentList $arguments -WorkingDirectory $serverRoot -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError $err -PassThru
+    [void]$serverProcess.Handle
+    try {
+        $deadline = (Get-Date).AddSeconds(20)
+        do {
+            $serverReady = Test-HubServer
+            if ($serverReady -or $serverProcess.HasExited) { break }
+            Start-Sleep -Milliseconds 250
+        } while ((Get-Date) -lt $deadline)
+    } finally {
+        # Only this launcher's own child; do not leave a failed startup running in the background.
+        if (-not $serverReady -and -not $serverProcess.HasExited) { $serverProcess.Kill(); $serverProcess.WaitForExit() }
+        $serverProcess.Dispose()
+    }
+    if (-not $serverReady) { Write-HubError "Server did not start: $entry (port $port); log: $err"; $basePort = $port + 1 }
 }
+if (-not $serverReady) { Show-HubMessage 'Không mở được Tools Hub. Xem workspace/logs/app-errors.log để biết tiến trình/cổng lỗi.'; return }
+$addressTemp = "$addressFile.$PID.tmp"
+@{root=$serverRoot;service=$serverService;port=$port} | ConvertTo-Json -Compress | Set-Content -LiteralPath $addressTemp -Encoding UTF8
+Move-Item -LiteralPath $addressTemp -Destination $addressFile -Force
 $startUrl = "http://127.0.0.1:$port/"
 
 # The WebView2 SDK is loaded from a copy in workspace/, so an update can replace hub/webview2 while the window is open.

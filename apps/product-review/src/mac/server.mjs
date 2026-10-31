@@ -168,7 +168,7 @@ const send = (res, status, data) => { res.writeHead(status, { "content-type": "a
 async function handle(req, res) {
   const url = new URL(req.url, "http://localhost");
   const path = url.pathname;
-  if (path === "/api/root") return send(res, 200, { root });
+  if (path === "/api/root") return send(res, 200, { root, service: "product-review", protocol: 1, pid: process.pid });
   // Errors in the window (app.js), kept like the Windows window's.
   if (path === "/api/client-error" && req.method === "POST") {
     const { message = "", stack = "" } = JSON.parse((await body(req)).toString("utf8") || "{}");
