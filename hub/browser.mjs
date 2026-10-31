@@ -84,7 +84,7 @@ async function open({ urls, hidden }) {
   }
   writeFileSync(modeFile, hidden ? "hidden" : "window");
   spawn(executable, [
-    `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, "--no-first-run", "--no-default-browser-check",
+    `--user-data-dir=${profile}`, `--remote-debugging-port=${PORT}`, "--no-first-run", "--no-default-browser-check", "--disable-infobars",
     "--disable-features=DisableLoadExtensionCommandLineSwitch", `--load-extension=${extensions().join(",")}`,
     "--window-size=1200,850", ...(hidden ? ["--headless=new", `--user-agent=${userAgent()}`] : []), ...urls,
   ], { detached: true, stdio: "ignore", windowsHide: hidden }).unref();

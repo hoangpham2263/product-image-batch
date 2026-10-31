@@ -54,7 +54,7 @@ export function appWindow(url, size = "1120,840") {
   if (onWindows) return;
   const args = [`--app=${url}`, `--window-size=${size}`];
   if (existsSync(toolsChrome)) {
-    return spawn(toolsChrome, [`--user-data-dir=${appProfile}`, "--no-first-run", "--no-default-browser-check", ...args], { detached: true, stdio: "ignore" }).unref();
+    return spawn(toolsChrome, [`--user-data-dir=${appProfile}`, "--no-first-run", "--no-default-browser-check", "--disable-infobars", ...args], { detached: true, stdio: "ignore" }).unref();
   }
   execFile("open", ["-na", "Google Chrome", "--args", ...args], (err) => { if (err) execFile("open", [url]); });
 }
