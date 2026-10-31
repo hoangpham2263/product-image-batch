@@ -8,7 +8,10 @@ const flowImages = () => new Set([...document.images].filter(isFlowImage).map((i
 async function generateFlow(job) {
   const composer = () => document.querySelector('.ProseMirror[contenteditable="true"]');
   let editor = await waitFor(composer, 30000, "ô nhập Flow");
-  if (flowAgentOn()) throw new Error(FLOW_AGENT);
+  if (flowAgentOn()) {
+    await turnAgentOff();
+    editor = await waitFor(composer, 30000, "ô nhập Flow");
+  }
   const before = flowImages();
   const files = filesFromJob(job);
   // Uploaded references appear in the project grid as well; record them so they are not mistaken for results.
@@ -51,10 +54,22 @@ onJob(generateFlow);
 // An account that has never used Flow first gets a welcome dialog (Tiếp theo / Đăng xuất) over the page; a click on
 // Dự án mới then lands on it. Only the user goes through it (Cấu hình → Mở Flow).
 const FLOW_WELCOME = "Google Flow của tài khoản đang chọn đang hiện màn hình chào lần đầu. Mở Cấu hình, bấm Mở Flow, bấm Tiếp theo cho xong rồi chạy lại.";
-// Flow's agent mode (Tác nhân) answers in a chat and makes video, not the image the run waits for; it is on by default
-// for some accounts. Turned off once in Flow, it stays off.
-const FLOW_AGENT = "Google Flow của tài khoản đang chọn đang bật Tác nhân, không tạo ảnh. Mở Cấu hình, bấm Mở Flow, vào một dự án, tắt Tác nhân và chọn mô hình ảnh Nano Banana rồi chạy lại.";
-const flowAgentOn = () => [...document.querySelectorAll("button")].some((b) => b.getAttribute("aria-pressed") === "true" && (b.classList.contains("agent-mode-chip") || /^(Tác nhân|Agent)$/i.test(b.innerText.trim())));
+// Flow's agent mode (Tác nhân) answers in a chat and makes video, not the image the run waits for; some accounts start
+// each project with it on. The run turns it off (a real click, like the generate button), and Flow's image model (Nano
+// Banana) is then the one in the composer. Only when that does not work does the run stop and say so.
+const FLOW_AGENT = "Google Flow của tài khoản đang chọn đang bật Tác nhân và app chưa tắt được, nên không tạo ảnh. Mở Cấu hình, bấm Mở Flow, vào một dự án, tắt Tác nhân và chọn mô hình ảnh Nano Banana rồi chạy lại.";
+const agentChip = () => [...document.querySelectorAll("button")].find((b) => b.getAttribute("aria-pressed") === "true" && (b.classList.contains("agent-mode-chip") || /^(Tác nhân|Agent)$/i.test(b.innerText.trim())));
+const flowAgentOn = () => !!agentChip();
+async function turnAgentOff() {
+  // A first-use tip (Tôi hiểu) can sit over the composer.
+  [...document.querySelectorAll("button")].find((b) => /^(check\s*)?(Tôi hiểu|Got it)$/i.test(b.innerText.trim()))?.click();
+  await sleep(500);
+  const chip = agentChip();
+  if (!chip) return;
+  const box = chip.getBoundingClientRect();
+  await chrome.runtime.sendMessage({ type: "click", x: box.left + box.width / 2, y: box.top + box.height / 2 }).catch(() => null);
+  await waitFor(() => !flowAgentOn(), 10000, "").catch(() => { throw new Error(FLOW_AGENT); });
+}
 const flowWelcome = () => [...document.querySelectorAll("[role=dialog]")].some((d) => {
   const texts = [...d.querySelectorAll("button")].map((b) => b.innerText.trim());
   return d.getBoundingClientRect().width > 0 && texts.some((t) => /^(Tiếp theo|Next)$/i.test(t)) && texts.some((t) => /^(Đăng xuất|Sign out)$/i.test(t));
