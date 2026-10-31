@@ -6,4 +6,6 @@
 /worker/*/.wrangler/
 # Sample photos are downloaded per group from Drive; only the catalog is versioned.
 /apps/*/data/source-photos/*/
+# Legacy photo cache retained locally in old Git checkouts; never publish these photos.
+/data/source-photos/
 .DS_Store
