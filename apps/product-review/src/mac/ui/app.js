@@ -977,8 +977,28 @@ async function showSetupDialog() {
   const watchLogin = setInterval(async () => {
     if (!rows[3].detail.isConnected) return clearInterval(watchLogin);
     const { code } = await fetch("/api/setup-login").then((r) => r.json()).catch(() => ({}));
-    if (!code) return;
-    rows[3].detail.textContent = `Mã đăng nhập: ${code}. Gõ mã này ở trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.`;
+    const detail = rows[3].detail;
+    if (!code || (detail.dataset.code === code && detail.querySelector(".copy-code"))) return;
+    // Drawn once per code, with Chép mã to paste it on the sign-in page.
+    detail.dataset.code = code;
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "copy-code";
+    copy.textContent = "Chép mã";
+    copy.onclick = async () => {
+      // The clipboard API needs a focused page; the old copy command covers the rest.
+      const done = await navigator.clipboard.writeText(code).then(() => true, () => {
+        const box = Object.assign(document.createElement("textarea"), { value: code });
+        document.body.append(box);
+        box.select();
+        const ok = document.execCommand("copy");
+        box.remove();
+        return ok;
+      });
+      copy.textContent = done ? "Đã chép" : "Chưa chép được";
+      setTimeout(() => { copy.textContent = "Chép mã"; }, 2000);
+    };
+    detail.replaceChildren(`Mã đăng nhập: ${code} `, copy, ". Dán vào trang đăng nhập vừa mở trong Chrome của tool. Lỗi thì bấm Đăng nhập để lấy mã mới.");
     for (const r of rows) r.fix.disabled = false;
   }, 1000);
   // Installing or signing in runs here; the steps are checked again when it finishes.

@@ -129,3 +129,4 @@ textarea.text { resize: none; padding: 2px 4px; line-height: 1.3; overflow-y: sc
 /* Nhập hàng loạt: the table reads as columns; the guide link looks like a link. */
 .text.mono { font: 12px/1.45 Menlo, Consolas, monospace; white-space: pre; overflow: auto; }
 .label.link { color: #0066cc; text-decoration: underline; cursor: pointer; }
+.copy-code { margin: 0 2px; padding: 1px 8px; font-size: 12px; min-height: 0; height: auto; }

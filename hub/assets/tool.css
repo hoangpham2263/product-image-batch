@@ -76,6 +76,7 @@ header .config + .update { margin-left: 0; }
 .setup .step { display: grid; grid-template-columns: 26px 1fr 110px; gap: 2px 8px; align-items: center; margin-bottom: 12px; }
 .setup .mark { font-size: 16px; color: var(--muted); }
 .setup .step .detail { grid-column: 2; color: var(--muted); font-size: 12px; }
+.copy-code { margin: 0 2px; padding: 1px 8px; font-size: 12px; min-height: 0; height: auto; }
 .setup .step .btn { grid-row: 1 / span 2; grid-column: 3; }
 .setup .ai { display: grid; grid-template-columns: 1fr 188px; gap: 6px 10px; margin: 16px 0 20px 34px; }
 .setup .ai > span { grid-column: 1 / -1; }
