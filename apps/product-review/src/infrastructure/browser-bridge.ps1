@@ -56,7 +56,8 @@ function Invoke-BrowserText([string]$Prompt, [string[]]$Images, [string]$ResultF
         try {
             Invoke-RestMethod -Uri "$script:BridgeUrl/generate" -Method Post -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec ($TimeoutSec + 120) | Out-Null
             $text = [IO.File]::ReadAllText($ResultFile, [Text.Encoding]::UTF8).Trim()
-            if ($text) { return $text }
+            # One finished call, counted in the app's usage line (web AIs report no tokens).
+            if ($text) { Write-Host '  [AI-CALL] gemini'; return $text }
             $detail = 'Gemini trả lời trống.'
         } catch { $detail = Get-BridgeError $_ }
         if ($attempt -eq 2 -or $detail -match 'Hết thời gian|timeout|đăng nhập|Extension') { break }
@@ -76,5 +77,6 @@ function Invoke-BrowserImage([string]$Platform, [string]$Prompt, [string[]]$Imag
         throw "[CAUSE:$cause] $Platform không tạo được ảnh. $detail"
     }
     ConvertTo-PngFile $Output
+    Write-Host "  [AI-CALL] $Platform"
     return $result
 }

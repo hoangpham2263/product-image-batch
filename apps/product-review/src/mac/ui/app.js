@@ -278,7 +278,7 @@ function buildMain() {
     box.setItems(values, labels);
     try { box.value = localStorage.getItem(key) || values[0]; } catch {}
     if (!box.value) box.value = values[0];
-    box.onchange = () => { try { localStorage.setItem(key, box.value); } catch {} };
+    box.onchange = () => { try { localStorage.setItem(key, box.value); } catch {} updateUsage(); };
     return [name, box];
   };
   [ui.lblText, ui.cmbText] = picker("Viết review:", 6, "textBackend", ["codex", "gemini", "antigravity"], ["Codex", "Gemini web", "Antigravity CLI"]);
@@ -1139,11 +1139,23 @@ function updateRunDisplay() {
 }
 const usage = { quota: "Hạn mức: đang lấy…", at: 0, reading: false };
 const formatCount = (n) => Number(n).toLocaleString("vi-VN");
+// Web AIs and Antigravity report no tokens: each finished call is counted instead ([AI-CALL]), and their limits are
+// the Google account's own, shown on their sites. Codex's tokens and quota only show when Codex is used.
+const CALL_NAMES = { gemini: ["Gemini web", "lượt"], antigravity: ["Antigravity", "lượt"], flow: ["Flow", "ảnh"], chatgpt: ["ChatGPT web", "ảnh"] };
+const LIMIT_NAMES = { gemini: "lượt Gemini", antigravity: "hạn mức Antigravity", flow: "credit Flow" };
 function updateUsage() {
+  if (!ui.lblTokens || !ui.cmbText) return;
   const t = run.tokens || { in: 0, cached: 0, out: 0 };
-  const tokens = t.in || t.out ? `Token: ${formatCount(t.in + t.out)} · vào ${formatCount(t.in)} · ra ${formatCount(t.out)}` : "Token: chưa chạy";
-  ui.lblTokens.textContent = tokens;
-  ui.lblQuota.textContent = usage.quota;
+  const [text, image] = run.active ? [run.text, run.image] : [ui.cmbText.value, ui.cmbBackend.value];
+  const usesCodex = text === "codex" || image === "codex";
+  const parts = Object.entries(run.calls || {}).map(([k, n]) => `${(CALL_NAMES[k] || [k])[0]}: ${formatCount(n)} ${(CALL_NAMES[k] || [, "lượt"])[1]}`);
+  if (t.in || t.out) parts.unshift(`Token: ${formatCount(t.in + t.out)} · vào ${formatCount(t.in)} · ra ${formatCount(t.out)}`);
+  ui.lblTokens.textContent = parts.length ? parts.join(" · ") : usesCodex ? "Token: chưa chạy" : "Lượt AI: chưa chạy";
+  const web = [...new Set([text, image])].filter((k) => LIMIT_NAMES[k]).map((k) => LIMIT_NAMES[k]);
+  const webText = web.length ? `${web.join(", ")} theo tài khoản Google` : "";
+  ui.lblQuota.textContent = !usesCodex ? `Hạn mức: ${webText}, xem trên trang của AI` : web.length ? `${usage.quota} · ${webText}` : usage.quota;
+  // Cut with … in a narrow window: the whole line shows on hover.
+  for (const l of [ui.lblTokens, ui.lblQuota]) l.title = l.textContent;
 }
 // Quota beside the run, kept current: read when the window opens, every minute, after each run and, while a run
 // goes, after calls that used tokens.
@@ -1167,6 +1179,7 @@ function receive(event) {
     case "Completed": if (run.stages.get(event.Index) !== "Đã xong") run.done++; run.stages.set(event.Index, event.Stage); break;
     case "Failed": run.stages.set(event.Index, event.Stage); run.failure = true; break;
     case "Warning": run.failure = true; break;
+    case "Call": run.calls[event.Backend] = (run.calls[event.Backend] || 0) + 1; updateUsage(); break;
     case "Tokens":
       run.tokens.in += event.TokensIn; run.tokens.cached += event.TokensCached; run.tokens.out += event.TokensOut; updateUsage();
       // Quota follows the run: re-read it after a call used tokens, at most every 15 seconds.
@@ -1182,7 +1195,7 @@ async function startBatch() {
   if (!countUrls()) return messageBox("Vui lòng thêm ít nhất một link sản phẩm.");
   if (!state.codex) return messageBox('Chưa có công cụ xử lý. Bấm "Cấu hình" để xem hướng dẫn.');
   ui.txtLog.value = "";
-  Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "", tokens: { in: 0, cached: 0, out: 0 } });
+  Object.assign(run, { since: 0, total: countUrls(), done: 0, index: 0, stages: new Map(), jobRows: [], stage: "Đang chuẩn bị", stopped: false, failure: false, started: Date.now(), resultFolder: "", tokens: { in: 0, cached: 0, out: 0 }, calls: {} });
   updateUsage();
   for (const r of state.rows) r.stage = null;
   await updateReviewButton();

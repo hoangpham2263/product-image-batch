@@ -45,6 +45,8 @@ function Invoke-AntigravityText([string]$Prompt, [string[]]$Images, [string]$Res
         if ($process.ExitCode -eq 0 -and $text) {
             [IO.File]::WriteAllText($ResultFile, $text, [Text.UTF8Encoding]::new($false))
             Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+            # One finished call, counted in the app's usage line (they report no tokens).
+            Write-Host '  [AI-CALL] antigravity'
             return $text
         }
         $detail = (@($err.Result, $text) | Where-Object { $_ } | ForEach-Object { $_.Trim() }) -join ' '
