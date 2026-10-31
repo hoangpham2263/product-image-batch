@@ -74,6 +74,7 @@ start-app.cmd / start-app.command   mở Tools Hub
 hub/                launcher (chọn tool), cập nhật, dọn cấu trúc cũ
 apps/<tool>/        một tool: tool.json, src/, data/, tests/, docs/, AGENTS.md, workspace/ (không lên Git)
 apps/product-review/bridge, extension   tạo ảnh qua tab ChatGPT / Google Flow (tuỳ chọn)
+hub/browser.mjs     Chrome riêng của tool (workspace/browser): đăng nhập một lần từ Cấu hình, lúc chạy mở ẩn
 worker/             Cloudflare Worker tools-hub-api (Drive); legacy-redirect/ giữ địa chỉ cũ
 docs/               trang quản lý (GitHub Pages) và tài liệu API
 scripts/            công cụ chuẩn bị dữ liệu, đẩy ảnh lên kho

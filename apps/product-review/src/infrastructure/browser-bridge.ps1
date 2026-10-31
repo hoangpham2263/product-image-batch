@@ -14,11 +14,20 @@ function Start-ImageBridge([string]$ProjectRoot) {
         if ($script:OnWindows) { Start-Process node -ArgumentList ('"' + $server + '"') -WindowStyle Hidden | Out-Null }
         else { Start-Process node -ArgumentList $server | Out-Null }
     }
-    for ($i = 0; $i -lt 40; $i++) {
+    for ($i = 0; $i -lt 8; $i++) {
         if (Test-ImageBridge) { return }
         Start-Sleep -Milliseconds 750
     }
-    throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Chrome có cài extension và giữ tab ChatGPT/Flow đã đăng nhập.'
+    # No Chrome with the extension: open the tools' own Chrome (hub/browser.mjs) with no window, signed in from Cấu hình.
+    $browser = Join-Path (Get-HubRoot $ProjectRoot) 'hub/browser.mjs'
+    $flags = @(if ([int]((& node --version) -replace '^v(\d+).*', '$1') -lt 22) { '--experimental-websocket' })
+    $answer = (& node @flags $browser start | Select-Object -Last 1) | ConvertFrom-Json
+    if ($answer.error) { throw "[CAUSE:BRIDGE] $($answer.error)" }
+    for ($i = 0; $i -lt 60; $i++) {
+        if (Test-ImageBridge) { return }
+        Start-Sleep -Milliseconds 750
+    }
+    throw '[CAUSE:BRIDGE] Extension product-review-bridge chưa kết nối. Mở Cấu hình, bấm Mở ở dòng Chrome của tool rồi đăng nhập Google Flow, ChatGPT.'
 }
 
 # Browser backends cannot write files themselves; drop the file-delivery lines meant for Codex.

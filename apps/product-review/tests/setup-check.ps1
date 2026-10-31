@@ -19,7 +19,7 @@ foreach ($scenario in @('chatgpt', 'api', 'missing')) {
     if ($scenario -eq 'api' -and $report.Checks[2].Message -notmatch 'tính phí riêng') { throw 'API sign-in must not be reported as ChatGPT.' }
     if (-not $expected -and -not $report.Checks[2].Action) { throw 'Missing sign-in must include user guidance.' }
     $states = @($report.Steps | ForEach-Object State)
-    if (($report.Steps | ForEach-Object Id) -join ',' -ne 'drive,node,codex,login,quota') { throw 'Check steps are missing or out of order.' }
+    if (($report.Steps | ForEach-Object Id) -join ',' -ne 'drive,node,codex,login,quota,browser') { throw 'Check steps are missing or out of order.' }
     if ($expected -and $states[3] -ne 'ok') { throw 'Signed-in step must pass.' }
     if (-not $expected -and ($states[3] -ne 'fail' -or $states[4] -ne 'wait' -or $report.Steps[3].Action -ne 'login')) { throw 'Missing sign-in must block the quota step and offer sign-in.' }
 }

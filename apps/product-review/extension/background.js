@@ -21,6 +21,8 @@ function connect() {
     let job;
     try { job = JSON.parse(event.data); } catch { return; }
     if (job.type === "generate") runJob(job);
+    // After an update the app asks for this, so the new files load without a click in chrome://extensions.
+    if (job.type === "reload") chrome.runtime.reload();
   };
 }
 
@@ -33,10 +35,28 @@ async function findTab(platform) {
   if (!site) throw new Error(`Nền tảng không hỗ trợ: ${platform}`);
   const tabs = await chrome.tabs.query({ url: site.match });
   if (tabs.length) return tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-  if (platform === "flow") throw new Error("Mở một dự án Google Flow (flow.google.com/project/...) rồi chạy lại.");
+  if (platform === "flow") return newFlowProject();
   const tab = await chrome.tabs.create({ url: site.start, active: false });
   await waitForLoad(tab.id);
   return tab;
+}
+
+// No Flow project open: open Flow's home and press its new-project button, then use that project.
+async function newFlowProject() {
+  const [home] = await chrome.tabs.query({ url: "https://flow.google.com/*" });
+  const tab = home || await chrome.tabs.create({ url: "https://flow.google.com/", active: true });
+  if (!home) await waitForLoad(tab.id);
+  const ask = () => chrome.tabs.sendMessage(tab.id, { type: "new-project" });
+  // A tab open from before the extension (re)loaded has no content script: reload it once.
+  const at = await ask().catch(async () => { await chrome.tabs.reload(tab.id); await waitForLoad(tab.id); return ask(); }).catch(() => null);
+  if (!at?.ok) throw new Error(at?.error || "Không mở được Google Flow. Mở Cấu hình, bấm Mở ở dòng Chrome của tool rồi đăng nhập Google.");
+  await trustedClick(tab, at.x, at.y);
+  for (let i = 0; i < 60; i++) {
+    const now = await chrome.tabs.get(tab.id);
+    if (/^https:\/\/flow\.google\.com\/project\//.test(now.url || "") && now.status === "complete") return now;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  throw new Error("Google Flow chưa tạo được dự án mới.");
 }
 
 function waitForLoad(tabId) {
@@ -94,10 +114,10 @@ chrome.alarms.onAlarm.addListener(connect);
 chrome.runtime.onStartup.addListener(connect);
 chrome.runtime.onInstalled.addListener(connect);
 // A real left click at (x, y) in the tab's viewport, sent through the debugger so the page sees a trusted event.
-// Chrome shows its "debugging this browser" bar while attached, for this moment only.
+// Chrome shows its "debugging this browser" bar while attached, for this moment only. The window is left as it is
+// (the tools' own Chrome runs with none).
 async function trustedClick(tab, x, y) {
   await chrome.tabs.update(tab.id, { active: true });
-  await chrome.windows.update(tab.windowId, { focused: true });
   const target = { tabId: tab.id };
   await chrome.debugger.attach(target, "1.3");
   try {

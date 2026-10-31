@@ -89,6 +89,7 @@ CLI exit 0 không xác nhận công cụ tạo ảnh thành công. Giữ console
 - `src/workflow/steps/04-complete-image.ps1`, `src/infrastructure/image-output.ps1`: xuất PNG và phục hồi lỗi kết nối.
 - `src/application/reference-archive.ps1`: snapshot, nguồn và hash đầu vào.
 - `data/source-photos/catalog.json`: inventory và thông tin nguồn ảnh. Ảnh nằm trên Drive (tab Nguồn ảnh của trang quản lý), app tải theo nhóm về `data/source-photos/<nhóm>/`; không commit ảnh kho vào Git.
+- `extension/`, `bridge/`, `src/infrastructure/browser-bridge.ps1`: tạo ảnh qua tab Google Flow / ChatGPT. Chạy trong Chrome riêng (`hub/browser.mjs`): đăng nhập ở cửa sổ (Cấu hình → Mở), lúc chạy mở headless. Cửa sổ thu nhỏ bỏ qua cú bấm của extension. Flow chỉ nhận cú bấm thật (`chrome.debugger`); sau khi tải ảnh tham khảo Flow vẽ lại ô nhập, phải tìm lại.
 - `tests/run.ps1`: chạy suite liên quan bằng Windows PowerShell khi được phép.
 - `workspace/output/`: kết quả và log cục bộ, Git bỏ qua.
 

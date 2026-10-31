@@ -1,7 +1,8 @@
 // Cấu hình, shared by the Tools Hub menu (hub/picker.mjs) and Product Review's server: the same steps and
 // settings as hub/setup/*.ps1, kept once per install in <hub>/workspace/config.
 //   POST /api/setup                 the steps (setup-check.ps1 -AsJson)
-//   POST /api/setup-step {step}     install: Codex and every tool's browser bridge; login: codex login
+//   POST /api/setup-step {step}     install: Codex and every tool's browser bridge; login: codex login;
+//                                   browser: the tools' own Chrome to sign in to Google Flow, ChatGPT (hub/browser.mjs)
 //   GET|POST /api/config/ai         Model AI: { settings, models } / save { model, effort }
 //   GET|POST|DELETE /api/config/drive   the app password: { drive } / log in { password } / log out
 import { execFile } from "node:child_process";
@@ -9,6 +10,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { findTool as findIn, runTool, psCommand, psFile } from "../platform.mjs";
+import { browserArgs } from "../browser.mjs";
 import { createSetupReader } from "./setup-report.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +40,14 @@ export function createConfigApi({ hubRoot, pwsh, env = process.env }) {
     if (path === "/api/setup-step" && req.method === "POST") {
       // Cài (Codex via npm, then each tool's browser bridge) or Đăng nhập (opens the browser, waits for the sign-in).
       const { step } = await body(req);
+      if (step === "browser") {
+        // The first time this downloads Chrome for Testing (about 150 MB) before it opens.
+        execFile(process.execPath, browserArgs("login"), { cwd: hubRoot, env, timeout: 15 * 60000, windowsHide: true }, (err, stdout) => {
+          let r = {}; try { r = JSON.parse(String(stdout).trim().split(/\r?\n/).pop()); } catch { r = { error: err?.message || "Không mở được Chrome của tool." }; }
+          json(res, r.error ? 500 : 200, r);
+        });
+        return true;
+      }
       const npm = findTool("npm"), codex = findTool("codex");
       if (step === "install" && !npm) { json(res, 400, { error: "Chưa có Node.js. Mở lại start-app để cài." }); return true; }
       const [cmd, args] = step === "install" ? [npm, ["install", "-g", "@openai/codex"]] : [codex || "codex", ["login"]];

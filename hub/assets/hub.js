@@ -95,7 +95,7 @@
     return shade;
   }
   function showSetup() {
-    const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
+    const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool"];
     const shade = dialog("setup", `${titles.map((t) => `<div class="step"><span class="mark">○</span><span>${t}</span><span class="detail"></span><button class="btn primary" type="button" hidden></button></div>`).join("")}
       <div class="ai"><span>Model AI · model nhẹ, mức thấp tốn ít token hơn</span><select class="model"></select><select class="effort"></select></div>
       <div class="actions"><button class="btn again" type="button">Kiểm tra lại</button><button class="btn close" type="button">Đóng</button></div>`);
@@ -115,12 +115,12 @@
         }
       }
       steps.forEach((step) => {
-        const r = rows[['drive', 'node', 'codex', 'login', 'quota'].indexOf(step.Id)];
+        const r = rows[['drive', 'node', 'codex', 'login', 'quota', 'browser'].indexOf(step.Id)];
         if (!r) return;
         const [mark, color] = marks[step.State] || ["○", ""];
         r.mark.textContent = mark; r.mark.style.color = color; r.detail.textContent = step.Detail || "";
         if (step.Action) {
-          r.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập";
+          r.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "browser" ? "Mở" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập";
           r.fix.classList.toggle("primary", step.State !== "ok"); r.fix.hidden = false;
           r.fix.onclick = () => fix(step.Action, r);
         }
@@ -131,7 +131,7 @@
     const fix = async (action, row) => {
       if (action === "drive") { await showDrive(); return check(); }
       for (const r of rows) r.fix.disabled = true;
-      row.detail.textContent = action === "install" ? "Đang cài…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
+      row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
       const r = await post("/api/setup-step", { step: action });
       for (const x of rows) x.fix.disabled = false;
       await check();

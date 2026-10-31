@@ -918,8 +918,8 @@ function showReviewPreview(item, decide) {
 
 // ----- Cấu hình (Show-SetupDialog): each needed step, with a fix button on the ones not done -----
 async function showSetupDialog() {
-  const view = openWindow("Cấu hình", 520, 430);
-  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng"];
+  const view = openWindow("Cấu hình", 520, 488);
+  const titles = ["Mật khẩu app", "Node.js", "Codex", "Đăng nhập ChatGPT", "Hạn mức sử dụng", "Chrome của tool"];
   const rows = titles.map((title, i) => {
     const y = 16 + i * 58;
     const icon = at(label("○"), 20, y, 26, 24);
@@ -932,8 +932,8 @@ async function showSetupDialog() {
     return { icon, detail, fix };
   });
   // Model AI: the model and reasoning level Codex uses (Get-AiSettings); lighter ones use fewer tokens.
-  const aiModel = at(combo(), 52, 332, 250, 24), aiEffort = at(combo(), 312, 332, 188, 24);
-  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 306, 448, 22), aiModel, aiEffort);
+  const aiModel = at(combo(), 52, 390, 250, 24), aiEffort = at(combo(), 312, 390, 188, 24);
+  view.body.append(at(label("Model AI · model nhẹ, mức thấp tốn ít token hơn"), 52, 364, 448, 22), aiModel, aiEffort);
   const effortNames = { low: "Thấp · ít token nhất", medium: "Vừa", high: "Cao", xhigh: "Rất cao", max: "Tối đa", ultra: "Siêu cao" };
   let models = [];
   const fillEfforts = (selected) => {
@@ -952,7 +952,7 @@ async function showSetupDialog() {
     aiModel.value = saved.model || "";
     fillEfforts(saved.effort || "");
   }).catch(() => { aiModel.setItems([""], ["Model mặc định của Codex"]); fillEfforts(""); });
-  const again = at(button("Kiểm tra lại"), 290, 380, 110, 34), close = at(button("Đóng"), 410, 380, 90, 34);
+  const again = at(button("Kiểm tra lại"), 290, 438, 110, 34), close = at(button("Đóng"), 410, 438, 90, 34);
   close.onclick = view.close;
   view.body.append(again, close);
   const icons = { ok: ["✔", "var(--ok)"], fail: ["✖", "var(--error)"], warn: ["!", "var(--warn)"] };
@@ -967,7 +967,7 @@ async function showSetupDialog() {
         const [mark, color] = icons[step.State] || ["○", "var(--muted)"];
         row.icon.textContent = mark; row.icon.style.color = color;
         row.detail.textContent = step.Detail || "";
-        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.classList.toggle("primary", step.State !== "ok"); row.fix.onclick = () => fix(step.Action, row); }
+        if (step.Action) { row.fix.textContent = step.Action === "install" ? "Cài" : step.Action === "browser" ? "Mở" : step.Action === "drive" && step.State === "ok" ? "Đổi" : "Đăng nhập"; row.fix.hidden = false; row.fix.classList.toggle("primary", step.State !== "ok"); row.fix.onclick = () => fix(step.Action, row); }
       });
     } catch { rows[0].detail.textContent = "Chưa kiểm tra được. Bấm Kiểm tra lại."; }
     finally { again.disabled = false; }
@@ -976,7 +976,7 @@ async function showSetupDialog() {
   const fix = async (action, row) => {
     if (action === "drive") { await showDriveDialog(); return check(); }
     for (const r of rows) r.fix.disabled = true;
-    row.detail.textContent = action === "install" ? "Đang cài…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
+    row.detail.textContent = action === "install" ? "Đang cài…" : action === "browser" ? "Đang mở Chrome của tool (lần đầu tải về, có thể vài phút)…" : "Đăng nhập ChatGPT trong trình duyệt vừa mở…";
     const r = await (await fetch("/api/setup-step", { method: "POST", body: JSON.stringify({ step: action }) })).json().catch(() => ({ error: "setup" }));
     for (const x of rows) x.fix.disabled = false;
     Object.assign(state, { codex: (await api("state")).codex });

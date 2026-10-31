@@ -17,6 +17,11 @@ export function createBridge({ fetchImpl = fetch } = {}) {
     const send = (status, body) => { res.writeHead(status, { "content-type": "application/json; charset=utf-8" }); res.end(JSON.stringify(body)); };
     try {
       if (req.method === "GET" && req.url === "/status") return send(200, { extension: !!extension });
+      if (req.method === "POST" && req.url === "/reload") {
+        if (!extension) return send(503, { error: "Extension chưa kết nối." });
+        extension.send(JSON.stringify({ type: "reload" }));
+        return send(200, { ok: true });
+      }
       if (req.method !== "POST" || req.url !== "/generate") return send(404, { error: "not found" });
       let raw = "";
       for await (const chunk of req) raw += chunk;

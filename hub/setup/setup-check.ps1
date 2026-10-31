@@ -70,6 +70,10 @@ if (Test-Path -LiteralPath $driveFile) {
 }
 # The main window shows what is left; here only when it resets, to keep the step short.
 $quotaText = if ($quotaAvailable -and $quota.Resets) { "Đặt lại: $($quota.Resets)" } else { (@($quotaMessages) -join ' ').Trim() }
+# The tools' own Chrome (hub/browser.mjs): for runs on Google Flow or ChatGPT in the browser. Optional; its profile
+# exists once it has been opened to sign in.
+$browserDir = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) 'workspace/browser'
+$browserReady = (Test-Path -LiteralPath (Join-Path $browserDir 'profile/Default'))
 $steps = @(
     [pscustomobject]@{ Id = 'drive'; Title = 'Mật khẩu app'; State = $driveState; Detail = $driveDetail; Action = 'drive' }
     [pscustomobject]@{ Id = 'node'; Title = 'Node.js'; State = $(if ($node) { 'ok' } else { 'fail' }); Detail = $(if ($node) { 'Đã cài.' } else { 'Chưa cài. Cần để cài Codex.' }); Action = $(if ($node) { '' } else { 'install' }) }
@@ -79,6 +83,9 @@ $steps = @(
         Action = $(if ($engine -and -not $loggedIn) { 'login' } else { '' }) }
     [pscustomobject]@{ Id = 'quota'; Title = 'Hạn mức sử dụng'; State = $(if (-not $loggedIn) { 'wait' } elseif ($apiKey -or $quotaAvailable) { 'ok' } else { 'warn' })
         Detail = $(if (-not $loggedIn) { 'Đăng nhập trước.' } else { $quotaText }); Action = '' }
+    [pscustomobject]@{ Id = 'browser'; Title = 'Chrome của tool'; State = $(if ($browserReady) { 'ok' } else { 'warn' })
+        Detail = $(if ($browserReady) { 'Đã mở để đăng nhập. Bấm Mở để đăng nhập thêm hoặc lại.' } else { 'Chưa mở. Bấm Mở rồi đăng nhập Google Flow, ChatGPT (lần đầu tải khoảng 150 MB).' })
+        Action = 'browser' }
 )
 $report = [pscustomobject]@{
     Ready = $ready
