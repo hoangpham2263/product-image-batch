@@ -23,6 +23,7 @@ function cors(req) {
     "access-control-allow-origin": ORIGINS.includes(origin) ? origin : ORIGINS[0],
     "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "access-control-allow-headers": "content-type, x-admin-key",
+    "access-control-expose-headers": "x-version",
     vary: "origin",
   };
 }
@@ -487,6 +488,20 @@ async function handle(req, env, ctx) {
     const res = new Response(r.body, { headers: { "content-type": known.mime, "content-length": String(known.size), "accept-ranges": "bytes", "cache-control": "public, max-age=604800" } });
     ctx.waitUntil(cache.put(new Request(url.toString()), res.clone()));
     return res;
+  }
+
+  // Tools Hub itself: the code repo is private, so installs and updates come from here. The newest release ZIP and its
+  // version are put in KV by scripts/publish-release.sh. The version is public; the ZIP needs the app password.
+  if (path === "/app/version" && req.method === "GET") {
+    return json({ version: (await env.STORE.get("app:version")) || "" }, 200, { "cache-control": "no-store" });
+  }
+  if (path === "/app/download" && req.method === "GET") {
+    const role = await keyRole(req, env);
+    if (role !== "app" && role !== "admin") return json({ error: "Sai mật khẩu app." }, 401);
+    const zip = await env.STORE.get("app:zip", "arrayBuffer");
+    if (!zip) return json({ error: "Chưa có bản phát hành." }, 404);
+    const version = (await env.STORE.get("app:version")) || "";
+    return new Response(zip, { headers: { "content-type": "application/zip", "content-disposition": 'attachment; filename="tools-hub.zip"', "x-version": version, "cache-control": "no-store" } });
   }
 
   if (path === "/api/status" && req.method === "GET") {

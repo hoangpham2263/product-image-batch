@@ -18,7 +18,7 @@ App tạo ảnh review sản phẩm: ghép sản phẩm thật vào ảnh bối 
 
 ## Cài đặt
 
-1. [Tải bản mới nhất](https://github.com/hoangpham2263/tools-hub/releases/latest/download/tools-hub.zip) và giải nén.
+1. [Tải bản mới nhất](https://hoangpham.is-a.dev/tools-hub/) (cần mật khẩu app) và giải nén.
 2. Mở app: `start-app.cmd` (Windows) hoặc `start-app.command` (Mac).
 3. Bấm **Cấu hình**, rồi bấm **Cài** / **Đăng nhập** ở bước nào chưa đạt: mật khẩu app, Node.js, Codex, đăng nhập ChatGPT.
 
@@ -27,7 +27,7 @@ Có bản mới thì nút **Cập nhật** chuyển xanh; app chỉ cập nhật
 ## Chức năng
 
 - **Thêm sản phẩm:** dán link, gắn ảnh sản phẩm gốc và ảnh review (từ máy, kho Drive hoặc dán Ctrl/Cmd+V). Một link có thể có nhiều ảnh gốc, mỗi ảnh gốc nhiều ảnh review.
-- **Nhập hàng loạt:** chọn `products.csv` (ảnh để trong thư mục `images/` cạnh nó); app gắn đúng ảnh cho từng sản phẩm ([chuẩn thư mục](docs/import.md)).
+- **Nhập hàng loạt:** chọn `products.csv` (ảnh để trong thư mục `images/` cạnh nó); app gắn đúng ảnh cho từng sản phẩm ([chuẩn thư mục](https://hoangpham.is-a.dev/tools-hub/import.md)).
 - **Tạo ảnh:** mỗi cặp ảnh gốc + ảnh review cho một ảnh kết quả, giữ đúng sản phẩm; logo thật được thay bằng brand giả, watermark bị xoá.
 - **Viết review:** nội dung dựa trên ảnh, học cách viết từ kho review mẫu cùng danh mục; tên, sao, email và ngày được tạo ngẫu nhiên.
 - **Duyệt & xuất file:** Giữ/Bỏ từng ảnh, xong thì tạo `loox_import.csv` (chọn **Custom File** khi import vào Loox).
@@ -44,7 +44,7 @@ Luồng xử lý mặc định 2, tối đa 4. Link lỗi được giữ lại �
 - **Ảnh đã tạo:** lọc, duyệt, copy link, tải danh sách.
 - **Nguồn ảnh:** tạo danh mục, tải ảnh lên, bật/tắt danh mục hiện trong app.
 - **Log người dùng:** tải về hoặc xoá log app gửi lên.
-- **API:** tài liệu cho AI và **mã tạm** có thời hạn để AI tự tải ảnh lên kho ([docs/api.md](docs/api.md)).
+- **API:** tài liệu cho AI và **mã tạm** có thời hạn để AI tự tải ảnh lên kho ([api.md](https://hoangpham.is-a.dev/tools-hub/api.md)).
 - **Nhập hàng loạt:** chuẩn file nhập và file mẫu, xem được không cần đăng nhập.
 
 ## Mật khẩu
@@ -76,8 +76,7 @@ apps/<tool>/        một tool: tool.json, src/, data/, tests/, docs/, AGENTS.md
 apps/product-review/bridge, extension   tạo ảnh qua tab ChatGPT / Google Flow (tuỳ chọn)
 hub/browser.mjs     Chrome riêng của tool (workspace/browser): đăng nhập một lần từ Cấu hình, lúc chạy mở ẩn
 worker/             Cloudflare Worker tools-hub-api (Drive); legacy-redirect/ giữ địa chỉ cũ
-docs/               trang quản lý (GitHub Pages) và tài liệu API
-scripts/            công cụ chuẩn bị dữ liệu, đẩy ảnh lên kho
+scripts/            công cụ chuẩn bị dữ liệu, đẩy ảnh lên kho; publish-release.sh đưa bản phát hành lên Worker
 workspace/          trạng thái của hub (phiên bản, bản sao lưu), không lên Git
 ```
 

@@ -1,4 +1,5 @@
-# Push a tag like v2.0.0 to publish a Release; installed apps offer it in Cập nhật.
+# Push a tag like v2.0.0 to build its Release ZIP here (this repo is private); then scripts/publish-release.sh puts it
+# on the tools-hub-api Worker, where installs and the site download it with the app password.
 name: release
 on:
   push:
@@ -10,11 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # One fixed asset name, so releases/latest/download/tools-hub.zip always works. product-review-batch.zip is the
-      # same ZIP under the name installs from before Tools Hub look for, so they can still update into it.
+      # One fixed asset name (tools-hub.zip), the one scripts/publish-release.sh fetches. Developer-only folders are left
+      # out by .gitattributes export-ignore.
       - run: |
           git archive --format=zip --prefix=tools-hub/ -o tools-hub.zip "$GITHUB_REF_NAME"
-          cp tools-hub.zip product-review-batch.zip
-          gh release create "$GITHUB_REF_NAME" tools-hub.zip product-review-batch.zip --generate-notes --title "$GITHUB_REF_NAME"
+          gh release create "$GITHUB_REF_NAME" tools-hub.zip --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ github.token }}
