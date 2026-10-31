@@ -1126,7 +1126,7 @@ function updateRunDisplay() {
   const time = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   let activity = [...run.stages].filter(([, v]) => !["Đã xong", "Chưa hoàn tất"].includes(v)).sort((a, b) => a[0] - b[0]).map(([k, v]) => `SP ${k}: ${v}`);
   if (run.stage === "Đang lưu kết quả" || !activity.length) activity = [run.stage];
-  ui.lblProgress.textContent = `${run.done}/${run.total} ảnh đã xong  •  ${activity.join("  |  ")}  •  ${time}`;
+  ui.lblProgress.textContent = `${run.done}/${run.total} ảnh đã xong  •  ${activity.join("  |  ")}  •  ${time}  •  ${run.ai}`;
   // Each job's live stage on its queue row (a link with several images runs several jobs).
   for (const [key, value] of run.stages) {
     const i = run.jobRows.length >= key ? run.jobRows[key - 1] - 1 : key - 1;
@@ -1188,6 +1188,8 @@ async function startBatch() {
   await updateReviewButton();
   // The AIs chosen are the only ones used: nothing falls back to Codex without asking (finish()).
   Object.assign(run, { text: ui.cmbText.value, image: ui.cmbBackend.value });
+  // Shown on the progress line for the whole run: which AI writes, which one draws.
+  run.ai = `Viết review: ${ui.cmbText.selectedOptions[0]?.text} · Tạo ảnh: ${ui.cmbBackend.selectedOptions[0]?.text}`;
   const r = await fetch("/api/run", { method: "POST", body: JSON.stringify({ per: 1, threads: ui.numThr.value, backend: run.image, text: run.text }) });
   if (!r.ok) {
     const body = await r.json().catch(() => ({}));
@@ -1220,7 +1222,7 @@ async function finish(r) {
   await loadState();
   refreshQuota();
   const elapsed = Math.floor((Date.now() - run.started) / 1000);
-  ui.lblProgress.textContent = `Đã xong ${run.done}/${run.total} ảnh • ${Math.floor(elapsed / 60)} phút ${elapsed % 60} giây`;
+  ui.lblProgress.textContent = `Đã xong ${run.done}/${run.total} ảnh • ${Math.floor(elapsed / 60)} phút ${elapsed % 60} giây • ${run.ai}`;
   if (r.stopped) { setStatus("Đã dừng", "var(--muted)"); appendLog("Đã dừng. Các link chưa hoàn tất được giữ lại."); }
   else if (r.exitCode === 0 && !run.failure) {
     setStatus("✔ Hoàn tất", "var(--ok)");
